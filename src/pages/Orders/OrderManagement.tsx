@@ -24,6 +24,191 @@ import { apiRequest, parseApiResponse } from "../../config/api";
 const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void }) => {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
+  const handlePrintReceipt = (order: any) => {
+    // Create a hidden iframe for thermal printing
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = 'none';
+    
+    document.body.appendChild(printFrame);
+    
+    const doc = printFrame.contentWindow?.document;
+    if (!doc) return;
+    
+    // Calculate totals
+    const totalQty = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+    
+    // Format price helper - remove .00 decimals
+    const formatPrice = (price: number) => {
+      return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
+    };
+    
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - ${order.orderId}</title>
+          <style>
+            @media print {
+              @page {
+                size: 58mm auto;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+            }
+            
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: 'Courier New', monospace; 
+              width: 58mm; 
+              margin: 0 auto; 
+              padding: 3mm; 
+              font-size: 11px; 
+              line-height: 1.3;
+              color: #000;
+            }
+            .center { text-align: center; }
+            .bold { font-weight: bold; }
+            .restaurant-name { 
+              font-size: 16px; 
+              font-weight: bold; 
+              letter-spacing: 1px;
+              margin-bottom: 3px;
+            }
+            .address { 
+              font-size: 10px; 
+              line-height: 1.2;
+              margin-bottom: 2px;
+            }
+            .divider { 
+              border-top: 1px dashed #000; 
+              margin: 5px 0;
+            }
+            .row { 
+              display: flex; 
+              justify-content: space-between;
+              font-size: 10px;
+              margin: 2px 0;
+            }
+            .items-header {
+              font-size: 10px;
+              display: flex;
+              justify-content: space-between;
+              margin: 5px 0 3px 0;
+            }
+            .item-row {
+              font-size: 10px;
+              margin: 2px 0;
+            }
+            .item-name {
+              margin-bottom: 1px;
+            }
+            .item-details {
+              display: flex;
+              justify-content: space-between;
+              padding-left: 10px;
+            }
+            .grand-total {
+              font-size: 14px;
+              font-weight: bold;
+              margin-top: 5px;
+              padding-top: 5px;
+            }
+            .footer {
+              text-align: center;
+              font-size: 10px;
+              margin-top: 8px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="center restaurant-name">THE TIP TOP</div>
+          <div class="center address">NEAR ASHIANA PG, LAW GATE,</div>
+          <div class="center address">MAHERU, PHAGWARA.</div>
+          
+          <div class="divider"></div>
+          
+          <div class="row">
+            <span><span class="label">Name:</span> ${order.customer}</span>
+          </div>
+          <div class="row">
+            <span><span class="label">M:</span> ${order.phone}</span>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="row">
+            <span><span class="label">Date:</span> ${order.date}</span>
+            <span class="label">${order.orderType || 'Delivery'}</span>
+          </div>
+          <div class="row">
+            <span>${order.time}</span>
+          </div>
+          <div class="row">
+            <span><span class="label">Bill No.:</span> ${order.orderId}</span>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="items-header">
+            <span style="width: 90px;">Item</span>
+            <span style="width: 20px; text-align: center;">Qty</span>
+            <span style="width: 40px; text-align: right;">Price</span>
+            <span style="width: 40px; text-align: right;">Amt</span>
+          </div>
+          
+          ${order.items.map((item: any) => `
+            <div class="item-row">
+              <div style="display: flex; justify-content: space-between;">
+                <div class="item-name" style="width: 90px;">${item.name}${item.portion ? ` (${item.portion})` : ''}</div>
+                <span style="width: 20px; text-align: center;">${item.quantity}</span>
+                <span style="width: 40px; text-align: right;">${formatPrice(item.price)}</span>
+                <span style="width: 40px; text-align: right;">${formatPrice(item.price * item.quantity)}</span>
+              </div>
+            </div>
+          `).join('')}
+          
+          <div class="divider"></div>
+          <div class="divider"></div>
+          
+          <div class="row">
+            <span><span class="label">Total Qty:</span> ${totalQty}</span>
+            <span><span class="label">Sub Total</span> ${order.total}</span>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="row grand-total">
+            <span>Grand Total</span>
+            <span>₹ ${order.total}</span>
+          </div>
+          
+          <div class="footer">Thanks</div>
+        </body>
+      </html>
+    `);
+    doc.close();
+    
+    // Wait for content to load, then print
+    if (printFrame.contentWindow) {
+      printFrame.contentWindow.onload = function() {
+        setTimeout(() => {
+          printFrame.contentWindow?.print();
+          // Remove iframe after printing
+          setTimeout(() => {
+            document.body.removeChild(printFrame);
+          }, 100);
+        }, 250);
+      };
+    }
+  };
+
   const toggleExpand = async (orderId: string) => {
     if (expandedOrderId === orderId) {
       setExpandedOrderId(null);
@@ -47,6 +232,13 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
   };
 
   const getActionButton = (order: Order) => {
+    console.log('🔍 [getActionButton] Order:', {
+      orderId: order.orderId,
+      status: order.status,
+      orderType: order.orderType,
+      hasDeliveryPartner: !!order.deliveryPartner
+    });
+    
     switch (order.status) {
       case "New":
       case "PENDING":
@@ -67,11 +259,13 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              onStatusUpdate(order.id, "READY");
+              // For takeaway orders, send READY_FOR_PICKUP directly
+              const newStatus = order.orderType === 'TAKEAWAY' ? 'READY_FOR_PICKUP' : 'READY';
+              onStatusUpdate(order.id, newStatus);
             }}
             className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
           >
-            Mark Ready
+            {order.orderType === 'TAKEAWAY' ? 'Ready for Pickup' : 'Mark Ready'}
           </button>
         );
       case "Preparing":
@@ -89,16 +283,28 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
         );
       case "Ready":
       case "READY":
-        // Check if order has been claimed by delivery partner
+        console.log('📦 [READY Status] Checking order type:', {
+          orderId: order.orderId,
+          orderType: order.orderType,
+          isTakeaway: order.orderType === 'TAKEAWAY',
+          deliveryPartner: order.deliveryPartner
+        });
+        // Check if it's a takeaway order
+        if (order.orderType === 'TAKEAWAY') {
+          return (
+            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+              Ready for Pickup
+            </span>
+          );
+        }
+        // Delivery order - check if claimed by delivery partner
         if (order.deliveryPartner) {
-          // Already claimed - show status
           return (
             <span className="text-xs text-green-600 dark:text-green-400 font-medium">
               Claimed
             </span>
           );
         } else {
-          // Not claimed - show assign button
           return (
             <button 
               onClick={(e) => {
@@ -111,6 +317,21 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             </button>
           );
         }
+      case "READY_FOR_PICKUP":
+      case "Ready for Pickup":
+        console.log('✅ [READY_FOR_PICKUP] Showing Mark Delivered button for:', order.orderId);
+        return (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('🎯 [Mark Delivered] Button clicked for:', order.orderId);
+              onStatusUpdate(order.id, "DELIVERED");
+            }}
+            className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors"
+          >
+            Mark Delivered
+          </button>
+        );
       case "Out for Delivery":
       case "OUT_FOR_DELIVERY":
         return (
@@ -283,7 +504,15 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3">
-                      {getActionButton(order)}
+                      <div className="flex items-center gap-2">
+                        {getActionButton(order)}
+                        <button
+                          onClick={() => handlePrintReceipt(order)}
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 transition-colors"
+                        >
+                          Print
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                   {expandedOrderId === order.id && (
@@ -397,7 +626,58 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
                                   ))}
                                 </tbody>
                                 <tfoot className="bg-gray-100 dark:bg-white/[0.03]">
-                                  <tr>
+                                  {/* Items Subtotal */}
+                                  {order.pricing && (
+                                    <>
+                                      <tr>
+                                        <td colSpan={3} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 text-right">
+                                          Items Total:
+                                        </td>
+                                        <td className="px-4 py-2 text-sm text-gray-800 dark:text-white/90 text-right">
+                                          ₹{order.pricing.itemsTotal.toFixed(2)}
+                                        </td>
+                                      </tr>
+                                      
+                                      {/* Delivery Fee - only show if > 0 */}
+                                      {order.pricing.deliveryFee > 0 && (
+                                        <tr>
+                                          <td colSpan={3} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 text-right">
+                                            Delivery Fee:
+                                          </td>
+                                          <td className="px-4 py-2 text-sm text-gray-800 dark:text-white/90 text-right">
+                                            ₹{order.pricing.deliveryFee.toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      )}
+                                      
+                                      {/* GST/Tax - only show if > 0 */}
+                                      {order.pricing.gst > 0 && (
+                                        <tr>
+                                          <td colSpan={3} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 text-right">
+                                            Tax ({order.pricing.gstRate}%):
+                                          </td>
+                                          <td className="px-4 py-2 text-sm text-gray-800 dark:text-white/90 text-right">
+                                            ₹{order.pricing.gst.toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      )}
+                                      
+                                      {/* Discount - only show if > 0 */}
+                                      {order.pricing.discount > 0 && (
+                                        <tr>
+                                          <td colSpan={3} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 text-right">
+                                            Discount:
+                                          </td>
+                                          <td className="px-4 py-2 text-sm text-green-600 dark:text-green-400 text-right">
+                                            -₹{order.pricing.discount.toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </>
+                                  )}
+                                  
+                                  {/* Grand Total */}
+                                  <tr className="border-t-2 border-gray-300 dark:border-gray-600">
                                     <td colSpan={3} className="px-4 py-2 text-sm font-semibold text-gray-800 dark:text-white/90 text-right">
                                       Total:
                                     </td>
@@ -439,8 +719,212 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
       
       // Fetch full order details
       const details = await getOrderDetails(orderId);
+      
+      console.log('🔍 ORDER DETAILS DEBUG:');
+      console.log('Raw order details:', details);
+      console.log('Order pricing object:', details?.pricing);
+      console.log('Items total:', details?.pricing?.itemsTotal);
+      console.log('Delivery fee:', details?.pricing?.deliveryFee);
+      console.log('GST:', details?.pricing?.gst);
+      console.log('GST Rate:', details?.pricing?.gstRate);
+      console.log('Discount:', details?.pricing?.discount);
+      console.log('Final amount:', details?.pricing?.finalAmount);
+      console.log('Total field:', details?.total);
+      
       setExpandedOrderDetails(details);
       setLoadingDetails(false);
+    }
+  };
+
+  const handlePrintReceipt = (order: any) => {
+    // Create a hidden iframe for thermal printing
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = 'none';
+    
+    document.body.appendChild(printFrame);
+    
+    const doc = printFrame.contentWindow?.document;
+    if (!doc) return;
+    
+    // Calculate totals from expanded details
+    const totalQty = expandedOrderDetails?.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
+    
+    // Format price helper - remove .00 decimals
+    const formatPrice = (price: number) => {
+      return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
+    };
+    
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - ${order.orderId}</title>
+          <style>
+            @media print {
+              @page {
+                size: 56mm auto;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+            }
+            
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: 'Courier New', monospace; 
+              width: 56mm; 
+              margin: 0 auto; 
+              padding: 3mm; 
+              font-size: 11px; 
+              line-height: 1.3;
+              color: #000;
+              font-weight: 500;
+            }
+            .center { text-align: center; }
+            .bold { font-weight: bold; }
+            .restaurant-name { 
+              font-size: 16px; 
+              font-weight: bold; 
+              letter-spacing: 1px;
+              margin-bottom: 3px;
+            }
+            .address { 
+              font-size: 10px; 
+              line-height: 1.2;
+              margin-bottom: 2px;
+              font-weight: 500;
+            }
+            .divider { 
+              border-top: 2px solid #000; 
+              margin: 5px 0;
+            }
+            .row { 
+              display: flex; 
+              justify-content: space-between;
+              font-size: 10px;
+              margin: 2px 0;
+            }
+            .label { font-weight: bold; }
+            .items-header {
+              font-size: 10px;
+              display: flex;
+              justify-content: space-between;
+              margin: 5px 0 3px 0;
+              font-weight: bold;
+            }
+            .item-row {
+              font-size: 10px;
+              margin: 2px 0;
+            }
+            .item-name {
+              margin-bottom: 1px;
+              max-width: 100%;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+            }
+            .item-details {
+              display: flex;
+              justify-content: space-between;
+            }
+            .grand-total {
+              font-size: 14px;
+              font-weight: bold;
+              margin-top: 5px;
+              padding-top: 5px;
+            }
+            .footer {
+              text-align: center;
+              font-size: 10px;
+              margin-top: 8px;
+              font-weight: 500;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="center restaurant-name">THE TIP TOP</div>
+          <div class="center address">NEAR ASHIANA PG, LAW GATE,</div>
+          <div class="center address">MAHERU, PHAGWARA.</div>
+          
+          <div class="divider"></div>
+          
+          <div class="row">
+            <span><span class="label">Name:</span> ${order.customer}</span>
+          </div>
+          <div class="row">
+            <span><span class="label">M:</span> ${order.phone}</span>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="row">
+            <span><span class="label">Date:</span> ${order.date}</span>
+            <span class="label">${order.orderType || 'Delivery'}</span>
+          </div>
+          <div class="row">
+            <span>${order.time}</span>
+          </div>
+          <div class="row">
+            <span><span class="label">Bill No.:</span> ${order.orderId}</span>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="items-header">
+            <span style="width: 90px;">Item</span>
+            <span style="width: 20px; text-align: center;">Qty</span>
+            <span style="width: 40px; text-align: right;">Price</span>
+            <span style="width: 40px; text-align: right;">Amt</span>
+          </div>
+          
+          ${expandedOrderDetails?.items?.map((item: any) => `
+            <div class="item-row">
+              <div style="display: flex; justify-content: space-between;">
+                <div class="item-name" style="width: 90px;">${item.name}${item.portion ? ` (${item.portion})` : ''}</div>
+                <span style="width: 20px; text-align: center;">${item.quantity}</span>
+                <span style="width: 40px; text-align: right;">${formatPrice(item.price)}</span>
+                <span style="width: 40px; text-align: right;">${formatPrice(item.price * item.quantity)}</span>
+              </div>
+            </div>
+          `).join('') || ''}
+          
+          <div class="divider"></div>
+          <div class="divider"></div>
+          
+          <div class="row">
+            <span><span class="label">Total Qty:</span> ${totalQty}</span>
+            <span><span class="label">Sub Total</span> ${order.total}</span>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="row grand-total">
+            <span>Grand Total</span>
+            <span>₹ ${order.total}</span>
+          </div>
+          
+          <div class="footer">Thanks</div>
+        </body>
+      </html>
+    `);
+    doc.close();
+    
+    // Wait for content to load, then print
+    if (printFrame.contentWindow) {
+      printFrame.contentWindow.onload = function() {
+        setTimeout(() => {
+          printFrame.contentWindow?.print();
+          // Remove iframe after printing
+          setTimeout(() => {
+            document.body.removeChild(printFrame);
+          }, 100);
+        }, 250);
+      };
     }
   };
 
@@ -511,6 +995,12 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
               >
                 Status
               </TableCell>
+              <TableCell
+                isHeader
+                className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+              >
+                Action
+              </TableCell>
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
@@ -568,10 +1058,18 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
                       </span>
                     </div>
                   </TableCell>
+                  <TableCell className="px-4 py-3">
+                    <button
+                      onClick={() => handlePrintReceipt(order)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 transition-colors"
+                    >
+                      Print
+                    </button>
+                  </TableCell>
                 </TableRow>
                 {expandedOrderId === order.id && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-4 bg-gray-50 dark:bg-white/[0.02]">
+                    <td colSpan={8} className="px-5 py-4 bg-gray-50 dark:bg-white/[0.02]">
                       {loadingDetails ? (
                         <div className="flex items-center justify-center py-8">
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -670,7 +1168,66 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
                                 ))}
                               </tbody>
                               <tfoot className="bg-gray-100 dark:bg-white/[0.03]">
-                                <tr>
+                                {/* Items Subtotal */}
+                                {(() => {
+                                  console.log('🎨 RENDERING PRICING SECTION:');
+                                  console.log('expandedOrderDetails exists?', !!expandedOrderDetails);
+                                  console.log('expandedOrderDetails.pricing exists?', !!expandedOrderDetails?.pricing);
+                                  console.log('Full expandedOrderDetails:', expandedOrderDetails);
+                                  console.log('Pricing object:', expandedOrderDetails?.pricing);
+                                  return null;
+                                })()}
+                                {expandedOrderDetails.pricing && (
+                                  <>
+                                    <tr>
+                                      <td colSpan={3} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 text-right">
+                                        Items Total:
+                                      </td>
+                                      <td className="px-4 py-2 text-sm text-gray-800 dark:text-white/90 text-right">
+                                        ₹{expandedOrderDetails.pricing.itemsTotal.toFixed(2)}
+                                      </td>
+                                    </tr>
+                                    
+                                    {/* Delivery Fee - only show if > 0 */}
+                                    {expandedOrderDetails.pricing.deliveryFee > 0 && (
+                                      <tr>
+                                        <td colSpan={3} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 text-right">
+                                          Delivery Fee:
+                                        </td>
+                                        <td className="px-4 py-2 text-sm text-gray-800 dark:text-white/90 text-right">
+                                          ₹{expandedOrderDetails.pricing.deliveryFee.toFixed(2)}
+                                        </td>
+                                      </tr>
+                                    )}
+                                    
+                                    {/* GST/Tax - only show if > 0 */}
+                                    {expandedOrderDetails.pricing.gst > 0 && (
+                                      <tr>
+                                        <td colSpan={3} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 text-right">
+                                          Tax ({expandedOrderDetails.pricing.gstRate}%):
+                                        </td>
+                                        <td className="px-4 py-2 text-sm text-gray-800 dark:text-white/90 text-right">
+                                          ₹{expandedOrderDetails.pricing.gst.toFixed(2)}
+                                        </td>
+                                      </tr>
+                                    )}
+                                    
+                                    {/* Discount - only show if > 0 */}
+                                    {expandedOrderDetails.pricing.discount > 0 && (
+                                      <tr>
+                                        <td colSpan={3} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 text-right">
+                                          Discount:
+                                        </td>
+                                        <td className="px-4 py-2 text-sm text-green-600 dark:text-green-400 text-right">
+                                          -₹{expandedOrderDetails.pricing.discount.toFixed(2)}
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </>
+                                )}
+                                
+                                {/* Grand Total */}
+                                <tr className="border-t-2 border-gray-300 dark:border-gray-600">
                                   <td colSpan={3} className="px-4 py-2 text-sm font-semibold text-gray-800 dark:text-white/90 text-right">
                                     Total:
                                   </td>
@@ -716,6 +1273,9 @@ export default function OrderManagement() {
   const [selectedOrderForAssign, setSelectedOrderForAssign] = useState<Order | null>(null);
   const [deliveryPartners, setDeliveryPartners] = useState<any[]>([]);
   const [assigningPartner, setAssigningPartner] = useState(false);
+  const [tempSelectedPartnerId, setTempSelectedPartnerId] = useState<string | null>(null); // For two-step selection
+  const [assigningPartnerId, setAssigningPartnerId] = useState<string | null>(null); // Currently assigning
+  const [assignError, setAssignError] = useState<string | null>(null);
   
   // Fetch today's orders
   useEffect(() => {
@@ -760,10 +1320,13 @@ export default function OrderManagement() {
   const assignDeliveryPartner = async (orderId: string, partnerId: string) => {
     try {
       setAssigningPartner(true);
+      setAssigningPartnerId(partnerId);
+      setAssignError(null);
+      
       const response = await apiRequest(`orders/${orderId}/assign`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerId })
+        body: JSON.stringify({ deliveryPartnerId: partnerId })
       });
       
       const data = await parseApiResponse(response);
@@ -771,6 +1334,9 @@ export default function OrderManagement() {
       if (data.status === 'success') {
         showNotification('Delivery partner assigned successfully!', 'success');
         setShowAssignModal(false);
+        setTempSelectedPartnerId(null);
+        setAssigningPartnerId(null);
+        setAssignError(null);
         // Refresh orders to show updated status
         if (view === "today") {
           fetchTodayOrders();
@@ -778,18 +1344,53 @@ export default function OrderManagement() {
           fetchAllOrders(currentPage);
         }
       } else {
-        showNotification(data.message || 'Failed to assign delivery partner', 'error');
+        const errorMsg = data.message || 'Failed to assign delivery partner';
+        setAssignError(errorMsg);
+        showNotification(errorMsg, 'error');
       }
     } catch (error: any) {
       console.error('Error assigning delivery partner:', error);
-      showNotification(error.message || 'Failed to assign delivery partner', 'error');
+      const errorMsg = error.message || 'Failed to assign delivery partner';
+      setAssignError(errorMsg);
+      showNotification(errorMsg, 'error');
     } finally {
       setAssigningPartner(false);
+      setAssigningPartnerId(null);
+    }
+  };
+  
+  // Handler for selecting a partner (first step)
+  const handleSelectPartner = (partnerId: string) => {
+    setTempSelectedPartnerId(partnerId);
+    setAssignError(null);
+  };
+  
+  // Handler for confirming assignment (second step)
+  const handleConfirmAssignment = () => {
+    if (tempSelectedPartnerId && selectedOrderForAssign) {
+      assignDeliveryPartner(selectedOrderForAssign.id, tempSelectedPartnerId);
     }
   };
   
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
-    console.log(`🔄 Attempting to update order ${orderId} to ${newStatus}`);
+    console.log(`🔄 [handleStatusUpdate] Attempting to update order ${orderId} to ${newStatus}`);
+    
+    // Find the order to log its current state
+    const currentOrder = todayOrders?.pending?.find(o => o.id === orderId) ||
+                        todayOrders?.accepted?.find(o => o.id === orderId) ||
+                        todayOrders?.preparing?.find(o => o.id === orderId) ||
+                        todayOrders?.ready?.find(o => o.id === orderId) ||
+                        todayOrders?.ready_for_pickup?.find(o => o.id === orderId) ||
+                        todayOrders?.out_for_delivery?.find(o => o.id === orderId);
+    
+    if (currentOrder) {
+      console.log('📋 [Current Order State]:', {
+        orderId: currentOrder.orderId,
+        currentStatus: currentOrder.status,
+        orderType: currentOrder.orderType,
+        newStatus: newStatus
+      });
+    }
     
     // Handle assignment action
     if (newStatus === 'ASSIGN_DELIVERY') {
@@ -803,9 +1404,11 @@ export default function OrderManagement() {
       return;
     }
     
+    // Declare movedOrder outside the if block so it's accessible for the API call
+    let movedOrder: Order | undefined;
+    
     if (view === "today" && todayOrders) {
       // Find the order in current status arrays
-      let movedOrder: Order | undefined;
       let fromStatus = '';
       
       // Check all status arrays
@@ -814,6 +1417,7 @@ export default function OrderManagement() {
         { key: 'accepted', array: todayOrders.accepted, displayName: 'Accepted' },
         { key: 'preparing', array: todayOrders.preparing, displayName: 'Preparing' },
         { key: 'ready', array: todayOrders.ready, displayName: 'Ready' },
+        { key: 'ready_for_pickup', array: todayOrders.ready_for_pickup, displayName: 'Ready for Pickup' },
         { key: 'out_for_delivery', array: todayOrders.out_for_delivery, displayName: 'Out for Delivery' },
         { key: 'delivered', array: todayOrders.delivered, displayName: 'Delivered' },
         { key: 'cancelled', array: todayOrders.cancelled, displayName: 'Cancelled' }
@@ -833,8 +1437,10 @@ export default function OrderManagement() {
         const statusMap: Record<string, { display: string, key: keyof TodayOrdersResponse }> = {
           'ACCEPTED': { display: 'Accepted', key: 'accepted' },
           'READY': { display: 'Ready', key: 'ready' },
+          'READY_FOR_PICKUP': { display: 'Ready for Pickup', key: 'ready_for_pickup' },
           'OUT_FOR_DELIVERY': { display: 'Out for Delivery', key: 'out_for_delivery' },
-          'DELIVERED': { display: 'Delivered', key: 'delivered' }
+          'DELIVERED': { display: 'Delivered', key: 'delivered' },
+          'CANCELLED': { display: 'Canceled', key: 'cancelled' }
         };
         
         const toStatusInfo = statusMap[newStatus];
@@ -867,16 +1473,18 @@ export default function OrderManagement() {
       }
     }
     
-    // Make API call in background
-    const success = await updateOrderStatus(orderId, newStatus);
+    // Make API call in background - pass orderType from currentOrder
+    const orderType = currentOrder?.orderType || 'DELIVERY';
+    console.log('🔄 [Sending to API] OrderType:', orderType, 'Status:', newStatus);
+    const success = await updateOrderStatus(orderId, newStatus, orderType as 'DELIVERY' | 'TAKEAWAY');
     
     if (success) {
-      console.log('✅ Status update confirmed by server');
+      console.log('✅ Status update confirmed by server - UI already updated optimistically');
     } else {
-      console.error('❌ Status update failed');
-      showNotification('Failed to update order status. Please refresh.', 'error');
+      console.error('❌ Status update failed - reverting optimistic update');
+      showNotification('Failed to update order status. Refreshing...', 'error');
       
-      // Refresh data to revert optimistic update
+      // Only refresh on failure to revert optimistic update
       if (view === "today") {
         fetchTodayOrders();
       } else {
@@ -895,6 +1503,7 @@ export default function OrderManagement() {
     Accepted: todayOrders?.accepted || [],
     Preparing: todayOrders?.preparing || [],
     Ready: todayOrders?.ready || [],
+    "Ready for Pickup": todayOrders?.ready_for_pickup || [],
     "Out for Delivery": todayOrders?.out_for_delivery || [],
     Delivered: todayOrders?.delivered || [],
     Canceled: todayOrders?.cancelled || [],
@@ -930,6 +1539,34 @@ export default function OrderManagement() {
         >
           All
         </button>
+        
+        {/* Refresh Button */}
+        <button
+          onClick={() => {
+            if (view === "today") {
+              fetchTodayOrders();
+            } else {
+              fetchAllOrders(currentPage);
+            }
+          }}
+          disabled={loading}
+          className="ml-auto rounded-lg bg-gray-100 px-3 py-2 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Refresh orders"
+        >
+          <svg 
+            className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`}
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+            />
+          </svg>
+        </button>
       </div>
       
       {loading ? (
@@ -943,7 +1580,8 @@ export default function OrderManagement() {
             ordersByStatus.New.length === 0 && 
             ordersByStatus.Accepted.length === 0 && 
             ordersByStatus.Preparing.length === 0 && 
-            ordersByStatus.Ready.length === 0 && 
+            ordersByStatus.Ready.length === 0 &&
+            ordersByStatus["Ready for Pickup"].length === 0 && 
             ordersByStatus.Delivered.length === 0 && 
             ordersByStatus.Canceled.length === 0
           ) ? (
@@ -966,11 +1604,11 @@ export default function OrderManagement() {
               {/* Accepted Orders Table */}
               <OrderTable orders={ordersByStatus.Accepted} title="Accepted" badgeColor="blue" onStatusUpdate={handleStatusUpdate} />
               
-              {/* Preparing Orders Table */}
-              <OrderTable orders={ordersByStatus.Preparing} title="Preparing" badgeColor="yellow" onStatusUpdate={handleStatusUpdate} />
-              
               {/* Ready Orders Table */}
               <OrderTable orders={ordersByStatus.Ready} title="Ready for Delivery" badgeColor="purple" onStatusUpdate={handleStatusUpdate} />
+              
+              {/* Ready for Pickup Orders Table (Takeaway) */}
+              <OrderTable orders={ordersByStatus["Ready for Pickup"]} title="Ready for Pickup" badgeColor="green" onStatusUpdate={handleStatusUpdate} />
               
               {/* Out for Delivery Orders Table */}
               <OrderTable orders={ordersByStatus["Out for Delivery"]} title="Out for Delivery" badgeColor="indigo" onStatusUpdate={handleStatusUpdate} />
@@ -1028,7 +1666,7 @@ export default function OrderManagement() {
       
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed bottom-4 right-4 z-[99999] animate-slide-up">
+        <div className="fixed bottom-4 right-4 z-[100001] animate-slide-up">
           <div className={`rounded-lg px-6 py-4 shadow-lg backdrop-blur-sm ${
             notification.type === 'success' 
               ? 'bg-green-500/90 text-white' 
@@ -1066,8 +1704,14 @@ export default function OrderManagement() {
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Assign Delivery Partner</h2>
               <button
-                onClick={() => setShowAssignModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={() => {
+                  setShowAssignModal(false);
+                  setAssignError(null);
+                  setTempSelectedPartnerId(null);
+                  setAssigningPartnerId(null);
+                }}
+                disabled={assigningPartner}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1081,43 +1725,123 @@ export default function OrderManagement() {
                 Order: <span className="font-semibold text-gray-900 dark:text-white">#{selectedOrderForAssign.orderId}</span>
               </p>
               
+              {/* Inline Error Message */}
+              {assignError && (
+                <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 dark:bg-red-900/20 dark:border-red-800">
+                  <div className="flex items-center gap-2">
+                    <svg className="h-5 w-5 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-red-800 dark:text-red-200">{assignError}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Loading Overlay */}
+              {assigningPartner && (
+                <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-4 dark:bg-blue-900/20 dark:border-blue-800">
+                  <div className="flex items-center gap-3">
+                    <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Assigning delivery partner...</p>
+                  </div>
+                </div>
+              )}
+              
               {deliveryPartners.length === 0 ? (
                 <p className="py-8 text-center text-gray-500 dark:text-gray-400">No delivery partners available</p>
               ) : (
-                <div className="space-y-3">
-                  {deliveryPartners.filter(partner => partner.status === 'Active').map((partner) => (
-                    <button
-                      key={partner._id}
-                      onClick={() => assignDeliveryPartner(selectedOrderForAssign.id, partner._id)}
-                      disabled={assigningPartner}
-                      className="w-full rounded-lg border-2 border-gray-200 p-4 text-left transition-all hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50 dark:border-gray-700 dark:hover:border-blue-600 dark:hover:bg-blue-900/20"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{partner.name || 'N/A'}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{partner.phone || 'N/A'}</p>
-                          <div className="mt-1 flex items-center gap-2">
-                            <span className={`rounded-full px-2 py-1 text-xs ${
-                              partner.status === 'Active' 
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                                : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
-                            }`}>
-                              {partner.status === 'Active' ? 'Available' : 'Busy'}
-                            </span>
-                            {partner.rating && (
-                              <span className="text-xs text-gray-600 dark:text-gray-400">
-                                ⭐ {partner.rating.toFixed(1)}
-                              </span>
-                            )}
+                <>
+                  <div className="space-y-3 mb-4">
+                    {deliveryPartners.filter(partner => partner.status === 'Active').map((partner) => {
+                      const isSelected = tempSelectedPartnerId === partner._id;
+                      const isAssigning = assigningPartnerId === partner._id;
+                      return (
+                        <button
+                          key={partner._id}
+                          onClick={() => handleSelectPartner(partner._id)}
+                          disabled={assigningPartner}
+                          className={`w-full rounded-lg border-2 p-4 text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                            isSelected
+                              ? 'border-blue-500 bg-blue-100 dark:border-blue-400 dark:bg-blue-900/40'
+                              : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-600 dark:hover:bg-blue-900/20'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-900 dark:text-white">{partner.name || 'N/A'}</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">{partner.phone || 'N/A'}</p>
+                              <div className="mt-1 flex items-center gap-2">
+                                <span className={`rounded-full px-2 py-1 text-xs ${
+                                  partner.status === 'Active' 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+                                }`}>
+                                  {partner.status === 'Active' ? 'Available' : 'Busy'}
+                                </span>
+                                {partner.rating && (
+                                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                                    ⭐ {partner.rating.toFixed(1)}
+                                  </span>
+                                )}
+                              </div>
+                              {isAssigning && assigningPartner && (
+                                <p className="mt-2 text-xs font-medium text-blue-600 dark:text-blue-400">Assigning...</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isSelected && (
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 dark:bg-blue-600">
+                                  <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              )}
+                              {isAssigning && assigningPartner ? (
+                                <svg className="h-5 w-5 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                              ) : !isSelected && (
+                                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Confirm Assignment Button */}
+                  <div className="sticky bottom-0 bg-white dark:bg-gray-800 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={handleConfirmAssignment}
+                      disabled={!tempSelectedPartnerId || assigningPartner}
+                      className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-700 dark:hover:bg-blue-800 flex items-center justify-center gap-2"
+                    >
+                      {assigningPartner ? (
+                        <>
+                          <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Assigning...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>Confirm Assignment</span>
+                        </>
+                      )}
                     </button>
-                  ))}
-                </div>
+                  </div>
+                </>
               )}
             </div>
           </div>

@@ -116,7 +116,7 @@ export default function OrderPricingCard() {
                   Discount Amount
                 </p>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                  {settings?.discountAmount || 0}%
+                  ₹{settings?.discountAmount || 0}
                 </p>
               </div>
 
@@ -206,14 +206,13 @@ export default function OrderPricingCard() {
                 </div>
 
                 <div>
-                  <Label>Discount Amount (%)</Label>
+                  <Label>Discount Amount (₹)</Label>
                   <Input
                     type="number"
                     name="discountAmount"
                     value={formData.discountAmount}
                     onChange={handleChange}
                     min="0"
-                    max="100"
                     step={0.01}
                   />
                 </div>

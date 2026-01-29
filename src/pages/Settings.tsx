@@ -322,7 +322,7 @@ export default function Settings() {
 
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
-                Discount Amount (%)
+                Discount Amount (₹)
               </label>
               <input
                 type="number"
@@ -330,12 +330,11 @@ export default function Settings() {
                 value={settings.discountAmount}
                 onChange={handleNumberChange}
                 min="0"
-                max="100"
                 step="0.01"
                 className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="0.00"
               />
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">Global discount percentage applied to all orders</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">Discount amount in rupees - only applied in mobile app</p>
             </div>
           </div>
         </div>

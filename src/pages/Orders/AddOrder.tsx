@@ -64,6 +64,11 @@ export default function AddOrder() {
   // Modal state
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [showVariantModal, setShowVariantModal] = useState(false);
+  
+  // Open Menu / Custom Item state
+  const [showCustomItemModal, setShowCustomItemModal] = useState(false);
+  const [customItemName, setCustomItemName] = useState("");
+  const [customItemPrice, setCustomItemPrice] = useState("");
 
   // Fetch categories, menu items, and settings
   useEffect(() => {
@@ -197,6 +202,38 @@ export default function AddOrder() {
     setShowVariantModal(false);
     setSelectedItem(null);
   };
+  
+  const addCustomItemToCart = () => {
+    if (!customItemName.trim()) {
+      alert("Please enter item name");
+      return;
+    }
+    
+    if (!customItemPrice || parseFloat(customItemPrice) <= 0) {
+      alert("Please enter a valid price");
+      return;
+    }
+    
+    // Create a custom item
+    const customItem: CartItem = {
+      id: "custom-" + Date.now(), // Unique ID for custom items
+      name: customItemName,
+      price: parseFloat(customItemPrice),
+      category: "Custom",
+      image: "/images/product/custom-item.jpg",
+      description: "Custom item added by admin",
+      quantity: 1,
+      variantPrice: parseFloat(customItemPrice),
+      isAvailable: true
+    };
+    
+    setCart([...cart, customItem]);
+    
+    // Reset and close modal
+    setCustomItemName("");
+    setCustomItemPrice("");
+    setShowCustomItemModal(false);
+  };
 
   const openVariantModal = (item: MenuItem) => {
     setSelectedItem(item);
@@ -263,7 +300,8 @@ export default function AddOrder() {
     try {
       const orderData: CreateAdminOrderData = {
         items: cart.map(item => ({
-          menuItem: item.id,
+          menuItem: item.id.startsWith('custom-') ? 'custom' : item.id, // Mark custom items
+          name: item.id.startsWith('custom-') ? item.name : undefined, // Include name for custom items
           quantity: item.quantity,
           portion: item.selectedVariant,
           price: item.variantPrice || item.price
@@ -411,6 +449,28 @@ export default function AddOrder() {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Open Menu Button */}
+                  <button
+                    onClick={() => setShowCustomItemModal(true)}
+                    className="inline-flex items-center gap-2 rounded-lg border-2 border-dashed border-indigo-300 bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-600 hover:bg-indigo-100 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
+                    title="Add custom item with custom price"
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Open Menu
+                  </button>
                 </div>
 
                 {/* Results count */}
@@ -557,7 +617,7 @@ export default function AddOrder() {
                           </p>
                         )}
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          ${(item.variantPrice || item.price).toFixed(2)} each
+                          ₹{(item.variantPrice || item.price).toFixed(2)} each
                         </p>
                         <div className="mt-2 flex items-center gap-2">
                           <button
@@ -579,7 +639,7 @@ export default function AddOrder() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-bold text-gray-800 dark:text-white/90">
-                          ${((item.variantPrice || item.price) * item.quantity).toFixed(2)}
+                          ₹{((item.variantPrice || item.price) * item.quantity).toFixed(2)}
                         </p>
                         <button
                           onClick={() => updateQuantity(item.id, 0, item.selectedVariant)}
@@ -780,14 +840,14 @@ export default function AddOrder() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
                     <span className="font-medium text-gray-800 dark:text-white/90">
-                      ${getSubtotal().toFixed(2)}
+                      ₹{getSubtotal().toFixed(2)}
                     </span>
                   </div>
                   {settings && settings.taxRate > 0 && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">Tax ({settings.taxRate}%)</span>
                       <span className="font-medium text-gray-800 dark:text-white/90">
-                        ${getTax().toFixed(2)}
+                        ₹{getTax().toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -795,7 +855,7 @@ export default function AddOrder() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">Delivery Fee</span>
                       <span className="font-medium text-gray-800 dark:text-white/90">
-                        ${getDeliveryFee().toFixed(2)}
+                        ₹{getDeliveryFee().toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -804,7 +864,7 @@ export default function AddOrder() {
                       Total
                     </span>
                     <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-                      ${getTotalAmount()}
+                      ₹{getTotalAmount()}
                     </span>
                   </div>
                 </div>
@@ -891,7 +951,7 @@ export default function AddOrder() {
                       >
                         <span className="text-gray-800 dark:text-white/90">{variant.quantity}</span>
                         <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-                          ${variant.price.toFixed(2)}
+                          ₹{variant.price.toFixed(2)}
                         </span>
                       </button>
                     ))
@@ -902,10 +962,124 @@ export default function AddOrder() {
                     >
                       <span className="text-gray-800 dark:text-white/90">Regular</span>
                       <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-                        ${selectedItem.price.toFixed(2)}
+                        ₹{selectedItem.price.toFixed(2)}
                       </span>
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Custom Item Modal (Open Menu) */}
+      {showCustomItemModal && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
+          style={{ zIndex: 99999 }}
+        >
+          <div 
+            className="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900"
+            style={{ zIndex: 100000 }}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setShowCustomItemModal(false);
+                setCustomItemName("");
+                setCustomItemPrice("");
+              }}
+              className="absolute right-4 top-4 rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              <div className="mb-6">
+                <div className="mb-2 flex items-center gap-2">
+                  <svg
+                    className="h-6 w-6 text-indigo-600 dark:text-indigo-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  <h3 className="text-xl font-bold text-gray-800 dark:text-white/90">
+                    Open Menu Item
+                  </h3>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Add a custom item with custom price (e.g., "3 extra pieces", "extra rice")
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Item Name */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Item Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customItemName}
+                    onChange={(e) => setCustomItemName(e.target.value)}
+                    placeholder="e.g., 3 Extra Pieces, Extra Rice"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Price */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Price (₹) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={customItemPrice}
+                    onChange={(e) => setCustomItemPrice(e.target.value)}
+                    placeholder="0"
+                    min="0"
+                    step="1"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setShowCustomItemModal(false);
+                      setCustomItemName("");
+                      setCustomItemPrice("");
+                    }}
+                    className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={addCustomItemToCart}
+                    disabled={!customItemName.trim() || !customItemPrice || parseFloat(customItemPrice) <= 0}
+                    className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                  >
+                    Add to Cart
+                  </button>
                 </div>
               </div>
             </div>
