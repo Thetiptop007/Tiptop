@@ -108,16 +108,35 @@ export const getTodayOrders = async (): Promise<TodayOrdersResponse | null> => {
  */
 export const getAllOrders = async (page: number = 1, limit: number = 10): Promise<AllOrdersResponse | null> => {
   try {
-    const response = await apiRequest(`admin/orders/all?page=${page}&limit=${limit}`);
+    const url = `admin/orders/all?page=${page}&limit=${limit}`;
+    console.log('🌐 [getAllOrders] REQUEST URL:', url);
+    console.log('🌐 [getAllOrders] Full URL:', `${import.meta.env.VITE_API_URL}/${url}`);
+    console.log('🌐 [getAllOrders] Timestamp:', new Date().toISOString());
+    
+    const response = await apiRequest(url);
+    console.log('📡 [getAllOrders] Response received:', response);
+    console.log('📡 [getAllOrders] Response status:', response.status);
+    console.log('📡 [getAllOrders] Response headers:', Object.fromEntries(response.headers.entries()));
+    
     const data = await parseApiResponse(response);
+    console.log('📦 [getAllOrders] Parsed data:', data);
+    console.log('📦 [getAllOrders] Data keys:', Object.keys(data));
+    console.log('📦 [getAllOrders] Data.data keys:', data.data ? Object.keys(data.data) : 'no data.data');
 
     if (data.status === 'success' && data.data) {
+      console.log('✅ [getAllOrders] Returning data:', {
+        hasOrders: !!data.data.orders,
+        ordersCount: data.data.orders?.length,
+        hasPagination: !!data.data.pagination,
+        firstOrderStructure: data.data.orders?.[0] ? Object.keys(data.data.orders[0]) : 'no orders'
+      });
       return data.data;
     }
 
+    console.log('❌ [getAllOrders] No valid data in response');
     return null;
   } catch (error) {
-    console.error('Error fetching all orders:', error);
+    console.error('❌ [getAllOrders] Error:', error);
     return null;
   }
 };
@@ -278,10 +297,14 @@ export const createAdminOrder = async (orderData: CreateAdminOrderData): Promise
   try {
     console.log('📡 Sending order to backend:', orderData);
     
+    // Generate idempotency key for this order
+    const idempotencyKey = `admin-order-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    
     const response = await apiRequest('admin/orders', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey
       },
       body: JSON.stringify(orderData)
     });

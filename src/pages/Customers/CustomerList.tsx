@@ -58,6 +58,12 @@ export default function CustomerList() {
 
   const fetchCustomers = async () => {
     try {
+      console.log('🟢 [CUSTOMER LIST] Starting fetchCustomers with params:', {
+        currentPage,
+        itemsPerPage,
+        searchTerm
+      });
+      
       setLoading(true);
       const response = await getCustomers({
         page: currentPage,
@@ -66,19 +72,40 @@ export default function CustomerList() {
         role: 'customer',
       });
       
-      console.log('API Response:', response);
-      console.log('Users data:', response.data.users);
-      console.log('Pagination:', response.pagination);
-      console.log('Results:', response.results);
+      console.log('🟢 [CUSTOMER LIST] API Response received:', response);
+      console.log('🟢 [CUSTOMER LIST] Response structure:', {
+        status: response.status,
+        results: response.results,
+        pagination: response.pagination,
+        usersCount: response.data?.users?.length || 0
+      });
+      console.log('🟢 [CUSTOMER LIST] Users data:', response.data.users);
+      console.log('🟢 [CUSTOMER LIST] Pagination:', response.pagination);
+      console.log('🟢 [CUSTOMER LIST] Results:', response.results);
+      
       if (response.data.users.length > 0) {
-        console.log('First user sample:', response.data.users[0]);
+        console.log('🟢 [CUSTOMER LIST] First user sample:', response.data.users[0]);
+      } else {
+        console.log('⚠️ [CUSTOMER LIST] No users in response!');
       }
+      
+      console.log('🟢 [CUSTOMER LIST] Setting state with:', {
+        customersCount: response.data.users.length,
+        totalPages: response.pagination?.totalPages || 1,
+        totalResults: response.pagination?.totalResults || 0
+      });
       
       setCustomers(response.data.users);
       setTotalPages(response.pagination?.totalPages || 1);
       setTotalResults(response.pagination?.totalResults || 0);
+      
+      console.log('🟢 [CUSTOMER LIST] State updated successfully');
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error('❌ [CUSTOMER LIST] Error fetching customers:', error);
+      console.error('❌ [CUSTOMER LIST] Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
     } finally {
       setLoading(false);
     }

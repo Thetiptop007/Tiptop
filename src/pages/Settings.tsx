@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
-import { getSettings, updateSettings, Settings as SettingsType } from '../services/settings.service';
+import { getSettings, updateSettings, Settings as SettingsType, toggleShopStatus, ShopStatus } from '../services/settings.service';
 
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsType | null>(null);
   const [notificationEmail, setNotificationEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
+  const [togglingShop, setTogglingShop] = useState(false);
+  const [closureReason, setClosureReason] = useState('');
+  const [showReasonInput, setShowReasonInput] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -16,11 +20,33 @@ export default function Settings() {
       setLoading(true);
       const data = await getSettings();
       setSettings(data);
+      setShopStatus(data.shopStatus || null);
     } catch (error) {
       console.error('Error fetching settings:', error);
       alert('Failed to load settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleShop = async (isOpen: boolean) => {
+    if (!isOpen && !showReasonInput) {
+      setShowReasonInput(true);
+      return;
+    }
+
+    try {
+      setTogglingShop(true);
+      const updatedStatus = await toggleShopStatus(isOpen, isOpen ? '' : closureReason);
+      setShopStatus(updatedStatus);
+      setShowReasonInput(false);
+      setClosureReason('');
+      alert(`Shop is now ${isOpen ? 'OPEN' : 'CLOSED'}`);
+    } catch (error) {
+      console.error('Error toggling shop status:', error);
+      alert('Failed to update shop status');
+    } finally {
+      setTogglingShop(false);
     }
   };
 
@@ -105,6 +131,95 @@ export default function Settings() {
       </div>
 
       <div className="space-y-6">
+        {/* Shop Status - Open/Closed */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">Shop Status</h2>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {shopStatus?.isOpen ? 'Your shop is currently accepting orders' : 'Your shop is currently closed'}
+              </p>
+              {shopStatus && !shopStatus.isOpen && shopStatus.closureReason && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                  Reason: {shopStatus.closureReason}
+                </p>
+              )}
+              {shopStatus && shopStatus.lastUpdatedAt && (
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  Last updated by {shopStatus.lastUpdatedBy} at {new Date(shopStatus.lastUpdatedAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => handleToggleShop(true)}
+                disabled={togglingShop || shopStatus?.isOpen}
+                className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                  shopStatus?.isOpen
+                    ? 'bg-green-500 text-white cursor-default'
+                    : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50'
+                } disabled:opacity-50`}
+              >
+                {shopStatus?.isOpen && (
+                  <span className="inline-flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    OPEN
+                  </span>
+                )}
+                {!shopStatus?.isOpen && 'OPEN'}
+              </button>
+              <button
+                onClick={() => handleToggleShop(false)}
+                disabled={togglingShop || !shopStatus?.isOpen}
+                className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                  !shopStatus?.isOpen
+                    ? 'bg-red-500 text-white cursor-default'
+                    : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50'
+                } disabled:opacity-50`}
+              >
+                {!shopStatus?.isOpen && (
+                  <span className="inline-flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    CLOSED
+                  </span>
+                )}
+                {shopStatus?.isOpen && 'CLOSE'}
+              </button>
+            </div>
+          </div>
+          {showReasonInput && (
+            <div className="mt-4 flex gap-2">
+              <input
+                type="text"
+                value={closureReason}
+                onChange={(e) => setClosureReason(e.target.value)}
+                placeholder="Reason for closure (optional)"
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+              <button
+                onClick={() => handleToggleShop(false)}
+                disabled={togglingShop}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+              >
+                {togglingShop ? 'Closing...' : 'Confirm Close'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowReasonInput(false);
+                  setClosureReason('');
+                }}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* General Settings */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
           <h2 className="text-sm font-semibold text-gray-800 dark:text-white mb-3">General Information</h2>

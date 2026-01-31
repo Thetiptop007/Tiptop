@@ -5,6 +5,13 @@ export interface AdminProfile {
   lastName: string;
 }
 
+export interface ShopStatus {
+  isOpen: boolean;
+  lastUpdatedBy: string;
+  lastUpdatedAt: string;
+  closureReason: string;
+}
+
 export interface Settings {
   _id?: string;
   siteName: string;
@@ -24,6 +31,7 @@ export interface Settings {
   apkDownloadUrl: string;
   indusAppStoreUrl: string;
   adminProfile: AdminProfile;
+  shopStatus?: ShopStatus;
 }
 
 export interface SettingsResponse {
@@ -61,4 +69,33 @@ export const updateSettings = async (settings: Partial<Settings>): Promise<Setti
   }
   
   return parsedResponse.data.settings;
+};
+
+export const toggleShopStatus = async (isOpen: boolean, closureReason?: string): Promise<ShopStatus> => {
+  const response = await apiRequest('/settings/shop-status', {
+    method: 'PATCH',
+    body: JSON.stringify({ isOpen, closureReason }),
+  });
+
+  const parsedResponse = await parseApiResponse<{ shopStatus: ShopStatus }>(response);
+  
+  if (parsedResponse.status === 'error' || !parsedResponse.data) {
+    throw new Error(parsedResponse.message || 'Failed to update shop status');
+  }
+  
+  return parsedResponse.data.shopStatus;
+};
+
+export const getShopStatus = async (): Promise<ShopStatus> => {
+  const response = await apiRequest('/settings/shop-status', {
+    method: 'GET',
+  });
+
+  const parsedResponse = await parseApiResponse<{ shopStatus: ShopStatus }>(response);
+  
+  if (parsedResponse.status === 'error' || !parsedResponse.data) {
+    throw new Error(parsedResponse.message || 'Failed to fetch shop status');
+  }
+  
+  return parsedResponse.data.shopStatus;
 };

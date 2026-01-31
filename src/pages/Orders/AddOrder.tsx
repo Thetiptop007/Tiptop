@@ -3,9 +3,10 @@ import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { getCategories } from "../../services/menu-management.service";
 import { getPOSMenuItems, createAdminOrder, type CreateAdminOrderData } from "../../services/order-management.service";
-import { getSettings, type Settings } from "../../services/settings.service";
-import { useNavigate } from "react-router-dom";
+import { getSettings, type Settings, getShopStatus, ShopStatus } from "../../services/settings.service";
+import { useNavigate, Link } from "react-router-dom";
 import { useDebounceSearch } from "../../hooks/useDebounceSearch";
+import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 
 // Define the TypeScript interface for menu items
 interface MenuItem {
@@ -47,6 +48,15 @@ export default function AddOrder() {
   const [deliveryState, setDeliveryState] = useState<string>("");
   const [deliveryZipCode, setDeliveryZipCode] = useState<string>("");
 
+  // Notification state
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  
+  // Shop status state
+  const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
+  
+  // Network status
+  const { isOnline } = useNetworkStatus();
+
   // Dynamic data state
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>(["All"]);
@@ -75,6 +85,10 @@ export default function AddOrder() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // Fetch shop status first
+        const status = await getShopStatus();
+        setShopStatus(status);
+        
         // Fetch settings for tax and charges
         const settingsData = await getSettings();
         setSettings(settingsData);
@@ -271,28 +285,45 @@ export default function AddOrder() {
     return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
+  const showNotification = (message: string, type: 'success' | 'error') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000); // Auto-hide after 3 seconds
+  };
+
   const handlePlaceOrder = async () => {
+    // Check if online
+    if (!isOnline) {
+      showNotification("No internet connection. Please check your network and try again.", "error");
+      return;
+    }
+    
     // Validation
     if (cart.length === 0) {
-      alert("Please add items to cart");
+      showNotification("Please add items to cart", "error");
       return;
     }
 
     if (!customerName.trim()) {
-      alert("Please enter customer name");
+      showNotification("Please enter customer name", "error");
       return;
     }
 
     if (!customerPhone.trim()) {
-      alert("Please enter customer phone number");
+      showNotification("Please enter customer phone number", "error");
       return;
     }
 
     if (orderType === "DELIVERY") {
       if (!deliveryStreet.trim() || !deliveryCity.trim() || !deliveryState.trim() || !deliveryZipCode.trim()) {
-        alert("Please fill in all delivery address fields");
+        showNotification("Please fill in all delivery address fields", "error");
         return;
       }
+    }
+
+    // Prevent double submission
+    if (submitting) {
+      console.warn("⚠️ Order submission already in progress");
+      return;
     }
 
     setSubmitting(true);
@@ -323,27 +354,38 @@ export default function AddOrder() {
         };
       }
 
-      console.log('📤 Submitting order:', orderData);
+      // Call the API to create the order
       const result = await createAdminOrder(orderData);
-      console.log('✅ Order result:', result);
-
-      if (result && result.order) {
-        alert(`Order placed successfully! Order Number: ${result.order.orderNumber}`);
+      
+      if (result?.order) {
+        showNotification(`Order placed successfully! Order Number: ${result.order.orderNumber}`, "success");
         // Reset form
         setCart([]);
         setCustomerName("");
         setCustomerPhone("");
         setDeliveryStreet("");
         // Keep city, state, zip for next order (pre-filled from settings)
-        // Navigate to order management
-        navigate("/admin/orders");
+        // Navigate to order management after a short delay to show notification
+        setTimeout(() => {
+          navigate("/admin/orders");
+        }, 1500);
       } else {
         throw new Error('Order creation failed - no result returned');
       }
     } catch (error: any) {
       console.error("❌ Error placing order:", error);
-      const errorMessage = error?.message || error?.error?.message || "Failed to place order. Please try again.";
-      alert(errorMessage);
+      
+      // Handle specific error cases
+      if (error.message?.includes('already being processed')) {
+        showNotification("This order is already being processed. Please wait.", "error");
+      } else if (error.message?.includes('Duplicate request')) {
+        showNotification("Duplicate order detected. Your previous order may have been successful. Please check the order list.", "error");
+      } else if (error.message?.includes('Network Error') || error.message?.includes('timeout')) {
+        showNotification("Network error occurred. Please check your internet connection and verify if the order was created.", "error");
+      } else {
+        const errorMessage = error?.message || error?.error?.message || "Failed to place order. Please try again.";
+        showNotification(errorMessage, "error");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -357,7 +399,35 @@ export default function AddOrder() {
       />
       <PageBreadcrumb pageTitle="Add New Order" />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Shop Closed Warning */}
+      {shopStatus && !shopStatus.isOpen && (
+        <div className="mb-6 rounded-lg bg-red-50 border-2 border-red-200 p-4 dark:bg-red-900/20 dark:border-red-800">
+          <div className="flex items-start gap-3">
+            <svg className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">
+                Shop is Currently Closed
+              </h3>
+              <p className="text-sm text-red-700 dark:text-red-400 mb-2">
+                {shopStatus.closureReason || 'The shop is temporarily closed. You need to open the shop before accepting or placing orders.'}
+              </p>
+              <Link
+                to="/admin/profile"
+                className="inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                Go to Profile to Open Shop
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">{/* Menu Items Section - Left Side (2/3 width on large screens) */}
         {/* Menu Items Section - Left Side (2/3 width on large screens) */}
         <div className="lg:col-span-2">
           <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -870,10 +940,11 @@ export default function AddOrder() {
                 </div>
                 <button 
                   onClick={handlePlaceOrder}
-                  disabled={submitting || cart.length === 0}
+                  disabled={submitting || cart.length === 0 || !isOnline}
                   className="w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                  title={!isOnline ? "No internet connection" : undefined}
                 >
-                  {submitting ? "Placing Order..." : "Place Order"}
+                  {submitting ? "Placing Order..." : !isOnline ? "Offline - Cannot Place Order" : "Place Order"}
                 </button>
               </div>
             )}
@@ -1082,6 +1153,38 @@ export default function AddOrder() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed bottom-4 right-4 z-[100001] animate-slide-up">
+          <div className={`rounded-lg px-6 py-4 shadow-lg backdrop-blur-sm ${
+            notification.type === 'success' 
+              ? 'bg-green-500/90 text-white' 
+              : 'bg-red-500/90 text-white'
+          }`}>
+            <div className="flex items-center gap-3">
+              {notification.type === 'success' ? (
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ) : (
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              <p className="font-medium">{notification.message}</p>
+              <button
+                onClick={() => setNotification(null)}
+                className="ml-4 hover:opacity-80"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>

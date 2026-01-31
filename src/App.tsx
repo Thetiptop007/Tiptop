@@ -2,19 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from "react-router";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
-import UserProfiles from "./pages/UserProfiles";
-import Videos from "./pages/UiElements/Videos";
-import Images from "./pages/UiElements/Images";
-import Alerts from "./pages/UiElements/Alerts";
-import Badges from "./pages/UiElements/Badges";
-import Avatars from "./pages/UiElements/Avatars";
-import Buttons from "./pages/UiElements/Buttons";
-import LineChart from "./pages/Charts/LineChart";
-import BarChart from "./pages/Charts/BarChart";
-import Calendar from "./pages/Calendar";
-import BasicTables from "./pages/Tables/BasicTables";
-import FormElements from "./pages/Forms/FormElements";
-import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
@@ -29,6 +16,8 @@ import DeliveryList from "./pages/Delivery/DeliveryList";
 import AddDelivery from "./pages/Delivery/AddDelivery";
 import CategoryManagement from "./pages/Categories/CategoryManagement";
 import Settings from "./pages/Settings";
+import Developer from "./pages/Developer";
+import UserProfiles from "./pages/UserProfiles";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
@@ -74,29 +63,10 @@ export default function App() {
             <Route path="delivery" element={<DeliveryList />} />
             <Route path="delivery/add" element={<AddDelivery />} />
 
-            {/* Others Page */}
+            {/* Others */}
             <Route path="profile" element={<UserProfiles />} />
             <Route path="settings" element={<Settings />} />
-            <Route path="calendar" element={<Calendar />} />
-            <Route path="blank" element={<Blank />} />
-
-            {/* Forms */}
-            <Route path="form-elements" element={<FormElements />} />
-
-            {/* Tables */}
-            <Route path="basic-tables" element={<BasicTables />} />
-
-            {/* Ui Elements */}
-            <Route path="alerts" element={<Alerts />} />
-            <Route path="avatars" element={<Avatars />} />
-            <Route path="badge" element={<Badges />} />
-            <Route path="buttons" element={<Buttons />} />
-            <Route path="images" element={<Images />} />
-            <Route path="videos" element={<Videos />} />
-
-            {/* Charts */}
-            <Route path="line-chart" element={<LineChart />} />
-            <Route path="bar-chart" element={<BarChart />} />
+            <Route path="developer" element={<Developer />} />
           </Route>
 
           {/* Auth Layout */}

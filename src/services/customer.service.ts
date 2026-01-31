@@ -69,26 +69,59 @@ export const getCustomers = async (params?: {
   
   const url = `/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   
+  console.log('🔵 [CUSTOMER SERVICE] Making request:', {
+    url,
+    params,
+    queryString: queryParams.toString()
+  });
+  
   const response = await apiRequest(url, {
     method: 'GET',
   });
 
+  console.log('🔵 [CUSTOMER SERVICE] Raw response status:', response.status);
+  
   const parsedResponse = await parseApiResponse(response) as any;
   
-  console.log('Customer Service - Parsed Response:', parsedResponse);
-  console.log('Customer Service - parsedResponse.data:', parsedResponse.data);
+  console.log('🔵 [CUSTOMER SERVICE] Parsed Response:', JSON.stringify(parsedResponse, null, 2));
+  console.log('🔵 [CUSTOMER SERVICE] Response keys:', Object.keys(parsedResponse));
+  console.log('🔵 [CUSTOMER SERVICE] parsedResponse.status:', parsedResponse.status);
+  console.log('🔵 [CUSTOMER SERVICE] parsedResponse.results:', parsedResponse.results);
+  console.log('🔵 [CUSTOMER SERVICE] parsedResponse.pagination:', parsedResponse.pagination);
+  console.log('🔵 [CUSTOMER SERVICE] parsedResponse.data:', parsedResponse.data);
+  
+  if (parsedResponse.data && parsedResponse.data.users) {
+    console.log('🔵 [CUSTOMER SERVICE] Users count:', parsedResponse.data.users.length);
+    console.log('🔵 [CUSTOMER SERVICE] First user sample:', parsedResponse.data.users[0]);
+  } else {
+    console.log('❌ [CUSTOMER SERVICE] No users in response data!');
+  }
   
   // parsedResponse structure: { status, results, pagination, data: { users } }
   // results and pagination are at top level, users are in data
   
-  return {
+  const finalResponse = {
     status: parsedResponse.status,
     results: parsedResponse.results || 0,
-    pagination: parsedResponse.pagination || { page: 1, limit: 10, totalPages: 1, totalResults: 0 },
+    pagination: {
+      page: parsedResponse.pagination?.currentPage || parsedResponse.pagination?.page || 1,
+      limit: parsedResponse.pagination?.itemsPerPage || parsedResponse.pagination?.limit || 10,
+      totalPages: parsedResponse.pagination?.totalPages || 1,
+      totalResults: parsedResponse.pagination?.totalItems || parsedResponse.pagination?.totalResults || 0
+    },
     data: {
-      users: parsedResponse.data.users || []
+      users: parsedResponse.data?.users || []
     }
   };
+  
+  console.log('🔵 [CUSTOMER SERVICE] Final response being returned:', {
+    status: finalResponse.status,
+    results: finalResponse.results,
+    pagination: finalResponse.pagination,
+    usersCount: finalResponse.data.users.length
+  });
+  
+  return finalResponse;
 };
 
 export const getCustomerById = async (id: string): Promise<Customer> => {

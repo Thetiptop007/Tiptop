@@ -4,10 +4,12 @@ import { Link } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 import UserDropdown from "../components/header/UserDropdown";
+import { getShopStatus, ShopStatus } from "../services/settings.service";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -47,6 +49,23 @@ const AppHeader: React.FC = () => {
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
+  }, []);
+
+  // Fetch shop status on mount and poll every 30 seconds
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const status = await getShopStatus();
+        setShopStatus(status);
+      } catch (error) {
+        console.error('Error fetching shop status:', error);
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -129,6 +148,27 @@ const AppHeader: React.FC = () => {
           } items-center justify-between w-full gap-4 px-5 py-4 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none`}
         >
           <div className="flex items-center gap-2 2xsm:gap-3">
+            {/* <!-- Shop Status Indicator --> */}
+            {shopStatus && (
+              <Link
+                to="/admin/profile"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  shopStatus.isOpen
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50'
+                    : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 animate-pulse'
+                }`}
+                title={shopStatus.isOpen ? 'Shop is open - Click to manage' : 'Shop is closed - Click to open'}
+              >
+                <div className={`w-2 h-2 rounded-full ${
+                  shopStatus.isOpen ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
+                <span className="hidden sm:inline">
+                  {shopStatus.isOpen ? 'Shop Open' : 'Shop Closed'}
+                </span>
+              </Link>
+            )}
+            {/* <!-- Shop Status Indicator --> */}
+
             {/* <!-- Fullscreen Toggle --> */}
             <button
               onClick={toggleFullscreen}

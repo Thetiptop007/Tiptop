@@ -19,6 +19,25 @@ export const apiRequest = async (
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> => {
+  const fullUrl = getApiUrl(endpoint);
+  
+  // Check if online before making request
+  if (!navigator.onLine) {
+    throw new Error('No internet connection. Please check your network and try again.');
+  }
+  
+  // Add cache-busting timestamp to URL
+  const cacheBuster = `_t=${Date.now()}`;
+  const separator = fullUrl.includes('?') ? '&' : '?';
+  const finalUrl = `${fullUrl}${separator}${cacheBuster}`;
+  
+  console.log('🚀 [apiRequest] Starting request:', {
+    endpoint,
+    finalUrl,
+    method: options.method || 'GET',
+    timestamp: new Date().toISOString()
+  });
+  
   const token = localStorage.getItem('adminToken');
   
   const headers: Record<string, string> = {
@@ -30,21 +49,47 @@ export const apiRequest = async (
     headers['Authorization'] = `Bearer ${token}`;
   }
   
-  const response = await fetch(getApiUrl(endpoint), {
-    ...options,
-    headers,
-  });
+  console.log('📤 [apiRequest] Request headers:', headers);
   
-  // If unauthorized, clear token and redirect to login
-  if (response.status === 401) {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminEmail');
-    localStorage.removeItem('adminName');
-    localStorage.removeItem('adminRole');
-    window.location.href = '/signin';
+  try {
+    const response = await fetch(finalUrl, {
+      ...options,
+      headers,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(30000), // 30 second timeout
+    });
+    
+    console.log('📥 [apiRequest] Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+    
+    // If unauthorized, clear token and redirect to login
+    if (response.status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminEmail');
+      localStorage.removeItem('adminName');
+      localStorage.removeItem('adminRole');
+      window.location.href = '/signin';
+    }
+    
+    return response;
+  } catch (error: any) {
+    // Handle network errors with user-friendly messages
+    if (error.name === 'TimeoutError') {
+      throw new Error('Request timed out. The server is taking too long to respond. Please try again.');
+    }
+    if (error.name === 'AbortError') {
+      throw new Error('Request was cancelled. Please try again.');
+    }
+    if (!navigator.onLine) {
+      throw new Error('Lost internet connection while processing request. Please check your network.');
+    }
+    // Generic network error
+    throw new Error('Network error occurred. Please check your internet connection and try again.');
   }
-  
-  return response;
 };
 
 /**
@@ -64,9 +109,13 @@ export const parseApiResponse = async <T = any>(
   response: Response
 ): Promise<ApiResponse<T>> => {
   try {
+    console.log('🔍 [parseApiResponse] Parsing response with status:', response.status);
     const data = await response.json();
+    console.log('🔍 [parseApiResponse] Parsed data:', data);
+    console.log('🔍 [parseApiResponse] Data keys:', Object.keys(data));
     return data;
   } catch (error) {
+    console.error('❌ [parseApiResponse] Failed to parse response:', error);
     return {
       status: 'error',
       message: 'Failed to parse response',

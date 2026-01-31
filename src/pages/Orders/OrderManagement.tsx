@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
@@ -19,6 +19,7 @@ import {
   type AllOrdersResponse
 } from "../../services/order-management.service";
 import { apiRequest, parseApiResponse } from "../../config/api";
+import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 
 // Define order data
 const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void }) => {
@@ -247,10 +248,12 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             onClick={(e) => {
               e.stopPropagation();
               onStatusUpdate(order.id, "ACCEPTED");
+              // Auto-print receipt when accepting order
+              setTimeout(() => handlePrintReceipt(order), 300);
             }}
             className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors"
           >
-            Accept Order
+            Accept & Print
           </button>
         );
       case "Accepted":
@@ -506,12 +509,15 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
                     <TableCell className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {getActionButton(order)}
-                        <button
-                          onClick={() => handlePrintReceipt(order)}
-                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 transition-colors"
-                        >
-                          Print
-                        </button>
+                        {/* Show Print button for all statuses except PENDING (since Accept & Print handles it) */}
+                        {order.status !== "PENDING" && order.status !== "New" && (
+                          <button
+                            onClick={() => handlePrintReceipt(order)}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 transition-colors"
+                          >
+                            Print
+                          </button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1005,9 +1011,8 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
             {orders.map((order) => (
-              <>
+              <React.Fragment key={order.id}>
                 <TableRow 
-                  key={order.id}
                   className="hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                 >
                   <TableCell className="px-5 py-4 sm:px-6 text-start">
@@ -1027,12 +1032,12 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     <div className="cursor-pointer" onClick={() => toggleExpand(order.id)}>
-                      {order.customer}
+                      {typeof order.customer === 'string' ? order.customer : (order.customer as any)?.name || 'N/A'}
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     <div className="cursor-pointer" onClick={() => toggleExpand(order.id)}>
-                      {order.phone}
+                      {typeof order.phone === 'string' ? order.phone : (order.customer as any)?.phone || 'N/A'}
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
@@ -1103,8 +1108,8 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
                                   Customer Information
                                 </h4>
                                 <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                                  <p><span className="font-medium text-gray-700 dark:text-gray-300">Name:</span> {expandedOrderDetails.customer}</p>
-                                  <p><span className="font-medium text-gray-700 dark:text-gray-300">Phone:</span> {expandedOrderDetails.phone}</p>
+                                  <p><span className="font-medium text-gray-700 dark:text-gray-300">Name:</span> {typeof expandedOrderDetails.customer === 'string' ? expandedOrderDetails.customer : (expandedOrderDetails.customer as any)?.name || 'N/A'}</p>
+                                  <p><span className="font-medium text-gray-700 dark:text-gray-300">Phone:</span> {typeof expandedOrderDetails.phone === 'string' ? expandedOrderDetails.phone : (expandedOrderDetails.customer as any)?.phone || 'N/A'}</p>
                                 </div>
                               </div>
                             </div>
@@ -1248,7 +1253,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             ))}
           </TableBody>
         </Table>
@@ -1264,6 +1269,7 @@ export default function OrderManagement() {
   const [allOrdersData, setAllOrdersData] = useState<AllOrdersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const { isOnline } = useNetworkStatus();
   
   // Notification state
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -1293,14 +1299,57 @@ export default function OrderManagement() {
   
   const fetchTodayOrders = async () => {
     setLoading(true);
+    console.log('🔄 [fetchTodayOrders] Fetching today\'s orders...');
     const data = await getTodayOrders();
+    
+    console.log('📊 [fetchTodayOrders] RAW DATA RECEIVED:', JSON.stringify(data, null, 2));
+    console.log('📊 [fetchTodayOrders] Data structure:', {
+      isNull: data === null,
+      hasData: !!data,
+      keys: data ? Object.keys(data) : [],
+      pending: data?.pending?.length || 0,
+      accepted: data?.accepted?.length || 0,
+      preparing: data?.preparing?.length || 0,
+      ready: data?.ready?.length || 0,
+      ready_for_pickup: data?.ready_for_pickup?.length || 0,
+      out_for_delivery: data?.out_for_delivery?.length || 0,
+      delivered: data?.delivered?.length || 0,
+      cancelled: data?.cancelled?.length || 0
+    });
+    
+    if (data?.pending && data.pending.length > 0) {
+      console.log('🔍 [fetchTodayOrders] Sample pending order:', data.pending[0]);
+    }
+    
     setTodayOrders(data);
     setLoading(false);
   };
   
   const fetchAllOrders = async (page: number) => {
     setLoading(true);
+    console.log(`🔄 [fetchAllOrders] Fetching all orders (page ${page})...`);
     const data = await getAllOrders(page, 10);
+    
+    console.log('📊 [fetchAllOrders] RAW DATA RECEIVED:', JSON.stringify(data, null, 2));
+    console.log('📊 [fetchAllOrders] Data structure:', {
+      isNull: data === null,
+      hasData: !!data,
+      keys: data ? Object.keys(data) : [],
+      hasOrders: !!data?.orders,
+      ordersCount: data?.orders?.length || 0,
+      hasPagination: !!data?.pagination,
+      paginationKeys: data?.pagination ? Object.keys(data.pagination) : [],
+      pagination: data?.pagination
+    });
+    
+    if (data?.orders && data.orders.length > 0) {
+      console.log('🔍 [fetchAllOrders] Sample order:', data.orders[0]);
+      console.log('🔍 [fetchAllOrders] Customer field type:', typeof data.orders[0].customer);
+      console.log('🔍 [fetchAllOrders] Customer value:', data.orders[0].customer);
+      console.log('🔍 [fetchAllOrders] Phone field type:', typeof data.orders[0].phone);
+      console.log('🔍 [fetchAllOrders] Phone value:', data.orders[0].phone);
+    }
+    
     setAllOrdersData(data);
     setLoading(false);
   };
@@ -1374,6 +1423,12 @@ export default function OrderManagement() {
   
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     console.log(`🔄 [handleStatusUpdate] Attempting to update order ${orderId} to ${newStatus}`);
+    
+    // Check if online
+    if (!isOnline) {
+      showNotification('No internet connection. Please check your network and try again.', 'error');
+      return;
+    }
     
     // Find the order to log its current state
     const currentOrder = todayOrders?.pending?.find(o => o.id === orderId) ||
@@ -1623,7 +1678,7 @@ export default function OrderManagement() {
         </div>
       ) : (
         <div>
-          {!allOrdersData || allOrdersData.orders.length === 0 ? (
+          {!allOrdersData || !allOrdersData.orders || allOrdersData.orders.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white p-12 text-center dark:border-white/[0.05] dark:bg-white/[0.03]">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
                 <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1638,7 +1693,7 @@ export default function OrderManagement() {
           ) : (
             <>
               <AllOrdersTable orders={allOrdersData.orders} />
-              {allOrdersData.pagination.totalPages > 1 && (
+              {allOrdersData.pagination && allOrdersData.pagination.totalPages > 1 && (
                 <div className="mt-4 flex items-center justify-center gap-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
