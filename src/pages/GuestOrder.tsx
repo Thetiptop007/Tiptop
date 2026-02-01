@@ -576,37 +576,51 @@ export default function GuestOrder() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                    {filteredItems.map((item) => (
-                      <div
-                        key={item.id}
-                        onClick={() => openVariantModal(item)}
-                        className="group cursor-pointer rounded-xl border border-gray-200 bg-white p-3 transition-all hover:border-[#e36057] hover:shadow-md dark:border-gray-800 dark:bg-white/[0.03]"
-                      >
-                        <div className="mb-2 aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <h3 className="mb-1 text-sm font-semibold text-gray-800 dark:text-white/90 line-clamp-2">
-                          {item.name}
-                        </h3>
-                        <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                          {item.category}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-[#e36057]">
-                            ₹{item.price.toFixed(2)}
-                          </span>
-                          {item.priceVariants && item.priceVariants.length > 0 && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {item.priceVariants.length} variants
+                    {filteredItems.map((item) => {
+                      const isAvailable = item.isAvailable !== false;
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => isAvailable && openVariantModal(item)}
+                          className={`group rounded-xl border bg-white p-3 transition-all dark:bg-white/[0.03] ${
+                            isAvailable
+                              ? 'cursor-pointer border-gray-200 hover:border-[#e36057] hover:shadow-md dark:border-gray-800'
+                              : 'cursor-not-allowed border-gray-300 opacity-60 dark:border-gray-700'
+                          }`}
+                        >
+                          <div className="relative mb-2 aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className={`h-full w-full object-cover ${!isAvailable ? 'grayscale' : ''}`}
+                            />
+                            {!isAvailable && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                                <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
+                                  Unavailable
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <h3 className="mb-1 text-sm font-semibold text-gray-800 dark:text-white/90 line-clamp-2">
+                            {item.name}
+                          </h3>
+                          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                            {item.category}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <span className={`text-sm font-bold ${isAvailable ? 'text-[#e36057]' : 'text-gray-400'}`}>
+                              ₹{item.price.toFixed(2)}
                             </span>
-                          )}
+                            {item.priceVariants && item.priceVariants.length > 0 && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {item.priceVariants.length} variants
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
