@@ -14,6 +14,7 @@ import {
   getAllOrders,
   getOrderDetails,
   updateOrderStatus,
+  printKitchenBill,
   type Order,
   type TodayOrdersResponse,
   type AllOrdersResponse
@@ -25,188 +26,30 @@ import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void }) => {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
-  const handlePrintReceipt = (order: any) => {
-    // Create a hidden iframe for thermal printing
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'absolute';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = 'none';
-    
-    document.body.appendChild(printFrame);
-    
-    const doc = printFrame.contentWindow?.document;
-    if (!doc) return;
-    
-    // Calculate totals
-    const totalQty = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
-    
-    // Format price helper - remove .00 decimals
-    const formatPrice = (price: number) => {
-      return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
-    };
-    
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Receipt - ${order.orderId}</title>
-          <style>
-            @media print {
-              @page {
-                size: 58mm auto;
-                margin: 0;
-              }
-              body {
-                margin: 0;
-                padding: 0;
-              }
-            }
-            
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-              font-family: 'Courier New', monospace; 
-              width: 58mm; 
-              margin: 0 auto; 
-              padding: 3mm; 
-              font-size: 11px; 
-              line-height: 1.3;
-              color: #000;
-            }
-            .center { text-align: center; }
-            .bold { font-weight: bold; }
-            .restaurant-name { 
-              font-size: 16px; 
-              font-weight: bold; 
-              letter-spacing: 1px;
-              margin-bottom: 3px;
-            }
-            .address { 
-              font-size: 10px; 
-              line-height: 1.2;
-              margin-bottom: 2px;
-            }
-            .divider { 
-              border-top: 1px dashed #000; 
-              margin: 5px 0;
-            }
-            .row { 
-              display: flex; 
-              justify-content: space-between;
-              font-size: 10px;
-              margin: 2px 0;
-            }
-            .items-header {
-              font-size: 10px;
-              display: flex;
-              justify-content: space-between;
-              margin: 5px 0 3px 0;
-            }
-            .item-row {
-              font-size: 10px;
-              margin: 2px 0;
-            }
-            .item-name {
-              margin-bottom: 1px;
-            }
-            .item-details {
-              display: flex;
-              justify-content: space-between;
-              padding-left: 10px;
-            }
-            .grand-total {
-              font-size: 14px;
-              font-weight: bold;
-              margin-top: 5px;
-              padding-top: 5px;
-            }
-            .footer {
-              text-align: center;
-              font-size: 10px;
-              margin-top: 8px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="center restaurant-name">THE TIP TOP</div>
-          <div class="center address">NEAR ASHIANA PG, LAW GATE,</div>
-          <div class="center address">MAHERU, PHAGWARA.</div>
-          
-          <div class="divider"></div>
-          
-          <div class="row">
-            <span><span class="label">Name:</span> ${order.customer}</span>
-          </div>
-          <div class="row">
-            <span><span class="label">M:</span> ${order.phone}</span>
-          </div>
-          
-          <div class="divider"></div>
-          
-          <div class="row">
-            <span><span class="label">Date:</span> ${order.date}</span>
-            <span class="label">${order.orderType || 'Delivery'}</span>
-          </div>
-          <div class="row">
-            <span>${order.time}</span>
-          </div>
-          <div class="row">
-            <span><span class="label">Bill No.:</span> ${order.orderId}</span>
-          </div>
-          
-          <div class="divider"></div>
-          
-          <div class="items-header">
-            <span style="width: 90px;">Item</span>
-            <span style="width: 20px; text-align: center;">Qty</span>
-            <span style="width: 40px; text-align: right;">Price</span>
-            <span style="width: 40px; text-align: right;">Amt</span>
-          </div>
-          
-          ${order.items.map((item: any) => `
-            <div class="item-row">
-              <div style="display: flex; justify-content: space-between;">
-                <div class="item-name" style="width: 90px;">${item.name}${item.portion ? ` (${item.portion})` : ''}</div>
-                <span style="width: 20px; text-align: center;">${item.quantity}</span>
-                <span style="width: 40px; text-align: right;">${formatPrice(item.price)}</span>
-                <span style="width: 40px; text-align: right;">${formatPrice(item.price * item.quantity)}</span>
-              </div>
-            </div>
-          `).join('')}
-          
-          <div class="divider"></div>
-          <div class="divider"></div>
-          
-          <div class="row">
-            <span><span class="label">Total Qty:</span> ${totalQty}</span>
-            <span><span class="label">Sub Total</span> ${order.total}</span>
-          </div>
-          
-          <div class="divider"></div>
-          
-          <div class="row grand-total">
-            <span>Grand Total</span>
-            <span>₹ ${order.total}</span>
-          </div>
-          
-          <div class="footer">Thanks</div>
-        </body>
-      </html>
-    `);
-    doc.close();
-    
-    // Wait for content to load, then print
-    if (printFrame.contentWindow) {
-      printFrame.contentWindow.onload = function() {
-        setTimeout(() => {
-          printFrame.contentWindow?.print();
-          // Remove iframe after printing
-          setTimeout(() => {
-            document.body.removeChild(printFrame);
-          }, 100);
-        }, 250);
-      };
+
+
+  const handlePrintKitchenBill = async (orderId: string) => {
+    try {
+      console.log('🖨️  [handlePrintKitchenBill] Triggering thermal printer for order ID:', orderId);
+      await printKitchenBill(orderId);
+      console.log('✅ [handlePrintKitchenBill] Order marked for thermal printing');
+    } catch (error) {
+      console.error('❌ [handlePrintKitchenBill] Failed to trigger thermal print:', error);
+      throw error;
+    }
+  };
+
+  const handleThermalPrint = async (order: Order) => {
+    try {
+      console.log('🖨️  [handleThermalPrint] Triggering thermal printer for:', order.orderId);
+      await printKitchenBill(order.id);
+      
+      // Show success message
+      alert(`Kitchen bill will print shortly on thermal printer!\nOrder: ${order.orderId}`);
+      console.log('✅ [handleThermalPrint] Order marked for thermal printing');
+    } catch (error) {
+      console.error('❌ [handleThermalPrint] Failed to trigger thermal print:', error);
+      alert('Failed to send order to thermal printer. Please try again.');
     }
   };
 
@@ -245,11 +88,17 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
       case "PENDING":
         return (
           <button 
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation();
               onStatusUpdate(order.id, "ACCEPTED");
-              // Auto-print receipt when accepting order
-              setTimeout(() => handlePrintReceipt(order), 300);
+              // Trigger thermal printer after accepting order
+              setTimeout(async () => {
+                try {
+                  await handlePrintKitchenBill(order.id);
+                } catch (error) {
+                  console.error('Failed to trigger thermal printer:', error);
+                }
+              }, 300);
             }}
             className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors"
           >
@@ -509,12 +358,16 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
                     <TableCell className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {getActionButton(order)}
-                        {/* Show Print button for all statuses except PENDING (since Accept & Print handles it) */}
+                        {/* Show Print Kitchen Bill button for all statuses except PENDING (since Accept & Print handles it) */}
                         {order.status !== "PENDING" && order.status !== "New" && (
                           <button
-                            onClick={() => handlePrintReceipt(order)}
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 transition-colors"
+                            onClick={() => handleThermalPrint(order)}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 transition-colors flex items-center gap-1"
+                            title="Print kitchen bill on thermal printer"
                           >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
                             Print
                           </button>
                         )}

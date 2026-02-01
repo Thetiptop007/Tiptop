@@ -326,3 +326,35 @@ export const createAdminOrder = async (orderData: CreateAdminOrderData): Promise
   }
 };
 
+// Trigger thermal printer for kitchen bill
+export const printKitchenBill = async (orderId: string): Promise<void> => {
+  try {
+    console.log('🖨️  Triggering thermal printer for order:', orderId);
+    
+    // Mark order as ready for thermal printing by setting isPrinted to false
+    // The thermal printer app polls for orders with isPrinted: false
+    const response = await apiRequest(`orders/admin/${orderId}/mark-for-print`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        isPrinted: false,
+        markedAt: new Date().toISOString()
+      })
+    });
+    
+    const data = await parseApiResponse(response);
+    
+    if (data.status === 'success' || data.success) {
+      console.log('✅ Order marked for thermal printing');
+      return;
+    }
+    
+    throw new Error(data.message || 'Failed to mark order for printing');
+  } catch (error) {
+    console.error('❌ Thermal print error:', error);
+    throw error;
+  }
+};
+
