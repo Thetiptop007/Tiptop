@@ -67,12 +67,24 @@ export const apiRequest = async (
     });
     
     // If unauthorized, clear token and redirect to login
+    // BUT only if we're currently on an admin route
     if (response.status === 401) {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminEmail');
-      localStorage.removeItem('adminName');
-      localStorage.removeItem('adminRole');
-      window.location.href = '/signin';
+      const currentPath = window.location.pathname;
+      const isAdminRoute = currentPath.startsWith('/admin');
+      
+      console.log('⚠️ [apiRequest] 401 Unauthorized response', {
+        currentPath,
+        isAdminRoute,
+        willRedirect: isAdminRoute
+      });
+      
+      if (isAdminRoute) {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminEmail');
+        localStorage.removeItem('adminName');
+        localStorage.removeItem('adminRole');
+        window.location.href = '/signin';
+      }
     }
     
     return response;

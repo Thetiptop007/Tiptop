@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { useState, useEffect } from "react";
 import { getSettings, Settings } from "../services/settings.service";
-import { getMenuItems, MenuItem } from "../services/menu-management.service";
+import { getPopularItems, MenuItem } from "../services/menu-management.service";
 import Footer from "../components/common/Footer";
 
 export default function LandingPage() {
@@ -9,18 +9,19 @@ export default function LandingPage() {
   const [popularDishes, setPopularDishes] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  console.log('🏠 LandingPage: Component rendering');
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [settingsData, menuData] = await Promise.all([
+        const [settingsData, popularItems] = await Promise.all([
           getSettings(),
-          getMenuItems(1, 3)
+          getPopularItems(3)
         ]);
         
         setSettings(settingsData);
-        if (menuData?.items) {
-          setPopularDishes(menuData.items.slice(0, 3));
-        }
+        setPopularDishes(popularItems);
+        console.log('✅ LandingPage: Fetched popular items', popularItems);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {

@@ -39,6 +39,41 @@ export interface CategoriesResponse {
 }
 
 /**
+ * Get popular menu items (public endpoint)
+ */
+export const getPopularItems = async (limit: number = 3): Promise<MenuItem[]> => {
+  try {
+    const response = await apiRequest(`menu/popular/items?limit=${limit}`);
+    const data = await parseApiResponse(response);
+
+    if (data.status === 'success' && data.data?.menuItems) {
+      return data.data.menuItems.map((item: any) => ({
+        id: item._id,
+        name: item.name,
+        description: item.description || '',
+        image: item.image || item.images?.[0] || '',
+        category: item.categories?.[0] || item.category || 'Other',
+        categories: item.categories || [],
+        price: item.priceVariants?.[0]?.price || 0,
+        priceVariants: item.priceVariants || [],
+        rating: item.rating || 0,
+        reviews: item.reviews || 0,
+        availability: item.isAvailable ? 'Available' : 'Out of Stock',
+        isAvailable: item.isAvailable ?? true,
+        isActive: item.isActive ?? true,
+        totalOrders: item.totalOrders || 0,
+        totalRevenue: item.totalRevenue || 0
+      }));
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Error fetching popular items:', error);
+    return [];
+  }
+};
+
+/**
  * Get menu items with filters, search, and pagination
  */
 export const getMenuItems = async (

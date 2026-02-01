@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -22,66 +22,90 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AuthProvider } from "./context/AuthContext";
 import { ShopStatusProvider } from "./context/ShopStatusContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { useEffect } from "react";
+
+function LocationLogger() {
+  const location = useLocation();
+  
+  useEffect(() => {
+    console.log('📍 Current Location:', location.pathname, location);
+  }, [location]);
+  
+  return null;
+}
 
 export default function App() {
+  console.log('🚀 App.tsx: Rendering App component');
+  
   return (
     <>
       <Router>
+        <LocationLogger />
         <AuthProvider>
           <ShopStatusProvider>
             <ScrollToTop />
             <Routes>
-          {/* Public Landing Page */}
-          <Route path="/" element={<LandingPage />} />
-          
-          {/* Guest Order Page - Public */}
-          <Route path="/order" element={<GuestOrder />} />
+              {/* Public Landing Page */}
+              <Route path="/" element={
+                <>
+                  {console.log('📍 Route: Rendering Landing Page route "/"')}
+                  <LandingPage />
+                </>
+              } />
+              
+              {/* Guest Order Page - Public */}
+              <Route path="/order" element={
+                <>
+                  {console.log('📍 Route: Rendering Guest Order route "/order"')}
+                  <GuestOrder />
+                </>
+              } />
 
-          {/* Admin Panel - All routes under /admin (Protected) */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Home />} />
+              {/* Admin Panel - All routes under /admin (Protected) */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Home />} />
 
-            {/* Orders */}
-            <Route path="orders" element={<OrderManagement />} />
-            <Route path="orders/add" element={<AddOrder />} />
+                {/* Orders */}
+                <Route path="orders" element={<OrderManagement />} />
+                <Route path="orders/add" element={<AddOrder />} />
 
-            {/* Customers */}
-            <Route path="customers" element={<CustomerList />} />
+                {/* Customers */}
+                <Route path="customers" element={<CustomerList />} />
 
-            {/* Menu */}
-            <Route path="menu" element={<MenuManagement />} />
-            <Route path="menu/add" element={<AddMenu />} />
+                {/* Menu */}
+                <Route path="menu" element={<MenuManagement />} />
+                <Route path="menu/add" element={<AddMenu />} />
 
-            {/* Categories */}
-            <Route path="categories" element={<CategoryManagement />} />
+                {/* Categories */}
+                <Route path="categories" element={<CategoryManagement />} />
 
-            {/* Delivery */}
-            <Route path="delivery" element={<DeliveryList />} />
-            <Route path="delivery/add" element={<AddDelivery />} />
+                {/* Delivery */}
+                <Route path="delivery" element={<DeliveryList />} />
+                <Route path="delivery/add" element={<AddDelivery />} />
 
-            {/* Others */}
-            <Route path="profile" element={<UserProfiles />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="developer" element={<Developer />} />
-          </Route>
+                {/* Others */}
+                <Route path="profile" element={<UserProfiles />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="developer" element={<Developer />} />
+              </Route>
 
-          {/* Public Privacy Policy */}
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              {/* Public Privacy Policy */}
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-          {/* Auth Layout */}
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
+              {/* Auth Layout */}
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/signup" element={<SignUp />} />
 
-          {/* Fallback Route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+              {/* Fallback Route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
           </ShopStatusProvider>
         </AuthProvider>
       </Router>
