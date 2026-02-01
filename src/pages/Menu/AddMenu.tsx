@@ -16,8 +16,6 @@ interface MenuFormData {
   ingredients: string;
   preparationTime: string;
   priceVariants: PriceVariant[];
-  isVegetarian: boolean;
-  isSpicy: boolean;
   isAvailable: boolean;
   image: string;
 }
@@ -27,7 +25,6 @@ export default function AddMenu() {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
-  const [imageSourceType, setImageSourceType] = useState<'url' | 'upload'>('url');
   const [formData, setFormData] = useState<MenuFormData>({
     name: "",
     category: "",
@@ -35,8 +32,6 @@ export default function AddMenu() {
     ingredients: "",
     preparationTime: "15",
     priceVariants: [{ quantity: "Full", price: 0 }],
-    isVegetarian: false,
-    isSpicy: false,
     isAvailable: true,
     image: "",
   });
@@ -66,23 +61,6 @@ export default function AddMenu() {
         ...prev,
         [name]: value,
       }));
-    }
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Create preview and store as base64
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreview(result);
-        setFormData((prev) => ({
-          ...prev,
-          image: result,
-        }));
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -144,8 +122,6 @@ export default function AddMenu() {
         priceVariants: formData.priceVariants,
         category: formData.category, // Send as 'category' (singular) not 'categories'
         preparationTime: parseInt(formData.preparationTime) || 15,
-        isVegetarian: formData.isVegetarian,
-        isSpicy: formData.isSpicy,
         isAvailable: formData.isAvailable,
       };
       
@@ -367,98 +343,18 @@ export default function AddMenu() {
                     Item Image
                   </label>
                   
-                  {/* Image Source Type Toggle */}
-                  <div className="mb-3 flex gap-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="imageSourceType"
-                        value="url"
-                        checked={imageSourceType === 'url'}
-                        onChange={() => {
-                          setImageSourceType('url');
-                          setFormData(prev => ({ ...prev, image: '' }));
-                          setImagePreview('');
-                        }}
-                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-700"
-                      />
-                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Image URL</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="imageSourceType"
-                        value="upload"
-                        checked={imageSourceType === 'upload'}
-                        onChange={() => {
-                          setImageSourceType('upload');
-                          setFormData(prev => ({ ...prev, image: '' }));
-                          setImagePreview('');
-                        }}
-                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-700"
-                      />
-                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Upload File</span>
-                    </label>
-                  </div>
-
-                  {/* URL Input */}
-                  {imageSourceType === 'url' && (
-                    <input
-                      type="url"
-                      placeholder="https://example.com/image.jpg"
-                      value={formData.image}
-                      onChange={handleImageUrlChange}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                    />
-                  )}
-
-                  {/* File Upload */}
-                  {imageSourceType === 'upload' && (
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-800 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-indigo-600 hover:file:bg-indigo-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:file:bg-indigo-500/10 dark:file:text-indigo-400"
-                    />
-                  )}
+                  <input
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    value={formData.image}
+                    onChange={handleImageUrlChange}
+                    required
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  />
                 </div>
 
                 {/* Checkboxes */}
                 <div className="space-y-3">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isVegetarian"
-                      name="isVegetarian"
-                      checked={formData.isVegetarian}
-                      onChange={handleInputChange}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900"
-                    />
-                    <label
-                      htmlFor="isVegetarian"
-                      className="ml-2 text-sm text-gray-700 dark:text-gray-300"
-                    >
-                      Vegetarian
-                    </label>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isSpicy"
-                      name="isSpicy"
-                      checked={formData.isSpicy}
-                      onChange={handleInputChange}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900"
-                    />
-                    <label
-                      htmlFor="isSpicy"
-                      className="ml-2 text-sm text-gray-700 dark:text-gray-300"
-                    >
-                      Spicy
-                    </label>
-                  </div>
-
                   <div className="flex items-center">
                     <input
                       type="checkbox"

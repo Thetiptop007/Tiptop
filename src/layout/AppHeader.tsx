@@ -4,12 +4,12 @@ import { Link } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 import UserDropdown from "../components/header/UserDropdown";
-import { getShopStatus, ShopStatus } from "../services/settings.service";
+import { useShopStatus } from "../context/ShopStatusContext";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
+  const { shopStatus } = useShopStatus();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -49,23 +49,6 @@ const AppHeader: React.FC = () => {
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
-  }, []);
-
-  // Fetch shop status on mount and poll every 30 seconds
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const status = await getShopStatus();
-        setShopStatus(status);
-      } catch (error) {
-        console.error('Error fetching shop status:', error);
-      }
-    };
-
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 30000); // Poll every 30 seconds
-
-    return () => clearInterval(interval);
   }, []);
 
   return (

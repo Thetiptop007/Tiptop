@@ -1,14 +1,21 @@
 import { useState, useEffect } from 'react';
 import { toggleShopStatus, getShopStatus, ShopStatus } from '../../services/settings.service';
+import { useShopStatus } from '../../context/ShopStatusContext';
 
 export default function ShopStatusCard() {
+  const { shopStatus: globalShopStatus, refreshShopStatus } = useShopStatus();
   const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
 
   useEffect(() => {
-    fetchShopStatus();
-  }, []);
+    if (globalShopStatus) {
+      setShopStatus(globalShopStatus);
+      setLoading(false);
+    } else {
+      fetchShopStatus();
+    }
+  }, [globalShopStatus]);
 
   const fetchShopStatus = async () => {
     try {
@@ -39,6 +46,7 @@ export default function ShopStatusCard() {
         setToggling(true);
         const updatedStatus = await toggleShopStatus(false, reason);
         setShopStatus(updatedStatus);
+        await refreshShopStatus(); // Refresh global shop status
         alert('Shop is now CLOSED');
       } catch (error) {
         console.error('Error closing shop:', error);
@@ -52,6 +60,7 @@ export default function ShopStatusCard() {
         setToggling(true);
         const updatedStatus = await toggleShopStatus(true, '');
         setShopStatus(updatedStatus);
+        await refreshShopStatus(); // Refresh global shop status
         alert('Shop is now OPEN');
       } catch (error) {
         console.error('Error opening shop:', error);

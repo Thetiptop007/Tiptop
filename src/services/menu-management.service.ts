@@ -164,8 +164,7 @@ export const createMenuItem = async (itemData: {
   priceVariants: Array<{ quantity: string; price: number }>;
   category: string; // Changed from categories to category (singular)
   preparationTime?: number;
-  isVegetarian?: boolean;
-  isSpicy?: boolean;
+
   isAvailable?: boolean;
 }): Promise<{ success: boolean; item?: MenuItem; message?: string }> => {
   try {
@@ -211,8 +210,6 @@ export const updateMenuItem = async (
     priceVariants: Array<{ quantity: string; price: number }>;
     category: string; // Changed from categories to category (singular)
     preparationTime: number;
-    isVegetarian: boolean;
-    isSpicy: boolean;
     isAvailable: boolean;
     isActive: boolean;
   }>

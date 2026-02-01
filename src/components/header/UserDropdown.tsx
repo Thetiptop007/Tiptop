@@ -1,23 +1,23 @@
 import { useState, useEffect } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { useAuth } from "../../context/AuthContext";
-import { getSettings, Settings } from "../../services/settings.service";
+import { getCurrentUser, User } from "../../services/auth.service";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const { logout } = useAuth();
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    fetchSettings();
+    fetchUser();
   }, []);
 
-  const fetchSettings = async () => {
+  const fetchUser = async () => {
     try {
-      const data = await getSettings();
-      setSettings(data);
+      const userData = await getCurrentUser();
+      setUser(userData);
     } catch (error) {
-      console.error('Failed to fetch settings:', error);
+      console.error('Failed to fetch user:', error);
     }
   };
 
@@ -34,11 +34,8 @@ export default function UserDropdown() {
     logout();
   }
 
-  const displayName = settings 
-    ? `${settings.adminProfile.firstName} ${settings.adminProfile.lastName}`.trim()
-    : "Admin User";
-  
-  const displayEmail = settings?.contactEmail || "admin@example.com";
+  const displayName = user?.name || "Admin User";
+  const displayEmail = user?.email || "admin@example.com";
 
   return (
     <div className="relative">

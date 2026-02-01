@@ -19,8 +19,6 @@ interface EditFormData {
   priceVariants: Array<{ quantity: string; price: number }>;
   categories: string[];
   preparationTime: number;
-  isVegetarian: boolean;
-  isSpicy: boolean;
   isAvailable: boolean;
   isActive: boolean;
 }

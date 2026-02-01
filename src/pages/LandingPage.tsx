@@ -1,24 +1,48 @@
 import { Link } from "react-router";
 import { useState, useEffect } from "react";
 import { getSettings, Settings } from "../services/settings.service";
+import { getMenuItems, MenuItem } from "../services/menu-management.service";
+import Footer from "../components/common/Footer";
 
 export default function LandingPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [popularDishes, setPopularDishes] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSettings = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getSettings();
-        setSettings(data);
+        const [settingsData, menuData] = await Promise.all([
+          getSettings(),
+          getMenuItems(1, 3)
+        ]);
+        
+        setSettings(settingsData);
+        if (menuData?.items) {
+          setPopularDishes(menuData.items.slice(0, 3));
+        }
       } catch (error) {
-        console.error('Failed to fetch settings:', error);
+        console.error('Failed to fetch data:', error);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchSettings();
+    fetchData();
   }, []);
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900">
+        <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-center">
+              <img src="/logo-full.png" alt="The Tip Top" className="h-10" />
+            </Link>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 px-4 md:px-6 lg:px-20 py-10 md:py-16 max-w-7xl mx-auto">
         <div className="flex flex-col justify-center">
@@ -52,7 +76,7 @@ export default function LandingPage() {
           </div>
         </div>
         <div className="flex items-center justify-center">
-          <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
+          <div className="rounded-2xl overflow-hidden">
             <img src="/heroImage.png" alt="heroImage" className="w-full h-auto" />
           </div>
         </div>
@@ -68,64 +92,104 @@ export default function LandingPage() {
             Explore our most loved menu items
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {/* Dish Card 1 */}
-          <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="aspect-square overflow-hidden">
-              <img
-                src="https://img.freepik.com/free-photo/indian-butter-chicken-black-bowl-isolated-white_123827-20098.jpg"
-                alt="Tandoori Chicken"
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-              />
-            </div>
-            <div className="p-5">
-              <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
-                Tandoori Chicken
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Perfectly marinated and grilled to perfection
-              </p>
-            </div>
+        
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden animate-pulse">
+                <div className="aspect-square bg-gray-200 dark:bg-gray-700"></div>
+                <div className="p-5 space-y-3">
+                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                </div>
+              </div>
+            ))}
           </div>
+        ) : popularDishes.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {popularDishes.map((dish) => (
+              <div key={dish.id} className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="aspect-square overflow-hidden">
+                  <img
+                    src={dish.image}
+                    alt={dish.name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <div className="p-5">
+                  <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
+                    {dish.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                    {dish.description}
+                  </p>
+                  {dish.priceVariants && dish.priceVariants.length > 0 && (
+                    <p className="text-sm font-semibold text-[#e36057]">
+                      Starting from ₹{Math.min(...dish.priceVariants.map(v => v.price))}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {/* Default dishes as fallback */}
+            <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="aspect-square overflow-hidden">
+                <img
+                  src="https://img.freepik.com/free-photo/indian-butter-chicken-black-bowl-isolated-white_123827-20098.jpg"
+                  alt="Tandoori Chicken"
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <div className="p-5">
+                <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
+                  Tandoori Chicken
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Perfectly marinated and grilled to perfection
+                </p>
+              </div>
+            </div>
 
-          {/* Dish Card 2 */}
-          <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="aspect-square overflow-hidden">
-              <img
-                src="https://img.freepik.com/free-photo/indian-paneer-tikka-kabab-made-cottage-cheese-served-with-mint-chutney_466689-76250.jpg"
-                alt="Shahi Paneer"
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-              />
+            <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="aspect-square overflow-hidden">
+                <img
+                  src="https://img.freepik.com/free-photo/indian-paneer-tikka-kabab-made-cottage-cheese-served-with-mint-chutney_466689-76250.jpg"
+                  alt="Shahi Paneer"
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <div className="p-5">
+                <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
+                  Shahi Paneer
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Rich and creamy cottage cheese curry
+                </p>
+              </div>
             </div>
-            <div className="p-5">
-              <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
-                Shahi Paneer
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Rich and creamy cottage cheese curry
-              </p>
-            </div>
-          </div>
 
-          {/* Dish Card 3 */}
-          <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="aspect-square overflow-hidden">
-              <img
-                src="https://img.freepik.com/free-photo/delicious-indian-biryani-with-chicken-plate_23-2150696018.jpg"
-                alt="Chicken Dum Biryani"
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-              />
-            </div>
-            <div className="p-5">
-              <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
-                Chicken Dum Biryani
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Aromatic basmati rice with succulent chicken
-              </p>
+            <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="aspect-square overflow-hidden">
+                <img
+                  src="https://img.freepik.com/free-photo/delicious-indian-biryani-with-chicken-plate_23-2150696018.jpg"
+                  alt="Chicken Dum Biryani"
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <div className="p-5">
+                <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
+                  Chicken Dum Biryani
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Aromatic basmati rice with succulent chicken
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
         <div className="mt-8 md:mt-12 flex justify-center">
           <Link
             to="/order"
@@ -149,7 +213,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-2xl mx-auto">
-            {/* APK Download */}
+            {/* APK Download for Android */}
             <a
               href={settings?.apkDownloadUrl || "#"}
               target="_blank"
@@ -166,7 +230,7 @@ export default function LandingPage() {
                   Download APK
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Install directly on Android
+                  For Android Users
                 </p>
               </div>
               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,35 +238,33 @@ export default function LandingPage() {
               </svg>
             </a>
 
-            {/* Indus AppStore */}
-            <a
-              href={settings?.indusAppStoreUrl || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
+            {/* iOS Users - Use Order Page */}
+            <Link
+              to="/order"
               className="flex items-center gap-4 rounded-xl border-2 border-gray-200 bg-white p-5 hover:border-[#e36057] hover:shadow-lg transition-all dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#e36057]"
             >
-              <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-red-100 dark:bg-red-900">
-                <svg className="w-7 h-7 text-[#e36057]" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+              <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900">
+                <svg className="w-7 h-7 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                 </svg>
               </div>
               <div className="flex-1 text-left">
                 <h3 className="font-bold text-gray-800 dark:text-white/90 mb-1">
-                  Indus AppStore
+                  iOS Users
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Get it from Indus AppStore
+                  Order as Guest
                 </p>
               </div>
               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-            </a>
+            </Link>
           </div>
 
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Available for Android devices • Version 1.0.0
+              Android: Download APK • iOS: Use Order Page • Version 1.0.0
             </p>
           </div>
         </div>
@@ -282,11 +344,7 @@ export default function LandingPage() {
       </div>
 
       {/* Footer */}
-      <div className="mt-12 pt-6 border-t border-gray-200 dark:border-gray-800 text-center px-4">
-        <p className="text-sm text-gray-500 dark:text-gray-400 pb-6">
-          © 2026 The Tip Top. All rights reserved.
-        </p>
-      </div>
+      <Footer />
     </div>
   );
 }

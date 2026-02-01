@@ -4,37 +4,41 @@ import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
-import { getSettings, updateSettings, Settings } from "../../services/settings.service";
+import { getCurrentUser, updateCurrentUser, User } from "../../services/auth.service";
 
 export default function UserInfoCard() {
   const { isOpen, openModal, closeModal } = useModal();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    contactEmail: '',
-    contactPhone: '',
+    email: '',
+    phone: '',
   });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSettings();
+    fetchUser();
   }, []);
 
-  const fetchSettings = async () => {
+  const fetchUser = async () => {
     try {
       setLoading(true);
-      const data = await getSettings();
-      setSettings(data);
-      setFormData({
-        firstName: data.adminProfile.firstName,
-        lastName: data.adminProfile.lastName,
-        contactEmail: data.contactEmail,
-        contactPhone: data.contactPhone,
-      });
+      const userData = await getCurrentUser();
+      setUser(userData);
+      if (userData) {
+        const nameParts = (userData.name || '').split(' ');
+        setFormData({
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          email: userData.email || '',
+          phone: userData.phone || '',
+        });
+      }
     } catch (error) {
-      console.error('Failed to fetch settings:', error);
+      console.error('Failed to fetch user:', error);
     } finally {
       setLoading(false);
     }
@@ -43,23 +47,33 @@ export default function UserInfoCard() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    setError(null); // Clear error when user types
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      await updateSettings({
-        adminProfile: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
+      setError(null);
+      await updateCurrentUser({
+        name: {
+          first: formData.firstName,
+          last: formData.lastName,
         },
-        contactEmail: formData.contactEmail,
-        contactPhone: formData.contactPhone,
+        email: formData.email,
+        phone: formData.phone,
       });
-      await fetchSettings();
+      await fetchUser();
       closeModal();
-    } catch (error) {
-      console.error('Failed to save settings:', error);
+    } catch (error: any) {
+      console.error('Failed to save user profile:', error);
+      // Check for duplicate email error
+      if (error.message && error.message.includes('duplicate key') && error.message.includes('email')) {
+        setError('This email address is already in use by another account. Please use a different email.');
+      } else if (error.message && error.message.includes('duplicate key') && error.message.includes('phone')) {
+        setError('This phone number is already in use by another account. Please use a different phone number.');
+      } else {
+        setError(error.message || 'Failed to update profile. Please try again.');
+      }
     } finally {
       setSaving(false);
     }
@@ -86,19 +100,10 @@ export default function UserInfoCard() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-7 2xl:gap-x-32">
             <div>
               <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                First Name
+                Name
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {settings?.adminProfile.firstName || 'N/A'}
-              </p>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                Last Name
-              </p>
-              <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {settings?.adminProfile.lastName || 'N/A'}
+                {user?.name || 'N/A'}
               </p>
             </div>
 
@@ -107,7 +112,7 @@ export default function UserInfoCard() {
                 Email address
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {settings?.contactEmail || 'N/A'}
+                {user?.email || 'N/A'}
               </p>
             </div>
 
@@ -116,7 +121,16 @@ export default function UserInfoCard() {
                 Phone
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {settings?.contactPhone || 'N/A'}
+                {user?.phone || 'N/A'}
+              </p>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
+                Role
+              </p>
+              <p className="text-sm font-medium text-gray-800 dark:text-white/90 capitalize">
+                {user?.role || 'N/A'}
               </p>
             </div>
           </div>
@@ -156,6 +170,11 @@ export default function UserInfoCard() {
             </p>
           </div>
           <form className="flex flex-col">
+            {error && (
+              <div className="mx-2 mb-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
             <div className="custom-scrollbar h-[450px] overflow-y-auto px-2 pb-3">
               <div>
                 <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">
@@ -174,12 +193,13 @@ export default function UserInfoCard() {
                   </div>
 
                   <div className="col-span-2 lg:col-span-1">
-                    <Label>Last Name</Label>
+                    <Label>Last Name <span className="text-gray-400">(Optional)</span></Label>
                     <Input
                       type="text"
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleChange}
+                      placeholder="Optional"
                     />
                   </div>
 
@@ -187,8 +207,8 @@ export default function UserInfoCard() {
                     <Label>Email Address</Label>
                     <Input
                       type="email"
-                      name="contactEmail"
-                      value={formData.contactEmail}
+                      name="email"
+                      value={formData.email}
                       onChange={handleChange}
                     />
                   </div>
@@ -197,11 +217,12 @@ export default function UserInfoCard() {
                     <Label>Phone</Label>
                     <Input
                       type="text"
-                      name="contactPhone"
-                      value={formData.contactPhone}
+                      name="phone"
+                      value={formData.phone}
                       onChange={handleChange}
                     />
                   </div>
+
                 </div>
               </div>
             </div>

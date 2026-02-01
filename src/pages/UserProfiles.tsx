@@ -1,19 +1,20 @@
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import UserMetaCard from "../components/UserProfile/UserMetaCard";
 import UserInfoCard from "../components/UserProfile/UserInfoCard";
-import UserAddressCard from "../components/UserProfile/UserAddressCard";
+import ContactInfoCard from "../components/UserProfile/ContactInfoCard";
 import OrderPricingCard from "../components/UserProfile/OrderPricingCard";
 import AppUpdateCard from "../components/UserProfile/AppUpdateCard";
 import AppDownloadLinksCard from "../components/UserProfile/AppDownloadLinksCard";
 import ChangePasswordCard from "../components/UserProfile/ChangePasswordCard";
+import ShopStatusCard from "../components/UserProfile/ShopStatusCard";
 import PageMeta from "../components/common/PageMeta";
 
 export default function UserProfiles() {
   return (
     <>
       <PageMeta
-        title="React.js Profile Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is React.js Profile Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="Profile Dashboard | The Tip Top - Restaurant Admin Panel"
+        description="Manage your profile and restaurant settings for The Tip Top"
       />
       <PageBreadcrumb pageTitle="Profile" />
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
@@ -22,9 +23,10 @@ export default function UserProfiles() {
         </h3>
         <div className="space-y-6">
           <UserMetaCard />
+          <ShopStatusCard />
           <UserInfoCard />
+          <ContactInfoCard />
           <ChangePasswordCard />
-          <UserAddressCard />
           <OrderPricingCard />
           <AppDownloadLinksCard />
           <AppUpdateCard />

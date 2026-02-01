@@ -18,7 +18,9 @@ import CategoryManagement from "./pages/Categories/CategoryManagement";
 import Settings from "./pages/Settings";
 import Developer from "./pages/Developer";
 import UserProfiles from "./pages/UserProfiles";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AuthProvider } from "./context/AuthContext";
+import { ShopStatusProvider } from "./context/ShopStatusContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 export default function App() {
@@ -26,8 +28,9 @@ export default function App() {
     <>
       <Router>
         <AuthProvider>
-          <ScrollToTop />
-          <Routes>
+          <ShopStatusProvider>
+            <ScrollToTop />
+            <Routes>
           {/* Public Landing Page */}
           <Route path="/" element={<LandingPage />} />
           
@@ -69,6 +72,9 @@ export default function App() {
             <Route path="developer" element={<Developer />} />
           </Route>
 
+          {/* Public Privacy Policy */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+
           {/* Auth Layout */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
@@ -76,6 +82,7 @@ export default function App() {
           {/* Fallback Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+          </ShopStatusProvider>
         </AuthProvider>
       </Router>
     </>
