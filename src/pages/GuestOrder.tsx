@@ -3,6 +3,7 @@ import { getSettings, type Settings } from "../services/settings.service";
 import { Link } from "react-router";
 import { getApiUrl } from "../config/api";
 import { useDebounceSearch } from "../hooks/useDebounceSearch";
+import { useShopStatus } from "../context/ShopStatusContext";
 
 // Define the TypeScript interface for menu items
 interface MenuItem {
@@ -29,6 +30,10 @@ interface CartItem extends MenuItem {
 export default function GuestOrder() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  
+  // Shop status from context
+  const { shopStatus } = useShopStatus();
+  const isShopOpen = shopStatus?.isOpen ?? true;
   
   // Customer details state
   const [customerName, setCustomerName] = useState<string>("");
@@ -461,8 +466,23 @@ export default function GuestOrder() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
-        <div className="mb-6">
+      {/* Shop Closed Banner */}
+      {!isShopOpen && (
+        <div className="bg-red-600 text-white">
+          <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
+            <div className="flex items-center justify-center gap-2">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm font-medium">
+                Sorry, we're currently closed. Orders are temporarily unavailable.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">\n        <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">
             Order as Guest
           </h1>
@@ -754,10 +774,10 @@ export default function GuestOrder() {
                     </div>
                     <button
                       onClick={handlePlaceOrder}
-                      disabled={submitting || cart.length === 0}
+                      disabled={submitting || cart.length === 0 || !isShopOpen}
                       className="w-full rounded-lg bg-[#e36057] px-4 py-3 text-sm font-medium text-white hover:bg-[#d14f47] disabled:opacity-50 disabled:cursor-not-allowed dark:hover:bg-[#e36057]"
                     >
-                      {submitting ? "Placing Order..." : "Place Order"}
+                      {submitting ? "Placing Order..." : !isShopOpen ? "Shop Closed - Cannot Order" : "Place Order"}
                     </button>
                   </div>
                 </>
