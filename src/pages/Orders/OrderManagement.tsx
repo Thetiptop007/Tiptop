@@ -91,13 +91,18 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
           // WebUSB thermal printing
           if (!thermalPrinter.isConnected()) {
             await thermalPrinter.requestDevice();
+            
+            // Verify connection was successful
+            if (!thermalPrinter.isConnected()) {
+              throw new Error('Failed to connect to USB printer. Please check the connection and try again.');
+            }
           }
           
           const details = orderDetails as any;
           const receiptData: ReceiptData = {
             restaurantName: 'THE TIP TOP',
             restaurantAddress: 'NEAR ASHIANA PG, LAW GATE, MAHERU, PHAGWARA',
-            billType: '*** KITCHEN BILL ***',
+            billType: 'ORDER RECEIPT',
             orderId: order.orderId,
             date: new Date().toLocaleString('en-IN'),
             items: details.items.map((item: any) => ({
@@ -339,7 +344,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
           <div class="center address">NEAR ASHIANA PG, LAW GATE</div>
           <div class="center address">MAHERU, PHAGWARA</div>
           
-          <div class="center bill-type">*** KITCHEN BILL ***</div>
+          <div class="center bill-type">ORDER RECEIPT</div>
           
           <div class="divider-solid"></div>
           
@@ -1007,13 +1012,18 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
           // WebUSB thermal printing
           if (!thermalPrinter.isConnected()) {
             await thermalPrinter.requestDevice();
+            
+            // Verify connection was successful
+            if (!thermalPrinter.isConnected()) {
+              throw new Error('Failed to connect to USB printer. Please check the connection and try again.');
+            }
           }
           
           const details = orderDetails as any;
           const receiptData: ReceiptData = {
             restaurantName: 'THE TIP TOP',
             restaurantAddress: 'NEAR ASHIANA PG, LAW GATE, MAHERU, PHAGWARA',
-            billType: '*** KITCHEN BILL ***',
+            billType: 'ORDER RECEIPT',
             orderId: order.orderId,
             date: new Date().toLocaleString('en-IN'),
             items: details.items.map((item: any) => ({
@@ -1255,7 +1265,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
           <div class="center address">NEAR ASHIANA PG, LAW GATE</div>
           <div class="center address">MAHERU, PHAGWARA</div>
           
-          <div class="center bill-type">*** KITCHEN BILL ***</div>
+          <div class="center bill-type">ORDER RECEIPT</div>
           
           <div class="divider-solid"></div>
           
