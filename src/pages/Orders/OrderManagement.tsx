@@ -120,11 +120,12 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             
             body { 
               font-family: 'Courier New', Courier, monospace; 
+              font-weight: 700;
               width: 58mm; 
               margin: 0 auto; 
               padding: 2mm 3mm; 
-              font-size: 10px; 
-              line-height: 1.4;
+              font-size: 23px; 
+              line-height: 1.35;
               color: #000;
               background: #fff;
               -webkit-print-color-adjust: exact;
@@ -137,28 +138,28 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             }
             
             .bold { 
-              font-weight: bold; 
+              font-weight: 900; 
             }
             
             .restaurant-name { 
-              font-size: 15px; 
-              font-weight: bold; 
-              letter-spacing: 0.5px;
-              margin-bottom: 2px;
+              font-size: 23px; 
+              font-weight: 900; 
+              letter-spacing: 1px;
+              margin-bottom: 3px;
               text-transform: uppercase;
             }
             
             .address { 
-              font-size: 9px; 
-              line-height: 1.3;
+              font-size: 14px; 
+              line-height: 1.35;
               margin-bottom: 1px;
             }
             
             .bill-type {
-              font-size: 13px;
-              font-weight: bold;
+              font-size: 20px;
+              font-weight: 900;
               margin: 4px 0;
-              padding: 2px 0;
+              padding: 3px 0;
               background: #000;
               color: #fff;
               -webkit-print-color-adjust: exact;
@@ -167,12 +168,12 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             
             /* Dividers */
             .divider { 
-              border-top: 1px dashed #333; 
+              border-top: 2px dashed #000; 
               margin: 3px 0;
             }
             
             .divider-solid { 
-              border-top: 2px solid #000; 
+              border-top: 3px solid #000; 
               margin: 4px 0;
             }
             
@@ -180,19 +181,19 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             .row { 
               display: flex; 
               justify-content: space-between;
-              font-size: 9px;
+              font-size: 14px;
               margin: 1px 0;
-              line-height: 1.3;
+              line-height: 1.35;
             }
             
             .label { 
-              font-weight: bold; 
+              font-weight: 900; 
             }
             
             /* Items section */
             .items-header {
-              font-size: 9px;
-              font-weight: bold;
+              font-size: 14px;
+              font-weight: 900;
               display: flex;
               justify-content: space-between;
               margin: 3px 0 2px 0;
@@ -201,13 +202,13 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             }
             
             .item-row {
-              font-size: 10px;
+              font-size: 15px;
               margin: 3px 0;
-              padding: 2px 0;
+              padding: 3px 0;
             }
             
             .item-name {
-              font-weight: bold;
+              font-weight: 900;
               margin-bottom: 1px;
               word-wrap: break-word;
               overflow-wrap: break-word;
@@ -216,17 +217,17 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             .item-details {
               display: flex;
               justify-content: space-between;
-              font-size: 9px;
+              font-size: 14px;
             }
             
             .item-qty {
               background: #000;
               color: #fff;
-              padding: 1px 4px;
+              padding: 2px 6px;
               border-radius: 2px;
-              font-weight: bold;
+              font-weight: 900;
               display: inline-block;
-              min-width: 20px;
+              min-width: 30px;
               text-align: center;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
@@ -236,12 +237,12 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             .totals-section {
               margin-top: 4px;
               padding-top: 3px;
-              border-top: 2px solid #000;
+              border-top: 3px solid #000;
             }
             
             .grand-total {
-              font-size: 13px;
-              font-weight: bold;
+              font-size: 20px;
+              font-weight: 900;
               margin: 4px 0;
               padding: 3px 0;
             }
@@ -249,18 +250,18 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             /* Footer */
             .footer {
               text-align: center;
-              font-size: 9px;
+              font-size: 14px;
               margin-top: 6px;
               padding-top: 3px;
-              border-top: 1px dashed #333;
+              border-top: 2px dashed #000;
             }
             
             .special-notes {
               margin-top: 4px;
-              padding: 3px;
-              background: #f5f5f5;
-              border: 1px solid #ccc;
-              font-size: 9px;
+              padding: 4px;
+              background: #000;
+              border: 2px solid #000;
+              font-size: 14px;
               word-wrap: break-word;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
@@ -970,11 +971,12 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             
             body { 
               font-family: 'Courier New', Courier, monospace; 
+              font-weight: 700;
               width: 58mm; 
               margin: 0 auto; 
               padding: 2mm 3mm; 
-              font-size: 10px; 
-              line-height: 1.4;
+              font-size: 23px; 
+              line-height: 1.35;
               color: #000;
               background: #fff;
               -webkit-print-color-adjust: exact;
@@ -987,28 +989,28 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             }
             
             .bold { 
-              font-weight: bold; 
+              font-weight: 900; 
             }
             
             .restaurant-name { 
-              font-size: 15px; 
-              font-weight: bold; 
-              letter-spacing: 0.5px;
-              margin-bottom: 2px;
+              font-size: 23px; 
+              font-weight: 900; 
+              letter-spacing: 1px;
+              margin-bottom: 3px;
               text-transform: uppercase;
             }
             
             .address { 
-              font-size: 9px; 
-              line-height: 1.3;
+              font-size: 14px; 
+              line-height: 1.35;
               margin-bottom: 1px;
             }
             
             .bill-type {
-              font-size: 13px;
-              font-weight: bold;
+              font-size: 20px;
+              font-weight: 900;
               margin: 4px 0;
-              padding: 2px 0;
+              padding: 3px 0;
               background: #000;
               color: #fff;
               -webkit-print-color-adjust: exact;
@@ -1017,12 +1019,12 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             
             /* Dividers */
             .divider { 
-              border-top: 1px dashed #333; 
+              border-top: 2px dashed #000; 
               margin: 3px 0;
             }
             
             .divider-solid { 
-              border-top: 2px solid #000; 
+              border-top: 3px solid #000; 
               margin: 4px 0;
             }
             
@@ -1030,19 +1032,19 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             .row { 
               display: flex; 
               justify-content: space-between;
-              font-size: 9px;
+              font-size: 14px;
               margin: 1px 0;
-              line-height: 1.3;
+              line-height: 1.35;
             }
             
             .label { 
-              font-weight: bold; 
+              font-weight: 900; 
             }
             
             /* Items section */
             .items-header {
-              font-size: 9px;
-              font-weight: bold;
+              font-size: 14px;
+              font-weight: 900;
               display: flex;
               justify-content: space-between;
               margin: 3px 0 2px 0;
@@ -1051,13 +1053,13 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             }
             
             .item-row {
-              font-size: 10px;
+              font-size: 15px;
               margin: 3px 0;
-              padding: 2px 0;
+              padding: 3px 0;
             }
             
             .item-name {
-              font-weight: bold;
+              font-weight: 900;
               margin-bottom: 1px;
               word-wrap: break-word;
               overflow-wrap: break-word;
@@ -1066,17 +1068,17 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             .item-details {
               display: flex;
               justify-content: space-between;
-              font-size: 9px;
+              font-size: 14px;
             }
             
             .item-qty {
               background: #000;
               color: #fff;
-              padding: 1px 4px;
+              padding: 2px 6px;
               border-radius: 2px;
-              font-weight: bold;
+              font-weight: 900;
               display: inline-block;
-              min-width: 20px;
+              min-width: 30px;
               text-align: center;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
@@ -1086,12 +1088,12 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             .totals-section {
               margin-top: 4px;
               padding-top: 3px;
-              border-top: 2px solid #000;
+              border-top: 3px solid #000;
             }
             
             .grand-total {
-              font-size: 13px;
-              font-weight: bold;
+              font-size: 20px;
+              font-weight: 900;
               margin: 4px 0;
               padding: 3px 0;
             }
@@ -1099,18 +1101,18 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             /* Footer */
             .footer {
               text-align: center;
-              font-size: 9px;
+              font-size: 14px;
               margin-top: 6px;
               padding-top: 3px;
-              border-top: 1px dashed #333;
+              border-top: 2px dashed #000;
             }
             
             .special-notes {
               margin-top: 4px;
-              padding: 3px;
-              background: #f5f5f5;
-              border: 1px solid #ccc;
-              font-size: 9px;
+              padding: 4px;
+              background: #000;
+              border: 2px solid #000;
+              font-size: 14px;
               word-wrap: break-word;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
