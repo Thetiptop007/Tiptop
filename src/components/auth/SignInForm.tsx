@@ -68,19 +68,6 @@ export default function SignInForm() {
             </div>
           )}
 
-          {/* Demo Credentials Info */}
-          <div className="mb-6 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-            <p className="mb-2 text-sm font-medium text-blue-900 dark:text-blue-200">
-              Demo Credentials:
-            </p>
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              Email: admin@thetiptop.com
-            </p>
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              Password: admin123
-            </p>
-          </div>
-
           <div>
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">

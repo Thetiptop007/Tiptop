@@ -98,8 +98,8 @@ export default function GuestOrder() {
           }
         }
         
-        // Fetch categories from public endpoint
-        const categoriesResponse = await fetch(getApiUrl('categories'));
+        // Fetch categories from public endpoint with a high limit to get all categories
+        const categoriesResponse = await fetch(getApiUrl('categories?limit=100'));
         if (categoriesResponse.ok) {
           const categoriesResult = await categoriesResponse.json();
           console.log('📦 Categories response:', categoriesResult);
@@ -309,46 +309,59 @@ export default function GuestOrder() {
     setSubmitting(true);
 
     try {
-      // Format order details for WhatsApp
-      let message = `🍽️ *New Order*\n\n`;
-      message += `👤 *Customer Details:*\n`;
-      message += `Name: ${customerName}\n`;
-      message += `Phone: ${customerPhone}\n\n`;
-      
-      message += `📍 *Delivery Address:*\n`;
-      message += `${deliveryStreet}\n`;
-      message += `${deliveryCity}, ${deliveryState} ${deliveryZipCode}\n\n`;
-      
-      message += `🛒 *Order Items:*\n`;
-      cart.forEach((item, index) => {
-        const itemPrice = item.variantPrice || item.price;
-        const itemTotal = itemPrice * item.quantity;
-        message += `${index + 1}. ${item.name}`;
-        if (item.selectedVariant) {
-          message += ` (${item.selectedVariant})`;
-        }
-        message += ` x${item.quantity} - ₹${itemTotal.toFixed(2)}\n`;
-      });
-      
+      // Format price helper - remove .00 decimals
+      const formatPrice = (price: number) => {
+        return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
+      };
+
+      // Calculate totals
       const subtotal = cart.reduce((sum, item) => sum + (item.variantPrice || item.price) * item.quantity, 0);
       const taxRate = settings?.taxRate || 0;
       const deliveryCharge = settings?.deliveryCharge || 0;
       const tax = subtotal * (taxRate / 100);
       const total = subtotal + tax + deliveryCharge;
+
+      // Format order details for WhatsApp
+      let message = `*═══════════════*\n`;
+      message += `*THE TIP TOP*\n`;
+      message += `NEAR ASHIANA PG, LAW GATE\n`;
+      message += `MAHERU, PHAGWARA\n`;
+      message += `*═══════════════*\n\n`;
       
-      message += `\n💰 *Order Summary:*\n`;
-      message += `Subtotal: ₹${subtotal.toFixed(2)}\n`;
-      if (tax > 0) {
-        message += `Tax (${taxRate}%): ₹${tax.toFixed(2)}\n`;
-      }
+      message += `*Customer:* ${customerName}\n`;
+      message += `*Phone:* ${customerPhone}\n\n`;
+      
+      message += `*Delivery Address:*\n`;
+      message += `${deliveryStreet}\n`;
+      message += `${deliveryCity}, ${deliveryState} ${deliveryZipCode}\n`;
+      message += `*═══════════════*\n\n`;
+      
+      message += `*ITEMS:*\n`;
+      message += `- - - - - - - - - - - - - -\n`;
+      
+      cart.forEach((item) => {
+        const itemPrice = item.variantPrice || item.price;
+        message += `*${item.name.toUpperCase()}*`;
+        if (item.selectedVariant) {
+          message += ` (${item.selectedVariant})`;
+        }
+        message += `\n`;
+        message += `₹${formatPrice(itemPrice)} × ${item.quantity}\n\n`;
+      });
+      
+      message += `*═══════════════*\n\n`;
+      message += `*SUB TOTAL:* ₹${formatPrice(subtotal)}\n`;
       if (deliveryCharge > 0) {
-        message += `Delivery: ₹${deliveryCharge.toFixed(2)}\n`;
+        message += `*DELIVERY FEE:* ₹${formatPrice(deliveryCharge)}\n`;
       }
-      message += `*Total: ₹${total.toFixed(2)}*\n\n`;
-      message += `💳 Payment: Cash on Delivery`;
+      if (tax > 0) {
+        message += `*TAX (${taxRate}%):* ₹${formatPrice(tax)}\n`;
+      }
+      message += `\n*GRAND TOTAL: ₹${formatPrice(total)}*\n`;
+      message += `*═══════════════*`;
 
       // Send to WhatsApp - phone number from settings
-      const whatsappNumber = '919060557296'; // Using the number from settings
+      const whatsappNumber = settings?.contactPhone ? settings.contactPhone.replace(/\D/g, '') : '919060557296';
       const encodedMessage = encodeURIComponent(message);
       const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
       
@@ -482,7 +495,8 @@ export default function GuestOrder() {
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">\n        <div className="mb-6">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">        
+      <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">
             Order as Guest
           </h1>
