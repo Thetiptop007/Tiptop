@@ -20,7 +20,6 @@ import {
 } from "../../services/order-management.service";
 import { apiRequest, parseApiResponse } from "../../config/api";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
-import { thermalPrinter, type ReceiptData } from "../../services/thermal-printer.service";
 
 // Define order data
 const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void }) => {
@@ -74,66 +73,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
       return;
     }
     
-    // Try WebUSB thermal printing first (Option 3) - only on Chrome/Edge
-    if (thermalPrinter.isSupported()) {
-      try {
-        const useWebUSB = window.confirm(
-          '🖨️ Direct Thermal Printer Available!\n\n' +
-          'Option 1 (Recommended): Print directly to USB thermal printer\n' +
-          '  ✅ Automatic cut & beep\n' +
-          '  ✅ No print dialog\n' +
-          '  ⚠️ Requires USB printer permission\n\n' +
-          'Option 2: Use browser print dialog (fallback)\n' +
-          '  ℹ️ Click OK for thermal printer, Cancel for browser\n'
-        );
-        
-        if (useWebUSB) {
-          // WebUSB thermal printing
-          if (!thermalPrinter.isConnected()) {
-            await thermalPrinter.requestDevice();
-            
-            // Verify connection was successful
-            if (!thermalPrinter.isConnected()) {
-              throw new Error('Failed to connect to USB printer. Please check the connection and try again.');
-            }
-          }
-          
-          const details = orderDetails as any;
-          const receiptData: ReceiptData = {
-            restaurantName: 'THE TIP TOP',
-            restaurantAddress: 'NEAR ASHIANA PG, LAW GATE, MAHERU, PHAGWARA',
-            billType: 'ORDER RECEIPT',
-            orderId: order.orderId,
-            date: new Date().toLocaleString('en-IN'),
-            items: details.items.map((item: any) => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price
-            })),
-            subtotal: details.subtotal || 0,
-            deliveryFee: details.deliveryFee || 0,
-            total: details.total || 0,
-            specialInstructions: details.specialInstructions
-          };
-          
-          await thermalPrinter.printReceipt(receiptData);
-          alert('✅ Receipt printed successfully via USB thermal printer!');
-          return;
-        }
-      } catch (error: any) {
-        console.error('WebUSB printing failed:', error);
-        const fallback = window.confirm(
-          `❌ USB thermal printing failed:\n${error.message}\n\n` +
-          'Would you like to use browser print dialog instead?'
-        );
-        if (!fallback) return;
-      }
-    } else {
-      // WebUSB not supported (Firefox, Safari, etc.)
-      console.log('ℹ️ WebUSB not supported in this browser. Using browser print dialog.');
-    }
-    
-    // Fallback: Browser print dialog (Option 5)
+    // Browser print dialog (Option 5)
     // Create a hidden iframe for thermal printing
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
@@ -193,7 +133,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
               font-weight: 700;
               width: 58mm; 
               margin: 0 auto; 
-              padding: 2mm 3mm; 
+              padding: 1mm 1mm; 
               font-size: 15px; 
               line-height: 1.35;
               color: #000;
@@ -311,7 +251,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             }
             
             .grand-total {
-              font-size: 20px;
+              font-size: 16px;
               font-weight: 900;
               margin: 4px 0;
               padding: 3px 0;
@@ -344,7 +284,6 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
           <div class="center address">NEAR ASHIANA PG, LAW GATE</div>
           <div class="center address">MAHERU, PHAGWARA</div>
           
-          <div class="center bill-type">ORDER RECEIPT</div>
           
           <div class="divider-solid"></div>
           
@@ -375,16 +314,16 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
           <!-- Items Header -->
           <div class="items-header">
             <span style="flex: 1;">ITEM</span>
-            <span style="width: 30px; text-align: center;">QTY</span>
+            <span style="width: 80px; text-align: right;">PRICE</span>
           </div>
           
           <!-- Items List -->
-          ${orderDetails?.items?.map((item: any, index: number) => `
+          ${orderDetails?.items?.map((item: any) => `
             <div class="item-row">
-              <div class="item-name">${index + 1}. ${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</div>
+              <div class="item-name">${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</div>
               <div class="item-details">
                 <span>₹${formatPrice(item.price)} × ${item.quantity}</span>
-                <span class="item-qty">${item.quantity}</span>
+                
               </div>
             </div>
           `).join('') || '<div class="item-row">No items</div>'}
@@ -995,66 +934,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
       return;
     }
     
-    // Try WebUSB thermal printing first (Option 3) - only on Chrome/Edge
-    if (thermalPrinter.isSupported()) {
-      try {
-        const useWebUSB = window.confirm(
-          '🖨️ Direct Thermal Printer Available!\n\n' +
-          'Option 1 (Recommended): Print directly to USB thermal printer\n' +
-          '  ✅ Automatic cut & beep\n' +
-          '  ✅ No print dialog\n' +
-          '  ⚠️ Requires USB printer permission\n\n' +
-          'Option 2: Use browser print dialog (fallback)\n' +
-          '  ℹ️ Click OK for thermal printer, Cancel for browser\n'
-        );
-        
-        if (useWebUSB) {
-          // WebUSB thermal printing
-          if (!thermalPrinter.isConnected()) {
-            await thermalPrinter.requestDevice();
-            
-            // Verify connection was successful
-            if (!thermalPrinter.isConnected()) {
-              throw new Error('Failed to connect to USB printer. Please check the connection and try again.');
-            }
-          }
-          
-          const details = orderDetails as any;
-          const receiptData: ReceiptData = {
-            restaurantName: 'THE TIP TOP',
-            restaurantAddress: 'NEAR ASHIANA PG, LAW GATE, MAHERU, PHAGWARA',
-            billType: 'ORDER RECEIPT',
-            orderId: order.orderId,
-            date: new Date().toLocaleString('en-IN'),
-            items: details.items.map((item: any) => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price
-            })),
-            subtotal: details.subtotal || 0,
-            deliveryFee: details.deliveryFee || 0,
-            total: details.total || 0,
-            specialInstructions: details.specialInstructions
-          };
-          
-          await thermalPrinter.printReceipt(receiptData);
-          alert('✅ Receipt printed successfully via USB thermal printer!');
-          return;
-        }
-      } catch (error: any) {
-        console.error('WebUSB printing failed:', error);
-        const fallback = window.confirm(
-          `❌ USB thermal printing failed:\n${error.message}\n\n` +
-          'Would you like to use browser print dialog instead?'
-        );
-        if (!fallback) return;
-      }
-    } else {
-      // WebUSB not supported (Firefox, Safari, etc.)
-      console.log('ℹ️ WebUSB not supported in this browser. Using browser print dialog.');
-    }
-    
-    // Fallback: Browser print dialog (Option 5)
+    // Browser print dialog (Option 5)
     // Create a hidden iframe for thermal printing
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
@@ -1232,7 +1112,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             }
             
             .grand-total {
-              font-size: 20px;
+              font-size: 16px;
               font-weight: 900;
               margin: 4px 0;
               padding: 3px 0;
@@ -1265,7 +1145,6 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
           <div class="center address">NEAR ASHIANA PG, LAW GATE</div>
           <div class="center address">MAHERU, PHAGWARA</div>
           
-          <div class="center bill-type">ORDER RECEIPT</div>
           
           <div class="divider-solid"></div>
           
@@ -1296,16 +1175,16 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
           <!-- Items Header -->
           <div class="items-header">
             <span style="flex: 1;">ITEM</span>
-            <span style="width: 30px; text-align: center;">QTY</span>
+            <span style="width: 80px; text-align: right;">PRICE</span>
           </div>
           
           <!-- Items List -->
-          ${orderDetails?.items?.map((item: any, index: number) => `
+          ${orderDetails?.items?.map((item: any) => `
             <div class="item-row">
-              <div class="item-name">${index + 1}. ${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</div>
+              <div class="item-name">${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</div>
               <div class="item-details">
                 <span>₹${formatPrice(item.price)} × ${item.quantity}</span>
-                <span class="item-qty">${item.quantity}</span>
+                
               </div>
             </div>
           `).join('') || '<div class="item-row">No items</div>'}
