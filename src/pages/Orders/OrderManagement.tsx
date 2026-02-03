@@ -85,10 +85,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
     
     const doc = printFrame.contentWindow?.document;
     if (!doc) return;
-    
-    // Calculate totals from order details
-    const totalQty = orderDetails?.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
-    
+        
     // Format price helper - remove .00 decimals
     const formatPrice = (price: number) => {
       return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
@@ -135,7 +132,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
               margin: 0 auto; 
               padding: 1mm 1mm; 
               font-size: 15px; 
-              line-height: 1.35;
+              line-height: 1.2;
               color: #000;
               background: #fff;
               -webkit-print-color-adjust: exact;
@@ -161,7 +158,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             
             .address { 
               font-size: 14px; 
-              line-height: 1.35;
+              line-height: 1.2;
               margin-bottom: 1px;
             }
             
@@ -169,7 +166,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
               font-size: 20px;
               font-weight: 900;
               margin: 4px 0;
-              padding: 3px 0;
+              padding: 1px 0;
               background: #000;
               color: #fff;
               -webkit-print-color-adjust: exact;
@@ -179,7 +176,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             /* Dividers */
             .divider { 
               border-top: 2px dashed #000; 
-              margin: 3px 0;
+              margin: 1px 0;
             }
             
             .divider-solid { 
@@ -192,8 +189,8 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
               display: flex; 
               justify-content: space-between;
               font-size: 14px;
-              margin: 1px 0;
-              line-height: 1.35;
+              margin: 0;
+              line-height: 1.2;
             }
             
             .label { 
@@ -213,8 +210,8 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             
             .item-row {
               font-size: 15px;
-              margin: 3px 0;
-              padding: 3px 0;
+              margin: 1px 0;
+              padding: 1px 0;
             }
             
             .item-name {
@@ -244,17 +241,11 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             }
             
             /* Totals */
-            .totals-section {
-              margin-top: 4px;
-              padding-top: 3px;
-              border-top: 3px solid #000;
-            }
-            
             .grand-total {
               font-size: 16px;
               font-weight: 900;
               margin: 4px 0;
-              padding: 3px 0;
+              padding: 1px 0;
             }
             
             /* Footer */
@@ -292,9 +283,6 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             <span><span class="label">Bill No:</span> ${order.orderId}</span>
           </div>
           <div class="row">
-            <span><span class="label">Type:</span> ${order.orderType || 'Delivery'}</span>
-          </div>
-          <div class="row">
             <span><span class="label">Date:</span> ${printDate}</span>
             <span>${printTime}</span>
           </div>
@@ -302,11 +290,14 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
           <div class="divider"></div>
           
           <!-- Customer Info -->
-          <div class="row">
-            <span><span class="label">Customer:</span> ${order.customer}</span>
-          </div>
+          ${order.address?.street ? `<div class="row">
+            <span><span class="label">Address:</span> ${order.address.street}</span>
+          </div>` : ''}
           <div class="row">
             <span><span class="label">Phone:</span> ${order.phone}</span>
+          </div>
+          <div class="row">
+            <span><span class="label">Customer:</span> ${order.customer}</span>
           </div>
           
           <div class="divider-solid"></div>
@@ -331,22 +322,28 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
           <div class="divider-solid"></div>
           
           <!-- Totals -->
-          <div class="totals-section">
-            <div class="row">
-              <span class="label">TOTAL ITEMS:</span>
-              <span class="bold">${totalQty}</span>
-            </div>
-            <div class="row">
-              <span class="label">SUB TOTAL:</span>
-              <span class="bold">₹${formatPrice(parseFloat(order.total))}</span>
-            </div>
+          <div class="row">
+            <span class="label">SUB TOTAL:</span>
+            <span class="bold">₹${formatPrice(orderDetails?.pricing?.itemsTotal || parseFloat(order.total))}</span>
           </div>
+          ${orderDetails?.pricing?.deliveryFee && orderDetails.pricing.deliveryFee > 0 ? `<div class="row">
+            <span class="label">DELIVERY FEE:</span>
+            <span class="bold">₹${formatPrice(orderDetails.pricing.deliveryFee)}</span>
+          </div>` : ''}
+          ${orderDetails?.pricing?.gst && orderDetails.pricing.gst > 0 ? `<div class="row">
+            <span class="label">TAX (${orderDetails.pricing.gstRate}%):</span>
+            <span class="bold">₹${formatPrice(orderDetails.pricing.gst)}</span>
+          </div>` : ''}
+          ${orderDetails?.pricing?.discount && orderDetails.pricing.discount > 0 ? `<div class="row">
+            <span class="label">DISCOUNT:</span>
+            <span class="bold">-₹${formatPrice(orderDetails.pricing.discount)}</span>
+          </div>` : ''}
           
           <div class="divider-solid"></div>
           
           <div class="row grand-total">
             <span>GRAND TOTAL</span>
-            <span>₹ ${formatPrice(parseFloat(order.total))}</span>
+            <span>₹ ${formatPrice(orderDetails?.pricing?.finalAmount || parseFloat(order.total))}</span>
           </div>
           
           ${orderDetails?.specialInstructions ? `
@@ -947,8 +944,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
     const doc = printFrame.contentWindow?.document;
     if (!doc) return;
     
-    // Calculate totals from order details
-    const totalQty = orderDetails?.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
+    
     
     // Format price helper - remove .00 decimals
     const formatPrice = (price: number) => {
@@ -996,7 +992,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
               margin: 0 auto; 
               padding: 2mm 3mm; 
               font-size: 23px; 
-              line-height: 1.35;
+              line-height: 1.2;
               color: #000;
               background: #fff;
               -webkit-print-color-adjust: exact;
@@ -1022,7 +1018,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             
             .address { 
               font-size: 14px; 
-              line-height: 1.35;
+              line-height: 1.2;
               margin-bottom: 1px;
             }
             
@@ -1030,7 +1026,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
               font-size: 20px;
               font-weight: 900;
               margin: 4px 0;
-              padding: 3px 0;
+              padding: 1px 0;
               background: #000;
               color: #fff;
               -webkit-print-color-adjust: exact;
@@ -1040,7 +1036,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             /* Dividers */
             .divider { 
               border-top: 2px dashed #000; 
-              margin: 3px 0;
+              margin: 1px 0;
             }
             
             .divider-solid { 
@@ -1053,8 +1049,8 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
               display: flex; 
               justify-content: space-between;
               font-size: 14px;
-              margin: 1px 0;
-              line-height: 1.35;
+              margin: 0;
+              line-height: 1.2;
             }
             
             .label { 
@@ -1074,8 +1070,8 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
             
             .item-row {
               font-size: 15px;
-              margin: 3px 0;
-              padding: 3px 0;
+              margin: 1px 0;
+              padding: 1px 0;
             }
             
             .item-name {
@@ -1115,7 +1111,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
               font-size: 16px;
               font-weight: 900;
               margin: 4px 0;
-              padding: 3px 0;
+              padding: 1px 0;
             }
             
             /* Footer */
@@ -1192,22 +1188,28 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
           <div class="divider-solid"></div>
           
           <!-- Totals -->
-          <div class="totals-section">
-            <div class="row">
-              <span class="label">TOTAL ITEMS:</span>
-              <span class="bold">${totalQty}</span>
-            </div>
-            <div class="row">
-              <span class="label">SUB TOTAL:</span>
-              <span class="bold">₹${formatPrice(parseFloat(order.total))}</span>
-            </div>
+          <div class="row">
+            <span class="label">SUB TOTAL:</span>
+            <span class="bold">₹${formatPrice(orderDetails?.pricing?.itemsTotal || parseFloat(order.total))}</span>
           </div>
+          ${orderDetails?.pricing?.deliveryFee && orderDetails.pricing.deliveryFee > 0 ? `<div class="row">
+            <span class="label">DELIVERY FEE:</span>
+            <span class="bold">₹${formatPrice(orderDetails.pricing.deliveryFee)}</span>
+          </div>` : ''}
+          ${orderDetails?.pricing?.gst && orderDetails.pricing.gst > 0 ? `<div class="row">
+            <span class="label">TAX (${orderDetails.pricing.gstRate}%):</span>
+            <span class="bold">₹${formatPrice(orderDetails.pricing.gst)}</span>
+          </div>` : ''}
+          ${orderDetails?.pricing?.discount && orderDetails.pricing.discount > 0 ? `<div class="row">
+            <span class="label">DISCOUNT:</span>
+            <span class="bold">-₹${formatPrice(orderDetails.pricing.discount)}</span>
+          </div>` : ''}
           
           <div class="divider-solid"></div>
           
           <div class="row grand-total">
             <span>GRAND TOTAL</span>
-            <span>₹ ${formatPrice(parseFloat(order.total))}</span>
+            <span>₹ ${formatPrice(orderDetails?.pricing?.finalAmount || parseFloat(order.total))}</span>
           </div>
           
           ${orderDetails?.specialInstructions ? `
