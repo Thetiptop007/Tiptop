@@ -14,7 +14,6 @@ import {
   getAllOrders,
   getOrderDetails,
   updateOrderStatus,
-  printKitchenBill,
   type Order,
   type TodayOrdersResponse,
   type AllOrdersResponse
@@ -25,33 +24,8 @@ import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 // Define order data
 const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void }) => {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-
-
-
-  const handlePrintKitchenBill = async (orderId: string) => {
-    try {
-      console.log('🖨️  [handlePrintKitchenBill] Triggering thermal printer for order ID:', orderId);
-      await printKitchenBill(orderId);
-      console.log('✅ [handlePrintKitchenBill] Order marked for thermal printing');
-    } catch (error) {
-      console.error('❌ [handlePrintKitchenBill] Failed to trigger thermal print:', error);
-      throw error;
-    }
-  };
-
-  const handleThermalPrint = async (order: Order) => {
-    try {
-      console.log('🖨️  [handleThermalPrint] Triggering thermal printer for:', order.orderId);
-      await printKitchenBill(order.id);
-      
-      // Show success message
-      alert(`Kitchen bill will print shortly on thermal printer!\nOrder: ${order.orderId}`);
-      console.log('✅ [handleThermalPrint] Order marked for thermal printing');
-    } catch (error) {
-      console.error('❌ [handleThermalPrint] Failed to trigger thermal print:', error);
-      alert('Failed to send order to thermal printer. Please try again.');
-    }
-  };
+  const [expandedOrderDetails, setExpandedOrderDetails] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const toggleExpand = async (orderId: string) => {
     if (expandedOrderId === orderId) {
@@ -75,6 +49,337 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
     setExpandedOrderId(orderId);
   };
 
+  const handlePrintReceipt = async (order: any) => {
+    // Fetch order details first if not already loaded
+    let orderDetails = expandedOrderDetails;
+    
+    if (expandedOrderId !== order.id || !expandedOrderDetails) {
+      console.log('🔍 Loading order details for printing...');
+      orderDetails = await getOrderDetails(order.id);
+      setExpandedOrderDetails(orderDetails);
+    }
+    
+    if (!orderDetails) {
+      alert('Failed to load order details. Please try again.');
+      return;
+    }
+    
+    // Create a hidden iframe for thermal printing
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = 'none';
+    
+    document.body.appendChild(printFrame);
+    
+    const doc = printFrame.contentWindow?.document;
+    if (!doc) return;
+    
+    // Calculate totals from order details
+    const totalQty = orderDetails?.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
+    
+    // Format price helper - remove .00 decimals
+    const formatPrice = (price: number) => {
+      return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
+    };
+    
+    // Get current date and time
+    const now = new Date();
+    const printDate = now.toLocaleDateString('en-IN');
+    const printTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Kitchen Bill - ${order.orderId}</title>
+          <style>
+            /* Print-specific styles for thermal printer */
+            @media print {
+              @page {
+                size: 58mm auto;  /* 58mm width, auto height */
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+              /* Hide browser print controls */
+              @page { margin: 0; }
+            }
+            
+            /* Reset and base styles */
+            * { 
+              margin: 0; 
+              padding: 0; 
+              box-sizing: border-box; 
+            }
+            
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              width: 58mm; 
+              margin: 0 auto; 
+              padding: 2mm 3mm; 
+              font-size: 10px; 
+              line-height: 1.4;
+              color: #000;
+              background: #fff;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            
+            /* Typography */
+            .center { 
+              text-align: center; 
+            }
+            
+            .bold { 
+              font-weight: bold; 
+            }
+            
+            .restaurant-name { 
+              font-size: 15px; 
+              font-weight: bold; 
+              letter-spacing: 0.5px;
+              margin-bottom: 2px;
+              text-transform: uppercase;
+            }
+            
+            .address { 
+              font-size: 9px; 
+              line-height: 1.3;
+              margin-bottom: 1px;
+            }
+            
+            .bill-type {
+              font-size: 13px;
+              font-weight: bold;
+              margin: 4px 0;
+              padding: 2px 0;
+              background: #000;
+              color: #fff;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            
+            /* Dividers */
+            .divider { 
+              border-top: 1px dashed #333; 
+              margin: 3px 0;
+            }
+            
+            .divider-solid { 
+              border-top: 2px solid #000; 
+              margin: 4px 0;
+            }
+            
+            /* Row layouts */
+            .row { 
+              display: flex; 
+              justify-content: space-between;
+              font-size: 9px;
+              margin: 1px 0;
+              line-height: 1.3;
+            }
+            
+            .label { 
+              font-weight: bold; 
+            }
+            
+            /* Items section */
+            .items-header {
+              font-size: 9px;
+              font-weight: bold;
+              display: flex;
+              justify-content: space-between;
+              margin: 3px 0 2px 0;
+              padding-bottom: 2px;
+              border-bottom: 1px solid #333;
+            }
+            
+            .item-row {
+              font-size: 10px;
+              margin: 3px 0;
+              padding: 2px 0;
+            }
+            
+            .item-name {
+              font-weight: bold;
+              margin-bottom: 1px;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+            }
+            
+            .item-details {
+              display: flex;
+              justify-content: space-between;
+              font-size: 9px;
+            }
+            
+            .item-qty {
+              background: #000;
+              color: #fff;
+              padding: 1px 4px;
+              border-radius: 2px;
+              font-weight: bold;
+              display: inline-block;
+              min-width: 20px;
+              text-align: center;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            
+            /* Totals */
+            .totals-section {
+              margin-top: 4px;
+              padding-top: 3px;
+              border-top: 2px solid #000;
+            }
+            
+            .grand-total {
+              font-size: 13px;
+              font-weight: bold;
+              margin: 4px 0;
+              padding: 3px 0;
+            }
+            
+            /* Footer */
+            .footer {
+              text-align: center;
+              font-size: 9px;
+              margin-top: 6px;
+              padding-top: 3px;
+              border-top: 1px dashed #333;
+            }
+            
+            .special-notes {
+              margin-top: 4px;
+              padding: 3px;
+              background: #f5f5f5;
+              border: 1px solid #ccc;
+              font-size: 9px;
+              word-wrap: break-word;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          </style>
+        </head>
+        <body>
+          <!-- Header -->
+          <div class="center restaurant-name">THE TIP TOP</div>
+          <div class="center address">NEAR ASHIANA PG, LAW GATE</div>
+          <div class="center address">MAHERU, PHAGWARA</div>
+          
+          <div class="center bill-type">*** KITCHEN BILL ***</div>
+          
+          <div class="divider-solid"></div>
+          
+          <!-- Order Info -->
+          <div class="row">
+            <span><span class="label">Bill No:</span> ${order.orderId}</span>
+          </div>
+          <div class="row">
+            <span><span class="label">Type:</span> ${order.orderType || 'Delivery'}</span>
+          </div>
+          <div class="row">
+            <span><span class="label">Date:</span> ${printDate}</span>
+            <span>${printTime}</span>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <!-- Customer Info -->
+          <div class="row">
+            <span><span class="label">Customer:</span> ${order.customer}</span>
+          </div>
+          <div class="row">
+            <span><span class="label">Phone:</span> ${order.phone}</span>
+          </div>
+          
+          <div class="divider-solid"></div>
+          
+          <!-- Items Header -->
+          <div class="items-header">
+            <span style="flex: 1;">ITEM</span>
+            <span style="width: 30px; text-align: center;">QTY</span>
+          </div>
+          
+          <!-- Items List -->
+          ${orderDetails?.items?.map((item: any, index: number) => `
+            <div class="item-row">
+              <div class="item-name">${index + 1}. ${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</div>
+              <div class="item-details">
+                <span>₹${formatPrice(item.price)} × ${item.quantity}</span>
+                <span class="item-qty">${item.quantity}</span>
+              </div>
+            </div>
+          `).join('') || '<div class="item-row">No items</div>'}
+          
+          <div class="divider-solid"></div>
+          
+          <!-- Totals -->
+          <div class="totals-section">
+            <div class="row">
+              <span class="label">TOTAL ITEMS:</span>
+              <span class="bold">${totalQty}</span>
+            </div>
+            <div class="row">
+              <span class="label">SUB TOTAL:</span>
+              <span class="bold">₹${formatPrice(parseFloat(order.total))}</span>
+            </div>
+          </div>
+          
+          <div class="divider-solid"></div>
+          
+          <div class="row grand-total">
+            <span>GRAND TOTAL</span>
+            <span>₹ ${formatPrice(parseFloat(order.total))}</span>
+          </div>
+          
+          ${orderDetails?.specialInstructions ? `
+            <div class="special-notes">
+              <div class="label">SPECIAL INSTRUCTIONS:</div>
+              <div>${orderDetails.specialInstructions}</div>
+            </div>
+          ` : ''}
+          
+          <div class="footer">
+            <div class="bold">PREPARE WITH CARE</div>
+            <div>Thank You!</div>
+          </div>
+          
+          <div style="height: 10mm;"></div>
+        </body>
+      </html>
+    `);
+    doc.close();
+    
+    // Auto-print with improved timing
+    if (printFrame.contentWindow) {
+      printFrame.contentWindow.onload = function() {
+        setTimeout(() => {
+          try {
+            printFrame.contentWindow?.focus();
+            printFrame.contentWindow?.print();
+          } catch (error) {
+            console.error('Print error:', error);
+            alert('Print dialog opened. Please select your thermal printer and confirm.');
+          }
+          
+          // Cleanup after printing
+          setTimeout(() => {
+            if (document.body.contains(printFrame)) {
+              document.body.removeChild(printFrame);
+            }
+          }, 500);
+        }, 300);
+      };
+    }
+  };
+
   const getActionButton = (order: Order) => {
     console.log('🔍 [getActionButton] Order:', {
       orderId: order.orderId,
@@ -91,14 +396,10 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             onClick={async (e) => {
               e.stopPropagation();
               onStatusUpdate(order.id, "ACCEPTED");
-              // Trigger thermal printer after accepting order
-              setTimeout(async () => {
-                try {
-                  await handlePrintKitchenBill(order.id);
-                } catch (error) {
-                  console.error('Failed to trigger thermal printer:', error);
-                }
-              }, 300);
+              // Auto-print kitchen bill using browser after accepting
+              setTimeout(() => {
+                handlePrintReceipt(order);
+              }, 500);
             }}
             className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors"
           >
@@ -358,12 +659,15 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
                     <TableCell className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {getActionButton(order)}
-                        {/* Show Print Kitchen Bill button for all statuses except PENDING (since Accept & Print handles it) */}
+                        {/* Browser Print Button - Works with any printer */}
                         {order.status !== "PENDING" && order.status !== "New" && (
                           <button
-                            onClick={() => handleThermalPrint(order)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrintReceipt(order);
+                            }}
                             className="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 transition-colors flex items-center gap-1"
-                            title="Print kitchen bill on thermal printer"
+                            title="Print kitchen bill (browser printing)"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -595,7 +899,21 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
     }
   };
 
-  const handlePrintReceipt = (order: any) => {
+  const handlePrintReceipt = async (order: any) => {
+    // Fetch order details first if not already loaded
+    let orderDetails = expandedOrderDetails;
+    
+    if (expandedOrderId !== order.id || !expandedOrderDetails) {
+      console.log('🔍 Loading order details for printing...');
+      orderDetails = await getOrderDetails(order.id);
+      setExpandedOrderDetails(orderDetails);
+    }
+    
+    if (!orderDetails) {
+      alert('Failed to load order details. Please try again.');
+      return;
+    }
+    
     // Create a hidden iframe for thermal printing
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
@@ -608,181 +926,306 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
     const doc = printFrame.contentWindow?.document;
     if (!doc) return;
     
-    // Calculate totals from expanded details
-    const totalQty = expandedOrderDetails?.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
+    // Calculate totals from order details
+    const totalQty = orderDetails?.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
     
     // Format price helper - remove .00 decimals
     const formatPrice = (price: number) => {
       return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
     };
     
+    // Get current date and time
+    const now = new Date();
+    const printDate = now.toLocaleDateString('en-IN');
+    const printTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    
     doc.open();
     doc.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt - ${order.orderId}</title>
+          <meta charset="UTF-8">
+          <title>Kitchen Bill - ${order.orderId}</title>
           <style>
+            /* Print-specific styles for thermal printer */
             @media print {
               @page {
-                size: 56mm auto;
+                size: 58mm auto;  /* 58mm width, auto height */
                 margin: 0;
               }
               body {
                 margin: 0;
                 padding: 0;
               }
+              /* Hide browser print controls */
+              @page { margin: 0; }
             }
             
-            * { margin: 0; padding: 0; box-sizing: border-box; }
+            /* Reset and base styles */
+            * { 
+              margin: 0; 
+              padding: 0; 
+              box-sizing: border-box; 
+            }
+            
             body { 
-              font-family: 'Courier New', monospace; 
-              width: 56mm; 
+              font-family: 'Courier New', Courier, monospace; 
+              width: 58mm; 
               margin: 0 auto; 
-              padding: 3mm; 
-              font-size: 11px; 
-              line-height: 1.3;
-              color: #000;
-              font-weight: 500;
-            }
-            .center { text-align: center; }
-            .bold { font-weight: bold; }
-            .restaurant-name { 
-              font-size: 16px; 
-              font-weight: bold; 
-              letter-spacing: 1px;
-              margin-bottom: 3px;
-            }
-            .address { 
+              padding: 2mm 3mm; 
               font-size: 10px; 
-              line-height: 1.2;
+              line-height: 1.4;
+              color: #000;
+              background: #fff;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            
+            /* Typography */
+            .center { 
+              text-align: center; 
+            }
+            
+            .bold { 
+              font-weight: bold; 
+            }
+            
+            .restaurant-name { 
+              font-size: 15px; 
+              font-weight: bold; 
+              letter-spacing: 0.5px;
               margin-bottom: 2px;
-              font-weight: 500;
+              text-transform: uppercase;
             }
+            
+            .address { 
+              font-size: 9px; 
+              line-height: 1.3;
+              margin-bottom: 1px;
+            }
+            
+            .bill-type {
+              font-size: 13px;
+              font-weight: bold;
+              margin: 4px 0;
+              padding: 2px 0;
+              background: #000;
+              color: #fff;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            
+            /* Dividers */
             .divider { 
-              border-top: 2px solid #000; 
-              margin: 5px 0;
+              border-top: 1px dashed #333; 
+              margin: 3px 0;
             }
+            
+            .divider-solid { 
+              border-top: 2px solid #000; 
+              margin: 4px 0;
+            }
+            
+            /* Row layouts */
             .row { 
               display: flex; 
               justify-content: space-between;
-              font-size: 10px;
-              margin: 2px 0;
+              font-size: 9px;
+              margin: 1px 0;
+              line-height: 1.3;
             }
-            .label { font-weight: bold; }
+            
+            .label { 
+              font-weight: bold; 
+            }
+            
+            /* Items section */
             .items-header {
-              font-size: 10px;
+              font-size: 9px;
+              font-weight: bold;
               display: flex;
               justify-content: space-between;
-              margin: 5px 0 3px 0;
-              font-weight: bold;
+              margin: 3px 0 2px 0;
+              padding-bottom: 2px;
+              border-bottom: 1px solid #333;
             }
+            
             .item-row {
               font-size: 10px;
-              margin: 2px 0;
+              margin: 3px 0;
+              padding: 2px 0;
             }
+            
             .item-name {
+              font-weight: bold;
               margin-bottom: 1px;
-              max-width: 100%;
               word-wrap: break-word;
               overflow-wrap: break-word;
             }
+            
             .item-details {
               display: flex;
               justify-content: space-between;
+              font-size: 9px;
             }
-            .grand-total {
-              font-size: 14px;
+            
+            .item-qty {
+              background: #000;
+              color: #fff;
+              padding: 1px 4px;
+              border-radius: 2px;
               font-weight: bold;
-              margin-top: 5px;
-              padding-top: 5px;
+              display: inline-block;
+              min-width: 20px;
+              text-align: center;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
+            
+            /* Totals */
+            .totals-section {
+              margin-top: 4px;
+              padding-top: 3px;
+              border-top: 2px solid #000;
+            }
+            
+            .grand-total {
+              font-size: 13px;
+              font-weight: bold;
+              margin: 4px 0;
+              padding: 3px 0;
+            }
+            
+            /* Footer */
             .footer {
               text-align: center;
-              font-size: 10px;
-              margin-top: 8px;
-              font-weight: 500;
+              font-size: 9px;
+              margin-top: 6px;
+              padding-top: 3px;
+              border-top: 1px dashed #333;
+            }
+            
+            .special-notes {
+              margin-top: 4px;
+              padding: 3px;
+              background: #f5f5f5;
+              border: 1px solid #ccc;
+              font-size: 9px;
+              word-wrap: break-word;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
           </style>
         </head>
         <body>
+          <!-- Header -->
           <div class="center restaurant-name">THE TIP TOP</div>
-          <div class="center address">NEAR ASHIANA PG, LAW GATE,</div>
-          <div class="center address">MAHERU, PHAGWARA.</div>
+          <div class="center address">NEAR ASHIANA PG, LAW GATE</div>
+          <div class="center address">MAHERU, PHAGWARA</div>
           
-          <div class="divider"></div>
+          <div class="center bill-type">*** KITCHEN BILL ***</div>
           
+          <div class="divider-solid"></div>
+          
+          <!-- Order Info -->
           <div class="row">
-            <span><span class="label">Name:</span> ${order.customer}</span>
+            <span><span class="label">Bill No:</span> ${order.orderId}</span>
           </div>
           <div class="row">
-            <span><span class="label">M:</span> ${order.phone}</span>
-          </div>
-          
-          <div class="divider"></div>
-          
-          <div class="row">
-            <span><span class="label">Date:</span> ${order.date}</span>
-            <span class="label">${order.orderType || 'Delivery'}</span>
+            <span><span class="label">Type:</span> ${order.orderType || 'Delivery'}</span>
           </div>
           <div class="row">
-            <span>${order.time}</span>
-          </div>
-          <div class="row">
-            <span><span class="label">Bill No.:</span> ${order.orderId}</span>
+            <span><span class="label">Date:</span> ${printDate}</span>
+            <span>${printTime}</span>
           </div>
           
           <div class="divider"></div>
           
+          <!-- Customer Info -->
+          <div class="row">
+            <span><span class="label">Customer:</span> ${order.customer}</span>
+          </div>
+          <div class="row">
+            <span><span class="label">Phone:</span> ${order.phone}</span>
+          </div>
+          
+          <div class="divider-solid"></div>
+          
+          <!-- Items Header -->
           <div class="items-header">
-            <span style="width: 90px;">Item</span>
-            <span style="width: 20px; text-align: center;">Qty</span>
-            <span style="width: 40px; text-align: right;">Price</span>
-            <span style="width: 40px; text-align: right;">Amt</span>
+            <span style="flex: 1;">ITEM</span>
+            <span style="width: 30px; text-align: center;">QTY</span>
           </div>
           
-          ${expandedOrderDetails?.items?.map((item: any) => `
+          <!-- Items List -->
+          ${orderDetails?.items?.map((item: any, index: number) => `
             <div class="item-row">
-              <div style="display: flex; justify-content: space-between;">
-                <div class="item-name" style="width: 90px;">${item.name}${item.portion ? ` (${item.portion})` : ''}</div>
-                <span style="width: 20px; text-align: center;">${item.quantity}</span>
-                <span style="width: 40px; text-align: right;">${formatPrice(item.price)}</span>
-                <span style="width: 40px; text-align: right;">${formatPrice(item.price * item.quantity)}</span>
+              <div class="item-name">${index + 1}. ${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</div>
+              <div class="item-details">
+                <span>₹${formatPrice(item.price)} × ${item.quantity}</span>
+                <span class="item-qty">${item.quantity}</span>
               </div>
             </div>
-          `).join('') || ''}
+          `).join('') || '<div class="item-row">No items</div>'}
           
-          <div class="divider"></div>
-          <div class="divider"></div>
+          <div class="divider-solid"></div>
           
-          <div class="row">
-            <span><span class="label">Total Qty:</span> ${totalQty}</span>
-            <span><span class="label">Sub Total</span> ${order.total}</span>
+          <!-- Totals -->
+          <div class="totals-section">
+            <div class="row">
+              <span class="label">TOTAL ITEMS:</span>
+              <span class="bold">${totalQty}</span>
+            </div>
+            <div class="row">
+              <span class="label">SUB TOTAL:</span>
+              <span class="bold">₹${formatPrice(parseFloat(order.total))}</span>
+            </div>
           </div>
           
-          <div class="divider"></div>
+          <div class="divider-solid"></div>
           
           <div class="row grand-total">
-            <span>Grand Total</span>
-            <span>₹ ${order.total}</span>
+            <span>GRAND TOTAL</span>
+            <span>₹ ${formatPrice(parseFloat(order.total))}</span>
           </div>
           
-          <div class="footer">Thanks</div>
+          ${orderDetails?.specialInstructions ? `
+            <div class="special-notes">
+              <div class="label">SPECIAL INSTRUCTIONS:</div>
+              <div>${orderDetails.specialInstructions}</div>
+            </div>
+          ` : ''}
+          
+          <div class="footer">
+            <div class="bold">PREPARE WITH CARE</div>
+            <div>Thank You!</div>
+          </div>
+          
+          <div style="height: 10mm;"></div>
         </body>
       </html>
     `);
     doc.close();
     
-    // Wait for content to load, then print
+    // Auto-print with improved timing
     if (printFrame.contentWindow) {
       printFrame.contentWindow.onload = function() {
         setTimeout(() => {
-          printFrame.contentWindow?.print();
-          // Remove iframe after printing
+          try {
+            printFrame.contentWindow?.focus();
+            printFrame.contentWindow?.print();
+          } catch (error) {
+            console.error('Print error:', error);
+            alert('Print dialog opened. Please select your thermal printer and confirm.');
+          }
+          
+          // Cleanup after printing
           setTimeout(() => {
-            document.body.removeChild(printFrame);
-          }, 100);
-        }, 250);
+            if (document.body.contains(printFrame)) {
+              document.body.removeChild(printFrame);
+            }
+          }, 500);
+        }, 300);
       };
     }
   };
