@@ -13,6 +13,9 @@ export interface Order {
   }>;
   itemCount?: number;
   total: number;
+  subtotal?: number;
+  deliveryFee?: number;
+  specialInstructions?: string;
   pricing?: {
     itemsTotal: number;
     deliveryFee: number;

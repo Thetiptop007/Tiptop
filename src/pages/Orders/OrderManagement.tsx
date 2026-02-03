@@ -20,12 +20,12 @@ import {
 } from "../../services/order-management.service";
 import { apiRequest, parseApiResponse } from "../../config/api";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
+import { thermalPrinter, type ReceiptData } from "../../services/thermal-printer.service";
 
 // Define order data
 const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void }) => {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [expandedOrderDetails, setExpandedOrderDetails] = useState<any>(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const toggleExpand = async (orderId: string) => {
     if (expandedOrderId === orderId) {
@@ -49,14 +49,24 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
     setExpandedOrderId(orderId);
   };
 
-  const handlePrintReceipt = async (order: any) => {
+  const handlePrintReceipt = async (order: any, event?: React.MouseEvent) => {
+    // Prevent row expansion
+    if (event) {
+      event.stopPropagation();
+    }
+    
     // Fetch order details first if not already loaded
     let orderDetails = expandedOrderDetails;
     
     if (expandedOrderId !== order.id || !expandedOrderDetails) {
       console.log('🔍 Loading order details for printing...');
-      orderDetails = await getOrderDetails(order.id);
-      setExpandedOrderDetails(orderDetails);
+      try {
+        orderDetails = await getOrderDetails(order.id);
+        setExpandedOrderDetails(orderDetails);
+      } catch (error: any) {
+        alert(`❌ Failed to load order details:\n${error.message}\n\nPlease check your network connection and try again.`);
+        return;
+      }
     }
     
     if (!orderDetails) {
@@ -64,6 +74,61 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
       return;
     }
     
+    // Try WebUSB thermal printing first (Option 3) - only on Chrome/Edge
+    if (thermalPrinter.isSupported()) {
+      try {
+        const useWebUSB = window.confirm(
+          '🖨️ Direct Thermal Printer Available!\n\n' +
+          'Option 1 (Recommended): Print directly to USB thermal printer\n' +
+          '  ✅ Automatic cut & beep\n' +
+          '  ✅ No print dialog\n' +
+          '  ⚠️ Requires USB printer permission\n\n' +
+          'Option 2: Use browser print dialog (fallback)\n' +
+          '  ℹ️ Click OK for thermal printer, Cancel for browser\n'
+        );
+        
+        if (useWebUSB) {
+          // WebUSB thermal printing
+          if (!thermalPrinter.isConnected()) {
+            await thermalPrinter.requestDevice();
+          }
+          
+          const details = orderDetails as any;
+          const receiptData: ReceiptData = {
+            restaurantName: 'THE TIP TOP',
+            restaurantAddress: 'NEAR ASHIANA PG, LAW GATE, MAHERU, PHAGWARA',
+            billType: '*** KITCHEN BILL ***',
+            orderId: order.orderId,
+            date: new Date().toLocaleString('en-IN'),
+            items: details.items.map((item: any) => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price
+            })),
+            subtotal: details.subtotal || 0,
+            deliveryFee: details.deliveryFee || 0,
+            total: details.total || 0,
+            specialInstructions: details.specialInstructions
+          };
+          
+          await thermalPrinter.printReceipt(receiptData);
+          alert('✅ Receipt printed successfully via USB thermal printer!');
+          return;
+        }
+      } catch (error: any) {
+        console.error('WebUSB printing failed:', error);
+        const fallback = window.confirm(
+          `❌ USB thermal printing failed:\n${error.message}\n\n` +
+          'Would you like to use browser print dialog instead?'
+        );
+        if (!fallback) return;
+      }
+    } else {
+      // WebUSB not supported (Firefox, Safari, etc.)
+      console.log('ℹ️ WebUSB not supported in this browser. Using browser print dialog.');
+    }
+    
+    // Fallback: Browser print dialog (Option 5)
     // Create a hidden iframe for thermal printing
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
@@ -103,7 +168,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
                 size: 58mm auto;  /* 58mm width, auto height */
                 margin: 0;
               }
-              body {
+              body { 
                 margin: 0;
                 padding: 0;
               }
@@ -124,7 +189,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
               width: 58mm; 
               margin: 0 auto; 
               padding: 2mm 3mm; 
-              font-size: 23px; 
+              font-size: 15px; 
               line-height: 1.35;
               color: #000;
               background: #fff;
@@ -142,7 +207,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
             }
             
             .restaurant-name { 
-              font-size: 23px; 
+              font-size: 15px; 
               font-weight: 900; 
               letter-spacing: 1px;
               margin-bottom: 3px;
@@ -399,7 +464,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
               onStatusUpdate(order.id, "ACCEPTED");
               // Auto-print kitchen bill using browser after accepting
               setTimeout(() => {
-                handlePrintReceipt(order);
+                handlePrintReceipt(order, e);
               }, 500);
             }}
             className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors"
@@ -665,7 +730,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handlePrintReceipt(order);
+                              handlePrintReceipt(order, e);
                             }}
                             className="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 transition-colors flex items-center gap-1"
                             title="Print kitchen bill (browser printing)"
@@ -900,14 +965,24 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
     }
   };
 
-  const handlePrintReceipt = async (order: any) => {
+  const handlePrintReceipt = async (order: any, event?: React.MouseEvent) => {
+    // Prevent row expansion
+    if (event) {
+      event.stopPropagation();
+    }
+    
     // Fetch order details first if not already loaded
     let orderDetails = expandedOrderDetails;
     
     if (expandedOrderId !== order.id || !expandedOrderDetails) {
       console.log('🔍 Loading order details for printing...');
-      orderDetails = await getOrderDetails(order.id);
-      setExpandedOrderDetails(orderDetails);
+      try {
+        orderDetails = await getOrderDetails(order.id);
+        setExpandedOrderDetails(orderDetails);
+      } catch (error: any) {
+        alert(`❌ Failed to load order details:\n${error.message}\n\nPlease check your network connection and try again.`);
+        return;
+      }
     }
     
     if (!orderDetails) {
@@ -915,6 +990,61 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
       return;
     }
     
+    // Try WebUSB thermal printing first (Option 3) - only on Chrome/Edge
+    if (thermalPrinter.isSupported()) {
+      try {
+        const useWebUSB = window.confirm(
+          '🖨️ Direct Thermal Printer Available!\n\n' +
+          'Option 1 (Recommended): Print directly to USB thermal printer\n' +
+          '  ✅ Automatic cut & beep\n' +
+          '  ✅ No print dialog\n' +
+          '  ⚠️ Requires USB printer permission\n\n' +
+          'Option 2: Use browser print dialog (fallback)\n' +
+          '  ℹ️ Click OK for thermal printer, Cancel for browser\n'
+        );
+        
+        if (useWebUSB) {
+          // WebUSB thermal printing
+          if (!thermalPrinter.isConnected()) {
+            await thermalPrinter.requestDevice();
+          }
+          
+          const details = orderDetails as any;
+          const receiptData: ReceiptData = {
+            restaurantName: 'THE TIP TOP',
+            restaurantAddress: 'NEAR ASHIANA PG, LAW GATE, MAHERU, PHAGWARA',
+            billType: '*** KITCHEN BILL ***',
+            orderId: order.orderId,
+            date: new Date().toLocaleString('en-IN'),
+            items: details.items.map((item: any) => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price
+            })),
+            subtotal: details.subtotal || 0,
+            deliveryFee: details.deliveryFee || 0,
+            total: details.total || 0,
+            specialInstructions: details.specialInstructions
+          };
+          
+          await thermalPrinter.printReceipt(receiptData);
+          alert('✅ Receipt printed successfully via USB thermal printer!');
+          return;
+        }
+      } catch (error: any) {
+        console.error('WebUSB printing failed:', error);
+        const fallback = window.confirm(
+          `❌ USB thermal printing failed:\n${error.message}\n\n` +
+          'Would you like to use browser print dialog instead?'
+        );
+        if (!fallback) return;
+      }
+    } else {
+      // WebUSB not supported (Firefox, Safari, etc.)
+      console.log('ℹ️ WebUSB not supported in this browser. Using browser print dialog.');
+    }
+    
+    // Fallback: Browser print dialog (Option 5)
     // Create a hidden iframe for thermal printing
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
@@ -954,7 +1084,7 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
                 size: 58mm auto;  /* 58mm width, auto height */
                 margin: 0;
               }
-              body {
+              body { 
                 margin: 0;
                 padding: 0;
               }
@@ -1363,7 +1493,10 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
                   </TableCell>
                   <TableCell className="px-4 py-3">
                     <button
-                      onClick={() => handlePrintReceipt(order)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePrintReceipt(order, e);
+                      }}
                       className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 transition-colors"
                     >
                       Print
