@@ -206,8 +206,8 @@ export const updateOrderStatus = async (
         }
         break;
       case 'CANCELLED':
-        endpoint = `orders/${orderId}/cancel`;
-        console.log('❌ Using /cancel endpoint');
+        endpoint = `admin/orders/${orderId}/cancel`;
+        console.log('❌ Using admin /cancel endpoint');
         break;
       default:
         console.error(`⚠️ Unsupported status change: ${newStatus}`);

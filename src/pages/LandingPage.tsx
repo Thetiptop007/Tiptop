@@ -68,12 +68,12 @@ export default function LandingPage() {
             >
               Order Now
             </Link>
-            <a
+            {/* <a
               href="#download-app"
               className="inline-block rounded-lg border-2 border-[#e36057] px-6 py-2.5 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10 text-center"
             >
               Download App
-            </a>
+            </a> */}
           </div>
         </div>
         <div className="flex items-center justify-center">
@@ -202,7 +202,8 @@ export default function LandingPage() {
       </div>
 
       {/* Download App Section */}
-      <div id="download-app" className="px-4 md:px-6 lg:px-20 py-10 md:py-16 max-w-7xl mx-auto">
+      {/* <div id="download-app" className="px-4 md:px-6 lg:px-20 py-10 md:py-16 max-w-7xl mx-auto"> */}
+      {/*
         <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-red-50 to-orange-50 dark:border-gray-800 dark:from-red-950/20 dark:to-orange-950/20 p-8 md:p-12">
           <div className="text-center mb-8">
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white/90 mb-3">
@@ -214,7 +215,6 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-2xl mx-auto">
-            {/* APK Download for Android */}
             <a
               href={settings?.apkDownloadUrl || "#"}
               target="_blank"
@@ -239,7 +239,6 @@ export default function LandingPage() {
               </svg>
             </a>
 
-            {/* iOS Users - Use Order Page */}
             <Link
               to="/order"
               className="flex items-center gap-4 rounded-xl border-2 border-gray-200 bg-white p-5 hover:border-[#e36057] hover:shadow-lg transition-all dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#e36057]"
@@ -269,7 +268,8 @@ export default function LandingPage() {
             </p>
           </div>
         </div>
-      </div>
+      </div> */}
+      {/* */}
 
       {/* How It Works Section */}
       <div className="mt-16 md:mt-20 bg-gradient-to-b from-red-50 dark:from-red-950/20 to-transparent rounded-t-[60px] md:rounded-t-[120px] px-4 md:px-6 lg:px-20 py-12 md:py-20">

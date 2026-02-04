@@ -22,7 +22,7 @@ import { apiRequest, parseApiResponse } from "../../config/api";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 
 // Define order data
-const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void }) => {
+const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void, onRefresh: () => void }) => {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [expandedOrderDetails, setExpandedOrderDetails] = useState<any>(null);
 
@@ -754,6 +754,33 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
                             </div>
                           </div>
 
+                          {/* Cancel Order Button - Show if not delivered or cancelled */}
+                          {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
+                            <div className="flex justify-end mb-4">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Are you sure you want to cancel order ${order.orderId}?`)) {
+                                    const success = await updateOrderStatus(order.id, 'CANCELLED');
+                                    if (success) {
+                                      setExpandedOrderId(null);
+                                      alert('Order cancelled successfully');
+                                      onRefresh();
+                                    } else {
+                                      alert('Failed to cancel order');
+                                    }
+                                  }
+                                }}
+                                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 transition-colors flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Cancel Order
+                              </button>
+                            </div>
+                          )}
+
                           {/* Order Items */}
                           <div>
                             <h4 className="font-semibold text-gray-800 dark:text-white/90 text-sm mb-2">
@@ -874,7 +901,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate }: { orders: Ord
   );
 };
 
-const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
+const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () => void }) => {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [expandedOrderDetails, setExpandedOrderDetails] = useState<Order | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -1404,6 +1431,34 @@ const AllOrdersTable = ({ orders }: { orders: Order[] }) => {
                         </div>
                       ) : expandedOrderDetails ? (
                         <div className="space-y-4">
+                          {/* Cancel Order Button - Show if not delivered or cancelled */}
+                          {expandedOrderDetails.status !== 'DELIVERED' && expandedOrderDetails.status !== 'CANCELLED' && (
+                            <div className="flex justify-end">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Are you sure you want to cancel order ${expandedOrderDetails.orderId}?`)) {
+                                    const success = await updateOrderStatus(expandedOrderDetails.id, 'CANCELLED');
+                                    if (success) {
+                                      setExpandedOrderId(null);
+                                      setExpandedOrderDetails(null);
+                                      onRefresh();
+                                      alert('Order cancelled successfully');
+                                    } else {
+                                      alert('Failed to cancel order');
+                                    }
+                                  }
+                                }}
+                                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 transition-colors flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Cancel Order
+                              </button>
+                            </div>
+                          )}
+
                           {/* Order Details */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Left Column */}
@@ -1976,25 +2031,25 @@ export default function OrderManagement() {
           ) : (
             <>
               {/* New Orders Table */}
-              <OrderTable orders={ordersByStatus.New} title="New Orders" badgeColor="indigo" onStatusUpdate={handleStatusUpdate} />
+              <OrderTable orders={ordersByStatus.New} title="New Orders" badgeColor="indigo" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
               
               {/* Accepted Orders Table */}
-              <OrderTable orders={ordersByStatus.Accepted} title="Accepted" badgeColor="blue" onStatusUpdate={handleStatusUpdate} />
+              <OrderTable orders={ordersByStatus.Accepted} title="Accepted" badgeColor="blue" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
               
               {/* Ready Orders Table */}
-              <OrderTable orders={ordersByStatus.Ready} title="Ready for Delivery" badgeColor="purple" onStatusUpdate={handleStatusUpdate} />
+              <OrderTable orders={ordersByStatus.Ready} title="Ready for Delivery" badgeColor="purple" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
               
               {/* Ready for Pickup Orders Table (Takeaway) */}
-              <OrderTable orders={ordersByStatus["Ready for Pickup"]} title="Ready for Pickup" badgeColor="green" onStatusUpdate={handleStatusUpdate} />
+              <OrderTable orders={ordersByStatus["Ready for Pickup"]} title="Ready for Pickup" badgeColor="green" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
               
               {/* Out for Delivery Orders Table */}
-              <OrderTable orders={ordersByStatus["Out for Delivery"]} title="Out for Delivery" badgeColor="indigo" onStatusUpdate={handleStatusUpdate} />
+              <OrderTable orders={ordersByStatus["Out for Delivery"]} title="Out for Delivery" badgeColor="indigo" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
               
               {/* Delivered Orders Table */}
-              <OrderTable orders={ordersByStatus.Delivered} title="Delivered" badgeColor="green" onStatusUpdate={handleStatusUpdate} />
+              <OrderTable orders={ordersByStatus.Delivered} title="Delivered" badgeColor="green" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
               
               {/* Canceled Orders Table */}
-              <OrderTable orders={ordersByStatus.Canceled} title="Canceled" badgeColor="red" onStatusUpdate={handleStatusUpdate} />
+              <OrderTable orders={ordersByStatus.Canceled} title="Canceled" badgeColor="red" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
             </>
           )}
         </div>
@@ -2014,7 +2069,7 @@ export default function OrderManagement() {
             </div>
           ) : (
             <>
-              <AllOrdersTable orders={allOrdersData.orders} />
+              <AllOrdersTable orders={allOrdersData.orders} onRefresh={() => fetchAllOrders(currentPage)} />
               {allOrdersData.pagination && allOrdersData.pagination.totalPages > 1 && (
                 <div className="mt-4 flex items-center justify-center gap-2">
                   <button
