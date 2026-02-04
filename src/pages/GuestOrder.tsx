@@ -410,14 +410,14 @@ export default function GuestOrder() {
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Order Number</p>
             <p className="text-2xl font-bold text-[#e36057]">{orderNumber}</p>
           </div>
-          {/* <div className="mb-6 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 p-4">
+          <div className="mb-6 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 p-4">
             <p className="text-sm text-gray-700 dark:text-gray-300">
               <strong>Note:</strong> As a guest user, you won't be able to track your order status. 
-              <Link to="/" className="text-[#e36057] hover:underline ml-1">
+              <a href={settings?.apkDownloadUrl || "#"} target="_blank" rel="noopener noreferrer" className="text-[#e36057] hover:underline ml-1">
                 Download our app
-              </Link> to access order tracking, exclusive discounts, and more features!
+              </a> to access order tracking, exclusive discounts, and more features!
             </p>
-          </div> */}
+          </div>
           <div className="flex flex-col gap-3">
             <button
               onClick={() => {
@@ -468,12 +468,12 @@ export default function GuestOrder() {
                 )}
               </button>
               
-              {/* <Link
-                to="/#download"
+              <Link
+                to="/#download-app"
                 className="text-sm font-medium text-[#e36057] hover:text-[#d14f47]"
               >
                 Download App
-              </Link> */}
+              </Link>
             </div>
           </div>
         </div>
@@ -502,9 +502,9 @@ export default function GuestOrder() {
           </h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Browse our menu and place your order.
-            {/* <Link to="/#download" className="ml-1 text-[#e36057] hover:underline">
+            <a href={settings?.apkDownloadUrl || "#"} target="_blank" rel="noopener noreferrer" className="ml-1 text-[#e36057] hover:underline">
               Download our app
-            </Link> for order tracking, exclusive discounts, and more features! */}
+            </a> for order tracking, exclusive discounts, and more features!
           </p>
         </div>
 

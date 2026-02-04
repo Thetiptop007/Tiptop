@@ -68,12 +68,12 @@ export default function LandingPage() {
             >
               Order Now
             </Link>
-            {/* <a
+            <a
               href="#download-app"
               className="inline-block rounded-lg border-2 border-[#e36057] px-6 py-2.5 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10 text-center"
             >
               Download App
-            </a> */}
+            </a>
           </div>
         </div>
         <div className="flex items-center justify-center">
@@ -202,8 +202,7 @@ export default function LandingPage() {
       </div>
 
       {/* Download App Section */}
-      {/* <div id="download-app" className="px-4 md:px-6 lg:px-20 py-10 md:py-16 max-w-7xl mx-auto"> */}
-      {/*
+      <div id="download-app" className="px-4 md:px-6 lg:px-20 py-10 md:py-16 max-w-7xl mx-auto">
         <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-red-50 to-orange-50 dark:border-gray-800 dark:from-red-950/20 dark:to-orange-950/20 p-8 md:p-12">
           <div className="text-center mb-8">
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white/90 mb-3">
@@ -214,16 +213,59 @@ export default function LandingPage() {
             </p>
           </div>
 
+          {/* Installation Instructions */}
+          <div className="max-w-3xl mx-auto mb-8 p-4 md:p-6 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mt-0.5">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-sm md:text-base">Installation Instructions</h3>
+                <ul className="space-y-1.5 text-xs md:text-sm text-gray-600 dark:text-gray-300">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-0.5">•</span>
+                    <span>Click "Download APK" to download the app file (approx 108 MB)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-0.5">•</span>
+                    <span>After download, open the APK file from your notifications or downloads folder</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-0.5">•</span>
+                    <span>If prompted, enable "Install from unknown sources" in your device settings</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-0.5">•</span>
+                    <span>Tap "Install" and wait for the installation to complete</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Warning Banner */}
+          <div className="max-w-3xl mx-auto mb-6 p-3 md:p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <p className="text-xs md:text-sm text-amber-800 dark:text-amber-200">
+                <strong>Security Notice:</strong> You may see a warning about installing apps from unknown sources. This is normal for apps not downloaded from Google Play Store. Our app is safe to install.
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-2xl mx-auto">
             <a
               href={settings?.apkDownloadUrl || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 rounded-xl border-2 border-gray-200 bg-white p-5 hover:border-[#e36057] hover:shadow-lg transition-all dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#e36057]"
+              download
+              className="flex items-center gap-4 rounded-xl border-2 border-[#e36057] bg-white p-5 hover:bg-red-50 hover:shadow-lg transition-all dark:border-[#e36057] dark:bg-gray-800 dark:hover:bg-red-900/10"
             >
               <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-red-100 dark:bg-red-900">
                 <svg className="w-7 h-7 text-[#e36057]" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.523 7C17.086 4.671 15.199 3 13 3c-2.6 0-4.5 2.2-4.5 4.9 0 .3 0 .6.1.9C6.2 8.3 4 10.1 4 12.4c0 2.5 2.1 4.6 4.7 4.6h8.6c2.1 0 3.7-1.7 3.7-3.7 0-2-1.6-3.6-3.5-3.6v-.1c0-.9-.1-1.8-.2-2.6zM13 17l-4-4h2.5V9h3v4H17l-4 4z"/>
+                  <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
                 </svg>
               </div>
               <div className="flex-1 text-left">
@@ -231,29 +273,29 @@ export default function LandingPage() {
                   Download APK
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  For Android Users
+                  Android v1.0.5 • 108 MB
                 </p>
               </div>
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-[#e36057]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </a>
 
             <Link
               to="/order"
-              className="flex items-center gap-4 rounded-xl border-2 border-gray-200 bg-white p-5 hover:border-[#e36057] hover:shadow-lg transition-all dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#e36057]"
+              className="flex items-center gap-4 rounded-xl border-2 border-gray-200 bg-white p-5 hover:border-blue-500 hover:shadow-lg transition-all dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500"
             >
               <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900">
                 <svg className="w-7 h-7 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
               </div>
               <div className="flex-1 text-left">
                 <h3 className="font-bold text-gray-800 dark:text-white/90 mb-1">
-                  iOS Users
+                  iOS / Other Users
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Order as Guest
+                  Order via Website
                 </p>
               </div>
               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -261,15 +303,8 @@ export default function LandingPage() {
               </svg>
             </Link>
           </div>
-
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Android: Download APK • iOS: Use Order Page • Version 1.0.0
-            </p>
-          </div>
         </div>
-      </div> */}
-      {/* */}
+      </div>
 
       {/* How It Works Section */}
       <div className="mt-16 md:mt-20 bg-gradient-to-b from-red-50 dark:from-red-950/20 to-transparent rounded-t-[60px] md:rounded-t-[120px] px-4 md:px-6 lg:px-20 py-12 md:py-20">
