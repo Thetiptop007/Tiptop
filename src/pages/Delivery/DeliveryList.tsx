@@ -115,7 +115,7 @@ export default function DeliveryList() {
       name: agent.name,
       email: agent.email,
       phone: agent.phone,
-      vehicleType: agent.vehicleType,
+      vehicleType: agent.vehicleType?.toLowerCase() || '',
       vehicleNumber: agent.vehicleNumber || '',
     });
     setShowEditModal(true);

@@ -251,13 +251,12 @@ export default function AddDelivery() {
                         htmlFor="vehicleNumber"
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                       >
-                        Vehicle Number <span className="text-red-500">*</span>
+                        Vehicle Number
                       </label>
                       <input
                         type="text"
                         id="vehicleNumber"
                         name="vehicleNumber"
-                        required
                         value={formData.vehicleNumber}
                         onChange={handleInputChange}
                         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"

@@ -41,6 +41,7 @@ export default function GuestOrder() {
   
   // Delivery address state
   const [deliveryStreet, setDeliveryStreet] = useState<string>("");
+  const [deliveryArea, setDeliveryArea] = useState<string>("Law Gate");
   const [deliveryCity, setDeliveryCity] = useState<string>("");
   const [deliveryState, setDeliveryState] = useState<string>("");
   const [deliveryZipCode, setDeliveryZipCode] = useState<string>("");
@@ -332,6 +333,7 @@ export default function GuestOrder() {
       message += `*Phone:* ${customerPhone}\n\n`;
       
       message += `*Delivery Address:*\n`;
+      message += `*Area:* ${deliveryArea}\n`;
       message += `${deliveryStreet}\n`;
       message += `${deliveryCity}, ${deliveryState} ${deliveryZipCode}\n`;
       message += `*═══════════════*\n\n`;
@@ -342,11 +344,18 @@ export default function GuestOrder() {
       cart.forEach((item) => {
         const itemPrice = item.variantPrice || item.price;
         message += `*${item.name.toUpperCase()}*`;
-        if (item.selectedVariant) {
-          message += ` (${item.selectedVariant})`;
+        
+        // Special formatting for bread category
+        if (item.category?.toLowerCase() === 'breads') {
+          message += `(${item.quantity}) ${formatPrice(itemPrice)}*${item.quantity}`;
+        } else {
+          if (item.selectedVariant) {
+            message += ` (${item.selectedVariant})`;
+          }
+          message += `\n`;
+          message += `₹${formatPrice(itemPrice)} × ${item.quantity}`;
         }
-        message += `\n`;
-        message += `₹${formatPrice(itemPrice)} × ${item.quantity}\n\n`;
+        message += `\n\n`;
       });
       
       message += `*═══════════════*\n\n`;
@@ -377,6 +386,7 @@ export default function GuestOrder() {
       setCustomerName("");
       setCustomerPhone("");
       setDeliveryStreet("");
+      setDeliveryArea("Law Gate");
       setDeliveryCity("");
       setDeliveryState("");
       setDeliveryZipCode("");
@@ -670,7 +680,7 @@ export default function GuestOrder() {
                         <img src={item.image} alt={item.name} className="h-16 w-16 rounded-lg object-cover" />
                         <div className="flex-1">
                           <h4 className="text-sm font-semibold text-gray-800 dark:text-white/90">{item.name}</h4>
-                          {item.selectedVariant && (
+                          {item.selectedVariant && item.category?.toLowerCase() !== 'breads' && (
                             <p className="text-xs text-[#e36057]">{item.selectedVariant}</p>
                           )}
                           <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -743,6 +753,14 @@ export default function GuestOrder() {
                   <div className="border-b border-gray-200 p-4 dark:border-gray-800">
                       <h3 className="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">Delivery Address</h3>
                       <div className="space-y-3">
+                        <select
+                          value={deliveryArea}
+                          onChange={(e) => setDeliveryArea(e.target.value)}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[#e36057] focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                        >
+                          <option value="Law Gate">Law Gate</option>
+                          <option value="Green Valley">Green Valley</option>
+                        </select>
                         <input
                           type="text"
                           value={deliveryStreet}
