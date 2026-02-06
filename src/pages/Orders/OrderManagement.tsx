@@ -55,23 +55,36 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
     }
     
     // Fetch order details first if not already loaded
-    let orderDetails = expandedOrderDetails;
+    let orderDetails;
     
-    if (expandedOrderId !== order.id || !expandedOrderDetails) {
-      console.log('🔍 Loading order details for printing...');
-      try {
-        orderDetails = await getOrderDetails(order.id);
-        setExpandedOrderDetails(orderDetails);
-      } catch (error: any) {
-        alert(`❌ Failed to load order details:\n${error.message}\n\nPlease check your network connection and try again.`);
-        return;
-      }
+    // Always fetch fresh order details for printing to avoid cached data
+    console.log('🔍 [1st Print] Loading fresh order details for:', order.orderId);
+    try {
+      orderDetails = await getOrderDetails(order.id);
+      setExpandedOrderDetails(orderDetails);
+      setExpandedOrderId(order.id);
+    } catch (error: any) {
+      alert(`❌ Failed to load order details:\n${error.message}\n\nPlease check your network connection and try again.`);
+      return;
     }
     
     if (!orderDetails) {
       alert('Failed to load order details. Please try again.');
       return;
     }
+    
+    // Debug logging for item prices
+    console.log('🖨️ PRINT RECEIPT DEBUG (1st function) - Order Details:', orderDetails);
+    console.log('🖨️ Items array:', orderDetails?.items);
+    orderDetails?.items?.forEach((item: any, index: number) => {
+      console.log(`🖨️ Item ${index + 1}:`, {
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        calculatedTotal: item.price * item.quantity,
+        fullItem: item
+      });
+    });
     
     // Browser print dialog (Option 5)
     // Create a hidden iframe for thermal printing
@@ -198,46 +211,47 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
             }
             
             /* Items section */
-            .items-header {
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 3px 0;
               font-size: 14px;
+            }
+            
+            .items-table th {
               font-weight: 900;
-              display: flex;
-              justify-content: space-between;
-              margin: 3px 0 2px 0;
-              padding-bottom: 2px;
+              text-align: left;
+              padding: 2px 1px;
               border-bottom: 1px solid #333;
             }
             
-            .item-row {
-              font-size: 15px;
-              margin: 1px 0;
-              padding: 1px 0;
+            .items-table th:nth-child(2),
+            .items-table td:nth-child(2) {
+              text-align: center;
+              width: 35px;
             }
             
-            .item-name {
-              font-weight: 900;
-              margin-bottom: 1px;
+            .items-table th:nth-child(3),
+            .items-table td:nth-child(3) {
+              text-align: right;
+              width: 55px;
+            }
+            
+            .items-table td {
+              padding: 2px 1px;
+              vertical-align: top;
               word-wrap: break-word;
               overflow-wrap: break-word;
             }
             
-            .item-details {
-              display: flex;
-              justify-content: space-between;
-              font-size: 14px;
+            .items-table tr.item-name-row td {
+              font-weight: 900;
+              padding-top: 3px;
             }
             
-            .item-qty {
-              background: #000;
-              color: #fff;
-              padding: 2px 6px;
-              border-radius: 2px;
-              font-weight: 900;
-              display: inline-block;
-              min-width: 30px;
-              text-align: center;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
+            .items-table tr.item-detail-row td {
+              padding-bottom: 3px;
+              font-size: 14px;
             }
             
             /* Totals */
@@ -302,22 +316,25 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
           
           <div class="divider-solid"></div>
           
-          <!-- Items Header -->
-          <div class="items-header">
-            <span style="flex: 1;">ITEM</span>
-            <span style="width: 80px; text-align: right;">PRICE</span>
-          </div>
-          
-          <!-- Items List -->
-          ${orderDetails?.items?.map((item: any) => `
-            <div class="item-row">
-              <div class="item-name">${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</div>
-              <div class="item-details">
-                <span>₹${formatPrice(item.price)} × ${item.quantity}</span>
-                
-              </div>
-            </div>
-          `).join('') || '<div class="item-row">No items</div>'}
+          <!-- Items Table -->
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>ITEM</th>
+                <th>QTY</th>
+                <th>PRICE</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderDetails?.items?.map((item: any) => `
+                <tr>
+                  <td>${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</td>
+                  <td>${item.quantity}</td>
+                  <td>₹${formatPrice(item.price)}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="3">No items</td></tr>'}
+            </tbody>
+          </table>
           
           <div class="divider-solid"></div>
           
@@ -940,23 +957,36 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
     }
     
     // Fetch order details first if not already loaded
-    let orderDetails = expandedOrderDetails;
+    let orderDetails;
     
-    if (expandedOrderId !== order.id || !expandedOrderDetails) {
-      console.log('🔍 Loading order details for printing...');
-      try {
-        orderDetails = await getOrderDetails(order.id);
-        setExpandedOrderDetails(orderDetails);
-      } catch (error: any) {
-        alert(`❌ Failed to load order details:\n${error.message}\n\nPlease check your network connection and try again.`);
-        return;
-      }
+    // Always fetch fresh order details for printing to avoid cached data
+    console.log('🔍 [2nd Print] Loading fresh order details for:', order.orderId);
+    try {
+      orderDetails = await getOrderDetails(order.id);
+      setExpandedOrderDetails(orderDetails);
+      setExpandedOrderId(order.id);
+    } catch (error: any) {
+      alert(`❌ Failed to load order details:\n${error.message}\n\nPlease check your network connection and try again.`);
+      return;
     }
     
     if (!orderDetails) {
       alert('Failed to load order details. Please try again.');
       return;
     }
+    
+    // Debug logging for item prices
+    console.log('🖨️ PRINT RECEIPT DEBUG (2nd function) - Order Details:', orderDetails);
+    console.log('🖨️ Items array:', orderDetails?.items);
+    orderDetails?.items?.forEach((item: any, index: number) => {
+      console.log(`🖨️ Item ${index + 1}:`, {
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        calculatedTotal: item.price * item.quantity,
+        fullItem: item
+      });
+    });
     
     // Browser print dialog (Option 5)
     // Create a hidden iframe for thermal printing
@@ -1085,46 +1115,47 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
             }
             
             /* Items section */
-            .items-header {
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 3px 0;
               font-size: 14px;
+            }
+            
+            .items-table th {
               font-weight: 900;
-              display: flex;
-              justify-content: space-between;
-              margin: 3px 0 2px 0;
-              padding-bottom: 2px;
+              text-align: left;
+              padding: 2px 1px;
               border-bottom: 1px solid #333;
             }
             
-            .item-row {
-              font-size: 15px;
-              margin: 1px 0;
-              padding: 1px 0;
+            .items-table th:nth-child(2),
+            .items-table td:nth-child(2) {
+              text-align: center;
+              width: 35px;
             }
             
-            .item-name {
-              font-weight: 900;
-              margin-bottom: 1px;
+            .items-table th:nth-child(3),
+            .items-table td:nth-child(3) {
+              text-align: right;
+              width: 55px;
+            }
+            
+            .items-table td {
+              padding: 2px 1px;
+              vertical-align: top;
               word-wrap: break-word;
               overflow-wrap: break-word;
             }
             
-            .item-details {
-              display: flex;
-              justify-content: space-between;
-              font-size: 14px;
+            .items-table tr.item-name-row td {
+              font-weight: 900;
+              padding-top: 3px;
             }
             
-            .item-qty {
-              background: #000;
-              color: #fff;
-              padding: 2px 6px;
-              border-radius: 2px;
-              font-weight: 900;
-              display: inline-block;
-              min-width: 30px;
-              text-align: center;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
+            .items-table tr.item-detail-row td {
+              padding-bottom: 3px;
+              font-size: 14px;
             }
             
             /* Totals */
@@ -1195,22 +1226,25 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
           
           <div class="divider-solid"></div>
           
-          <!-- Items Header -->
-          <div class="items-header">
-            <span style="flex: 1;">ITEM</span>
-            <span style="width: 80px; text-align: right;">PRICE</span>
-          </div>
-          
-          <!-- Items List -->
-          ${orderDetails?.items?.map((item: any) => `
-            <div class="item-row">
-              <div class="item-name">${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</div>
-              <div class="item-details">
-                <span>₹${formatPrice(item.price)} × ${item.quantity}</span>
-                
-              </div>
-            </div>
-          `).join('') || '<div class="item-row">No items</div>'}
+          <!-- Items Table -->
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>ITEM</th>
+                <th>QTY</th>
+                <th>PRICE</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderDetails?.items?.map((item: any) => `
+                <tr>
+                  <td>${item.name.toUpperCase()}${item.portion ? ` (${item.portion})` : ''}</td>
+                  <td>${item.quantity}</td>
+                  <td>₹${formatPrice(item.price)}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="3">No items</td></tr>'}
+            </tbody>
+          </table>
           
           <div class="divider-solid"></div>
           
