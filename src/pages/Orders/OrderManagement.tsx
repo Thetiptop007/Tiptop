@@ -1749,7 +1749,7 @@ export default function OrderManagement() {
       setAssigningPartnerId(partnerId);
       setAssignError(null);
       
-      const response = await apiRequest(`orders/${orderId}/assign`, {
+      const response = await apiRequest(`orders/admin/${orderId}/assign-delivery`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deliveryPartnerId: partnerId })
