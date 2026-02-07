@@ -24,7 +24,6 @@ import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 // Define order data
 const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void, onRefresh: () => void }) => {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [expandedOrderDetails, setExpandedOrderDetails] = useState<any>(null);
 
   const toggleExpand = async (orderId: string) => {
     if (expandedOrderId === orderId) {
@@ -58,10 +57,8 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
     let orderDetails;
     
     // Always fetch fresh order details for printing to avoid cached data
-    console.log('🔍 [1st Print] Loading fresh order details for:', order.orderId);
     try {
       orderDetails = await getOrderDetails(order.id);
-      setExpandedOrderDetails(orderDetails);
       setExpandedOrderId(order.id);
     } catch (error: any) {
       alert(`❌ Failed to load order details:\n${error.message}\n\nPlease check your network connection and try again.`);
@@ -72,19 +69,6 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
       alert('Failed to load order details. Please try again.');
       return;
     }
-    
-    // Debug logging for item prices
-    console.log('🖨️ PRINT RECEIPT DEBUG (1st function) - Order Details:', orderDetails);
-    console.log('🖨️ Items array:', orderDetails?.items);
-    orderDetails?.items?.forEach((item: any, index: number) => {
-      console.log(`🖨️ Item ${index + 1}:`, {
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        calculatedTotal: item.price * item.quantity,
-        fullItem: item
-      });
-    });
     
     // Browser print dialog (Option 5)
     // Create a hidden iframe for thermal printing
@@ -405,12 +389,6 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
   };
 
   const getActionButton = (order: Order) => {
-    console.log('🔍 [getActionButton] Order:', {
-      orderId: order.orderId,
-      status: order.status,
-      orderType: order.orderType,
-      hasDeliveryPartner: !!order.deliveryPartner
-    });
     
     switch (order.status) {
       case "New":
@@ -460,12 +438,6 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
         );
       case "Ready":
       case "READY":
-        console.log('📦 [READY Status] Checking order type:', {
-          orderId: order.orderId,
-          orderType: order.orderType,
-          isTakeaway: order.orderType === 'TAKEAWAY',
-          deliveryPartner: order.deliveryPartner
-        });
         // Check if it's a takeaway order
         if (order.orderType === 'TAKEAWAY') {
           return (
@@ -656,7 +628,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
                     </TableCell>
                     <TableCell className="px-4 py-3 text-start">
                       <div className="cursor-pointer" onClick={() => toggleExpand(order.id)}>
-                      {order.address ? (
+                      {order.address && (order.address.street || order.address.city) ? (
                         <>
                           <div className="text-gray-800 text-theme-sm dark:text-white/90">
                             {order.address.street}
@@ -665,14 +637,22 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
                             {order.address.city}, {order.address.state} {order.address.zip}
                           </div>
                         </>
+                      ) : order.orderType === 'TAKEAWAY' ? (
+                        <span className="text-gray-500 text-xs">Takeaway</span>
                       ) : (
-                        <span className="text-gray-400 text-xs">No address</span>
+                        <span className="text-gray-400 text-xs">-</span>
                       )}
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                       <div className="cursor-pointer" onClick={() => toggleExpand(order.id)}>
-                        {order.items.reduce((sum, item) => sum + item.quantity, 0)} items
+                        {order.items && order.items.length > 0 ? (
+                          `${order.items.reduce((sum, item) => sum + item.quantity, 0)} items`
+                        ) : (order.itemCount ?? 0) > 0 ? (
+                          `${order.itemCount} items`
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
@@ -934,17 +914,6 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
       // Fetch full order details
       const details = await getOrderDetails(orderId);
       
-      console.log('🔍 ORDER DETAILS DEBUG:');
-      console.log('Raw order details:', details);
-      console.log('Order pricing object:', details?.pricing);
-      console.log('Items total:', details?.pricing?.itemsTotal);
-      console.log('Delivery fee:', details?.pricing?.deliveryFee);
-      console.log('GST:', details?.pricing?.gst);
-      console.log('GST Rate:', details?.pricing?.gstRate);
-      console.log('Discount:', details?.pricing?.discount);
-      console.log('Final amount:', details?.pricing?.finalAmount);
-      console.log('Total field:', details?.total);
-      
       setExpandedOrderDetails(details);
       setLoadingDetails(false);
     }
@@ -960,7 +929,6 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
     let orderDetails;
     
     // Always fetch fresh order details for printing to avoid cached data
-    console.log('🔍 [2nd Print] Loading fresh order details for:', order.orderId);
     try {
       orderDetails = await getOrderDetails(order.id);
       setExpandedOrderDetails(orderDetails);
@@ -974,19 +942,6 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
       alert('Failed to load order details. Please try again.');
       return;
     }
-    
-    // Debug logging for item prices
-    console.log('🖨️ PRINT RECEIPT DEBUG (2nd function) - Order Details:', orderDetails);
-    console.log('🖨️ Items array:', orderDetails?.items);
-    orderDetails?.items?.forEach((item: any, index: number) => {
-      console.log(`🖨️ Item ${index + 1}:`, {
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        calculatedTotal: item.price * item.quantity,
-        fullItem: item
-      });
-    });
     
     // Browser print dialog (Option 5)
     // Create a hidden iframe for thermal printing
@@ -1710,27 +1665,7 @@ export default function OrderManagement() {
   
   const fetchTodayOrders = async () => {
     setLoading(true);
-    console.log('🔄 [fetchTodayOrders] Fetching today\'s orders...');
     const data = await getTodayOrders();
-    
-    console.log('📊 [fetchTodayOrders] RAW DATA RECEIVED:', JSON.stringify(data, null, 2));
-    console.log('📊 [fetchTodayOrders] Data structure:', {
-      isNull: data === null,
-      hasData: !!data,
-      keys: data ? Object.keys(data) : [],
-      pending: data?.pending?.length || 0,
-      accepted: data?.accepted?.length || 0,
-      preparing: data?.preparing?.length || 0,
-      ready: data?.ready?.length || 0,
-      ready_for_pickup: data?.ready_for_pickup?.length || 0,
-      out_for_delivery: data?.out_for_delivery?.length || 0,
-      delivered: data?.delivered?.length || 0,
-      cancelled: data?.cancelled?.length || 0
-    });
-    
-    if (data?.pending && data.pending.length > 0) {
-      console.log('🔍 [fetchTodayOrders] Sample pending order:', data.pending[0]);
-    }
     
     setTodayOrders(data);
     setLoading(false);
@@ -1738,28 +1673,7 @@ export default function OrderManagement() {
   
   const fetchAllOrders = async (page: number) => {
     setLoading(true);
-    console.log(`🔄 [fetchAllOrders] Fetching all orders (page ${page})...`);
     const data = await getAllOrders(page, 10);
-    
-    console.log('📊 [fetchAllOrders] RAW DATA RECEIVED:', JSON.stringify(data, null, 2));
-    console.log('📊 [fetchAllOrders] Data structure:', {
-      isNull: data === null,
-      hasData: !!data,
-      keys: data ? Object.keys(data) : [],
-      hasOrders: !!data?.orders,
-      ordersCount: data?.orders?.length || 0,
-      hasPagination: !!data?.pagination,
-      paginationKeys: data?.pagination ? Object.keys(data.pagination) : [],
-      pagination: data?.pagination
-    });
-    
-    if (data?.orders && data.orders.length > 0) {
-      console.log('🔍 [fetchAllOrders] Sample order:', data.orders[0]);
-      console.log('🔍 [fetchAllOrders] Customer field type:', typeof data.orders[0].customer);
-      console.log('🔍 [fetchAllOrders] Customer value:', data.orders[0].customer);
-      console.log('🔍 [fetchAllOrders] Phone field type:', typeof data.orders[0].phone);
-      console.log('🔍 [fetchAllOrders] Phone value:', data.orders[0].phone);
-    }
     
     setAllOrdersData(data);
     setLoading(false);
@@ -1848,15 +1762,6 @@ export default function OrderManagement() {
                         todayOrders?.ready?.find(o => o.id === orderId) ||
                         todayOrders?.ready_for_pickup?.find(o => o.id === orderId) ||
                         todayOrders?.out_for_delivery?.find(o => o.id === orderId);
-    
-    if (currentOrder) {
-      console.log('📋 [Current Order State]:', {
-        orderId: currentOrder.orderId,
-        currentStatus: currentOrder.status,
-        orderType: currentOrder.orderType,
-        newStatus: newStatus
-      });
-    }
     
     // Handle assignment action
     if (newStatus === 'ASSIGN_DELIVERY') {

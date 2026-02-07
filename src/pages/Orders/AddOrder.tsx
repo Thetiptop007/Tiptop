@@ -62,8 +62,7 @@ export default function AddOrder() {
   const [categories, setCategories] = useState<string[]>(["All"]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
-  const categoryFilterRef = useRef<HTMLDivElement>(null);
+  const [showImages, setShowImages] = useState(false);
   
   // Debounced search
   const { localValue: searchQuery, debouncedValue: debouncedSearch, handleChange: handleSearchChange } = useDebounceSearch();
@@ -166,23 +165,6 @@ export default function AddOrder() {
 
     fetchData();
   }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (categoryFilterRef.current && !categoryFilterRef.current.contains(event.target as Node)) {
-        setShowCategoryFilter(false);
-      }
-    };
-
-    if (showCategoryFilter) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showCategoryFilter]);
 
   const filteredItems = menuItems.filter(item => {
     const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
@@ -434,7 +416,7 @@ export default function AddOrder() {
             {/* Search and Filter Section */}
             <div className="border-b border-gray-200 p-4 dark:border-gray-800">
               <div className="space-y-4">
-                {/* Search Bar and Category Filter */}
+                {/* Search Bar, Image Toggle, and Open Menu Button */}
                 <div className="flex gap-3">
                   {/* Search Bar */}
                   <div className="relative flex-1">
@@ -459,66 +441,49 @@ export default function AddOrder() {
                       />
                     </svg>
                   </div>
-
-                  {/* Category Filter Dropdown Button */}
-                  <div className="relative" ref={categoryFilterRef}>
-                    <button
-                      onClick={() => setShowCategoryFilter(!showCategoryFilter)}
-                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                    >
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                        />
-                      </svg>
-                      {selectedCategory === "All" ? "All Categories" : selectedCategory}
-                      <svg
-                        className={`h-4 w-4 transition-transform ${showCategoryFilter ? 'rotate-180' : ''}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-
-                    {/* Category Dropdown */}
-                    {showCategoryFilter && (
-                      <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                        <div className="max-h-64 overflow-y-auto p-1">
-                          {categories.map((category) => (
-                            <button
-                              key={category}
-                              onClick={() => {
-                                setSelectedCategory(category);
-                                setShowCategoryFilter(false);
-                              }}
-                              className={`w-full rounded-md px-3 py-2 text-left text-sm ${
-                                selectedCategory === category
-                                  ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"
-                                  : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-                              }`}
-                            >
-                              {category}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                  
+                  {/* Image Toggle Button */}
+                  <button
+                    onClick={() => setShowImages(!showImages)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                    title={showImages ? "Hide images" : "Show images"}
+                  >
+                    {showImages ? (
+                      <>
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                          />
+                        </svg>
+                        <span className="hidden sm:inline">Hide</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span className="hidden sm:inline">Show</span>
+                      </>
                     )}
-                  </div>
+                  </button>
                   
                   {/* Open Menu Button */}
                   <button
@@ -541,6 +506,23 @@ export default function AddOrder() {
                     </svg>
                     Open Menu
                   </button>
+                </div>
+
+                {/* Category Filter Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                        selectedCategory === category
+                          ? "bg-indigo-600 text-white shadow-md dark:bg-indigo-500"
+                          : "border border-gray-300 bg-white text-gray-700 hover:border-indigo-300 hover:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-indigo-500 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Results count */}
@@ -598,19 +580,27 @@ export default function AddOrder() {
                     <div
                       key={item.id}
                       onClick={() => openVariantModal(item)}
-                      className="group cursor-pointer rounded-xl border border-gray-200 bg-white p-3 transition-all hover:border-indigo-500 hover:shadow-md dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-indigo-500"
+                      className={`group cursor-pointer rounded-xl transition-all ${
+                        showImages
+                          ? "border border-gray-200 bg-white p-3 hover:border-indigo-500 hover:shadow-md dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-indigo-500"
+                          : "border-2 border-indigo-300 bg-gradient-to-br from-indigo-50 to-white p-4 shadow-sm hover:border-indigo-500 hover:shadow-lg dark:border-indigo-700 dark:from-indigo-950/30 dark:to-gray-900/50 dark:hover:border-indigo-500"
+                      }`}
                     >
-                      <div className="mb-2 aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/images/product/placeholder.jpg";
-                          }}
-                        />
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90 line-clamp-2">
+                      {showImages && (
+                        <div className="mb-2 aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "/images/product/placeholder.jpg";
+                            }}
+                          />
+                        </div>
+                      )}
+                      <h3 className={`font-semibold text-gray-800 dark:text-white/90 line-clamp-2 ${
+                        showImages ? "text-sm" : "text-base"
+                      }`}>
                         {item.name}
                       </h3>
                       {item.priceVariants && item.priceVariants.length > 0 && (
@@ -669,14 +659,16 @@ export default function AddOrder() {
                       key={`${item.id}-${item.selectedVariant || 'default'}`}
                       className="flex items-start gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-800"
                     >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-16 w-16 rounded-lg object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/images/product/placeholder.jpg";
-                        }}
-                      />
+                      {showImages && (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="h-16 w-16 rounded-lg object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/images/product/placeholder.jpg";
+                          }}
+                        />
+                      )}
                       <div className="flex-1">
                         <h4 className="text-sm font-semibold text-gray-800 dark:text-white/90">
                           {item.name}
