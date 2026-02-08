@@ -426,6 +426,21 @@ export default function GuestOrder() {
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Order Number</p>
             <p className="text-2xl font-bold text-[#e36057]">{orderNumber}</p>
           </div>
+          <div className="mb-6 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-4">
+            <div className="flex items-start gap-3">
+              <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                  Have a question or need help?
+                </p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Contact us at: <a href={`tel:${settings?.contactPhone}`} className="font-semibold text-[#e36057] hover:underline">{settings?.contactPhone || 'N/A'}</a>
+                </p>
+              </div>
+            </div>
+          </div>
           <div className="mb-6 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 p-4">
             <p className="text-sm text-gray-700 dark:text-gray-300">
               <strong>Note:</strong> As a guest user, you won't be able to track your order status. 
