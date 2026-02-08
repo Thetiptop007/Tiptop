@@ -417,21 +417,36 @@ export default function GuestOrder() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white/90 mb-2">
-            Order Placed Successfully!
+            Order Confirmed!
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Your order has been received and is being processed.
+            Your order has been confirmed and accepted. We'll start preparing it right away!
           </p>
           <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-950/20 p-4">
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Order Number</p>
             <p className="text-2xl font-bold text-[#e36057]">{orderNumber}</p>
+          </div>
+          <div className="mb-6 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 p-4">
+            <div className="flex items-start gap-3">
+              <svg className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-left">
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                  No WhatsApp Required!
+                </p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Your order is confirmed without needing WhatsApp confirmation. We've received it directly through our system.
+                </p>
+              </div>
+            </div>
           </div>
           <div className="mb-6 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-4">
             <div className="flex items-start gap-3">
               <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
-              <div>
+              <div className="text-left">
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
                   Have a question or need help?
                 </p>
@@ -440,14 +455,6 @@ export default function GuestOrder() {
                 </p>
               </div>
             </div>
-          </div>
-          <div className="mb-6 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 p-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              <strong>Note:</strong> As a guest user, you won't be able to track your order status. 
-              <a href={settings?.apkDownloadUrl || "#"} target="_blank" rel="noopener noreferrer" className="text-[#e36057] hover:underline ml-1">
-                Download our app
-              </a> to access order tracking, exclusive discounts, and more features!
-            </p>
           </div>
           <div className="flex flex-col gap-3">
             <button
