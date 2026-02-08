@@ -302,96 +302,104 @@ export default function GuestOrder() {
       return;
     }
 
+    // Validate phone number format (10 digits starting with 6-9)
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(customerPhone.trim())) {
+      alert("Please enter a valid 10-digit phone number");
+      return;
+    }
+
     if (!deliveryStreet.trim() || !deliveryCity.trim() || !deliveryState.trim() || !deliveryZipCode.trim()) {
       alert("Please fill in all delivery address fields");
+      return;
+    }
+
+    // Validate zipcode (6 digits)
+    const zipcodeRegex = /^\d{6}$/;
+    if (!zipcodeRegex.test(deliveryZipCode.trim())) {
+      alert("Please enter a valid 6-digit zip code");
       return;
     }
 
     setSubmitting(true);
 
     try {
-      // Format price helper - remove .00 decimals
-      const formatPrice = (price: number) => {
-        return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
+      // Prepare order data for API
+      // Each cart item with different variant should be sent as separate item
+      const orderData = {
+        customer: {
+          name: customerName.trim(),
+          phone: customerPhone.trim(),
+          email: "", // Guest orders don't require email
+        },
+        items: cart.map((item, index) => ({
+          menuItem: item.id,
+          quantity: item.quantity,
+          price: item.variantPrice || item.price,
+          portion: item.selectedVariant || 'Full',
+        })),
+        orderType: 'DELIVERY',
+        deliveryAddress: {
+          street: `${deliveryArea}, ${deliveryStreet.trim()}`,
+          apartment: '',
+          city: deliveryCity.trim(),
+          state: deliveryState.trim(),
+          zipCode: deliveryZipCode.trim(),
+          landmark: '',
+        },
+        paymentMethod: 'COD',
+        specialInstructions: '',
       };
 
-      // Calculate totals
-      const subtotal = cart.reduce((sum, item) => sum + (item.variantPrice || item.price) * item.quantity, 0);
-      const taxRate = settings?.taxRate || 0;
-      const deliveryCharge = settings?.deliveryCharge || 0;
-      const tax = subtotal * (taxRate / 100);
-      const total = subtotal + tax + deliveryCharge;
+      console.log('📤 Sending guest order to API:', orderData);
+      console.log('📦 Cart items:', cart.map(item => ({ 
+        name: item.name, 
+        id: item.id, 
+        variant: item.selectedVariant, 
+        qty: item.quantity,
+        price: item.variantPrice || item.price
+      })));
 
-      // Format order details for WhatsApp
-      let message = `*═══════════════*\n`;
-      message += `*THE TIP TOP*\n`;
-      message += `NEAR ASHIANA PG, LAW GATE\n`;
-      message += `MAHERU, PHAGWARA\n`;
-      message += `*═══════════════*\n\n`;
-      
-      message += `*Customer:* ${customerName}\n`;
-      message += `*Phone:* ${customerPhone}\n\n`;
-      
-      message += `*Delivery Address:*\n`;
-      message += `${deliveryStreet}, ${deliveryArea}\n`;
-      message += `*═══════════════*\n\n`;
-      
-      message += `*ITEMS:*\n`;
-      message += `- - - - - - - - - - - - - -\n`;
-      
-      cart.forEach((item) => {
-        const itemPrice = item.variantPrice || item.price;
-        message += `*${item.name.toUpperCase()}*`;
-        
-        // Special formatting for bread category
-        if (item.category?.toLowerCase() === 'breads') {
-          message += `(${item.quantity}) ${formatPrice(itemPrice)}*${item.quantity}`;
-        } else {
-          if (item.selectedVariant) {
-            message += ` (${item.selectedVariant})`;
-          }
-          message += `\n`;
-          message += `₹${formatPrice(itemPrice)} × ${item.quantity}`;
-        }
-        message += `\n\n`;
+      // Call the guest order API
+      const response = await fetch(getApiUrl('orders/guest/create'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
       });
-      
-      message += `*═══════════════*\n\n`;
-      message += `*SUB TOTAL:* ₹${formatPrice(subtotal)}\n`;
-      if (deliveryCharge > 0) {
-        message += `*DELIVERY FEE:* ₹${formatPrice(deliveryCharge)}\n`;
-      }
-      if (tax > 0) {
-        message += `*TAX (${taxRate}%):* ₹${formatPrice(tax)}\n`;
-      }
-      message += `\n*GRAND TOTAL: ₹${formatPrice(total)}*\n`;
-      message += `*═══════════════*`;
 
-      // Send to WhatsApp - phone number from settings
-      const whatsappNumber = settings?.contactPhone ? settings.contactPhone.replace(/\D/g, '') : '919060557296';
-      const encodedMessage = encodeURIComponent(message);
-      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
-      
-      // Open WhatsApp in new tab
-      window.open(whatsappUrl, '_blank');
-      
-      // Show success message
-      setOrderNumber(`WA-${Date.now()}`);
-      setOrderSuccess(true);
-      
-      // Reset form
-      setCart([]);
-      setCustomerName("");
-      setCustomerPhone("");
-      setDeliveryStreet("");
-      setDeliveryArea("Law Gate");
-      setDeliveryCity("");
-      setDeliveryState("");
-      setDeliveryZipCode("");
+      const result = await response.json();
+      console.log('📥 API Response:', result);
+
+      if (response.ok && result.status === 'success') {
+        // Order placed successfully
+        const order = result.data.order;
+        setOrderNumber(order.orderNumber);
+        setOrderSuccess(true);
+        
+        // Reset form
+        setCart([]);
+        setCustomerName("");
+        setCustomerPhone("");
+        setDeliveryStreet("");
+        setDeliveryArea("Law Gate");
+        setDeliveryCity("");
+        setDeliveryState("");
+        setDeliveryZipCode("");
+        
+        console.log('✅ Order placed successfully:', order.orderNumber);
+      } else {
+        // API returned error
+        const errorMessage = result.message || 'Failed to place order. Please try again.';
+        const errorDetails = result.errors ? '\n' + result.errors.map((e: any) => e.message).join('\n') : '';
+        alert(errorMessage + errorDetails);
+        console.error('❌ API Error:', result);
+      }
       
     } catch (error: any) {
-      console.error("❌ Error preparing order:", error);
-      alert("Failed to prepare order. Please try again.");
+      console.error("❌ Error placing order:", error);
+      alert("Failed to place order. Please check your connection and try again.");
     } finally {
       setSubmitting(false);
     }
