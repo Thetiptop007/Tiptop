@@ -1,0 +1,221 @@
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useNavigate } from 'react-router';
+import {
+  customerLogin,
+  customerSignUp,
+  customerLogout,
+  verifyOTP as verifyOTPService,
+  resendOTP as resendOTPService,
+  getCustomerProfile,
+  isCustomerAuthenticated,
+  getStoredCustomer,
+  CustomerUser,
+  LoginRequest,
+  SignUpRequest,
+} from '../services/customer-auth.service';
+
+interface CustomerAuthContextType {
+  customer: CustomerUser | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (phone: string, password: string) => Promise<{ success: boolean; message?: string; needsVerification?: boolean; email?: string }>;
+  signUp: (data: SignUpRequest) => Promise<{ success: boolean; message?: string; userId?: string; email?: string }>;
+  logout: () => Promise<void>;
+  verifyOTP: (email: string, otp: string) => Promise<{ success: boolean; message?: string }>;
+  resendOTP: (email: string) => Promise<{ success: boolean; message?: string }>;
+  refreshProfile: () => Promise<void>;
+}
+
+const CustomerAuthContext = createContext<CustomerAuthContextType | undefined>(undefined);
+
+export const useCustomerAuth = () => {
+  const context = useContext(CustomerAuthContext);
+  if (!context) {
+    throw new Error('useCustomerAuth must be used within a CustomerAuthProvider');
+  }
+  return context;
+};
+
+interface CustomerAuthProviderProps {
+  children: ReactNode;
+}
+
+export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) => {
+  const [customer, setCustomer] = useState<CustomerUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  // Check if customer is already logged in on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log('🔐 CustomerAuth: Checking authentication');
+      
+      if (isCustomerAuthenticated()) {
+        const storedCustomer = getStoredCustomer();
+        if (storedCustomer) {
+          console.log('✅ CustomerAuth: Customer authenticated', storedCustomer.email.address);
+          setCustomer(storedCustomer);
+          
+          // Try to refresh profile data
+          try {
+            const updatedProfile = await getCustomerProfile();
+            setCustomer(updatedProfile);
+          } catch (error) {
+            console.warn('⚠️  CustomerAuth: Could not refresh profile', error);
+            // Keep using stored customer data
+          }
+        }
+      } else {
+        console.log('❌ CustomerAuth: No customer authenticated');
+      }
+      
+      setIsLoading(false);
+    };
+
+    checkAuth();
+  }, []);
+
+  const login = async (phone: string, password: string) => {
+    try {
+      console.log('🔐 CustomerAuth: Attempting login for phone:', phone);
+      
+      const response = await customerLogin(phone, password);
+      
+      if (response.status === 'success' && response.data.user) {
+        console.log('✅ CustomerAuth: Login successful');
+        setCustomer(response.data.user);
+        return { success: true, message: 'Login successful' };
+      }
+      
+      return { success: false, message: 'Login failed' };
+    } catch (error: any) {
+      console.error('❌ CustomerAuth: Login failed', error);
+      
+      // Check if email verification is needed
+      if (error.needsVerification) {
+        return {
+          success: false,
+          needsVerification: true,
+          email: error.email,
+          message: 'Please verify your email address'
+        };
+      }
+      
+      return {
+        success: false,
+        message: error.message || 'Login failed. Please check your credentials.'
+      };
+    }
+  };
+
+  const signUp = async (data: SignUpRequest) => {
+    try {
+      console.log('📝 CustomerAuth: Attempting signup for email:', data.email);
+      
+      const response = await customerSignUp(data);
+      
+      if (response.status === 'success' && response.data) {
+        console.log('✅ CustomerAuth: Signup successful, OTP sent');
+        return {
+          success: true,
+          userId: response.data.userId,
+          email: response.data.email,
+          message: 'Registration successful! Please check your email for OTP.'
+        };
+      }
+      
+      return { success: false, message: 'Registration failed' };
+    } catch (error: any) {
+      console.error('❌ CustomerAuth: Signup failed', error);
+      return {
+        success: false,
+        message: error.message || 'Registration failed. Please try again.'
+      };
+    }
+  };
+
+  const verifyOTP = async (email: string, otp: string) => {
+    try {
+      console.log('🔐 CustomerAuth: Verifying OTP for email:', email);
+      
+      const response = await verifyOTPService(email, otp);
+      
+      if (response.status === 'success' && response.data.user) {
+        console.log('✅ CustomerAuth: OTP verification successful');
+        setCustomer(response.data.user);
+        return { success: true, message: 'Email verified successfully!' };
+      }
+      
+      return { success: false, message: 'Verification failed' };
+    } catch (error: any) {
+      console.error('❌ CustomerAuth: OTP verification failed', error);
+      return {
+        success: false,
+        message: error.message || 'Invalid OTP. Please try again.'
+      };
+    }
+  };
+
+  const resendOTP = async (email: string) => {
+    try {
+      console.log('📧 CustomerAuth: Resending OTP to:', email);
+      
+      const response = await resendOTPService(email);
+      
+      if (response.status === 'success') {
+        console.log('✅ CustomerAuth: OTP resent successfully');
+        return { success: true, message: 'OTP sent successfully!' };
+      }
+      
+      return { success: false, message: 'Failed to resend OTP' };
+    } catch (error: any) {
+      console.error('❌ CustomerAuth: Resend OTP failed', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to resend OTP. Please try again.'
+      };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      console.log('🚪 CustomerAuth: Logging out');
+      await customerLogout();
+      setCustomer(null);
+      navigate('/');
+      console.log('✅ CustomerAuth: Logout successful');
+    } catch (error) {
+      console.error('❌ CustomerAuth: Logout error', error);
+      // Clear state anyway
+      setCustomer(null);
+      navigate('/');
+    }
+  };
+
+  const refreshProfile = async () => {
+    try {
+      const updatedProfile = await getCustomerProfile();
+      setCustomer(updatedProfile);
+    } catch (error) {
+      console.error('Failed to refresh profile:', error);
+    }
+  };
+
+  const value: CustomerAuthContextType = {
+    customer,
+    isAuthenticated: !!customer,
+    isLoading,
+    login,
+    signUp,
+    logout,
+    verifyOTP,
+    resendOTP,
+    refreshProfile,
+  };
+
+  return (
+    <CustomerAuthContext.Provider value={value}>
+      {children}
+    </CustomerAuthContext.Provider>
+  );
+};

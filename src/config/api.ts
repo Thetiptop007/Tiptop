@@ -38,6 +38,12 @@ export const apiRequest = async (
     timestamp: new Date().toISOString()
   });
   
+  // Check if this is a customer authentication endpoint (should not include admin token)
+  const isCustomerAuthEndpoint = endpoint.match(/^auth\/(login|register|verify-otp|resend-otp)$/);
+  
+  // Check if Authorization header is explicitly provided in options
+  const hasExplicitAuth = options.headers && 'Authorization' in options.headers;
+  
   const token = localStorage.getItem('adminToken');
   
   const headers: Record<string, string> = {
@@ -45,7 +51,11 @@ export const apiRequest = async (
     ...(options.headers as Record<string, string>),
   };
   
-  if (token) {
+  // Only add admin token if:
+  // 1. Token exists
+  // 2. NOT a customer auth endpoint (login/register/verify-otp/resend-otp)
+  // 3. Authorization header not already explicitly set in options
+  if (token && !isCustomerAuthEndpoint && !hasExplicitAuth) {
     headers['Authorization'] = `Bearer ${token}`;
   }
   

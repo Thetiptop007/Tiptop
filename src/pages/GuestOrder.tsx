@@ -369,37 +369,71 @@ export default function GuestOrder() {
         body: JSON.stringify(orderData),
       });
 
+      // Parse response - if this fails, we'll catch it
       const result = await response.json();
       console.log('📥 API Response:', result);
 
-      if (response.ok && result.status === 'success') {
-        // Order placed successfully
-        const order = result.data.order;
-        setOrderNumber(order.orderNumber);
-        setOrderSuccess(true);
-        
-        // Reset form
-        setCart([]);
-        setCustomerName("");
-        setCustomerPhone("");
-        setDeliveryStreet("");
-        setDeliveryArea("Law Gate");
-        setDeliveryCity("");
-        setDeliveryState("");
-        setDeliveryZipCode("");
-        
-        console.log('✅ Order placed successfully:', order.orderNumber);
-      } else {
-        // API returned error
-        const errorMessage = result.message || 'Failed to place order. Please try again.';
+      // Strict validation: Check HTTP status, result status, and order data
+      if (!response.ok) {
+        // HTTP error (4xx, 5xx)
+        const errorMessage = result.message || `Server error: ${response.status} ${response.statusText}`;
         const errorDetails = result.errors ? '\n' + result.errors.map((e: any) => e.message).join('\n') : '';
-        alert(errorMessage + errorDetails);
-        console.error('❌ API Error:', result);
+        throw new Error(errorMessage + errorDetails);
       }
+
+      // Check if response has proper structure
+      if (result.status !== 'success') {
+        throw new Error(result.message || 'Order was not confirmed by the server');
+      }
+
+      // Validate order data exists
+      if (!result.data || !result.data.order) {
+        throw new Error('Invalid response from server - no order data received');
+      }
+
+      const order = result.data.order;
+      
+      // Validate order number exists and has proper format
+      if (!order.orderNumber || typeof order.orderNumber !== 'string' || order.orderNumber.trim() === '') {
+        throw new Error('Invalid order confirmation - no order number received');
+      }
+
+      // Check if order number has valid format (not just a timestamp)
+      // Valid format: ORD-XXXXXX (where X is a digit)
+      const orderNumberPattern = /^ORD-\\d{6,}$/;
+      if (!orderNumberPattern.test(order.orderNumber)) {
+        console.warn('⚠️ Unusual order number format:', order.orderNumber);
+        throw new Error('Order confirmation received but order number format is invalid. Please contact support.');
+      }
+
+      // All validations passed - order is confirmed!
+      console.log('✅ Order confirmed with valid order number:', order.orderNumber);
+      
+      setOrderNumber(order.orderNumber);
+      setOrderSuccess(true);
+      
+      // Reset form
+      setCart([]);
+      setCustomerName("");
+      setCustomerPhone("");
+      setDeliveryStreet("");
+      setDeliveryArea("Law Gate");
+      setDeliveryCity("");
+      setDeliveryState("");
+      setDeliveryZipCode("");
       
     } catch (error: any) {
       console.error("❌ Error placing order:", error);
-      alert("Failed to place order. Please check your connection and try again.");
+      
+      // Show detailed error with contact information
+      const contactPhone = settings?.contactPhone || '1234567890';
+      const errorMsg = error.message || 'Failed to place order. Please try again.';
+      
+      alert(
+        `❌ Order Failed\n\n${errorMsg}\n\nIf the problem persists, please contact us:\n📞 ${contactPhone}`
+      );
+      
+      // Don't set orderSuccess - keep user on order form
     } finally {
       setSubmitting(false);
     }

@@ -34,7 +34,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900">
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center">

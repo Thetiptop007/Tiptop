@@ -19,7 +19,11 @@ import Settings from "./pages/Settings";
 import Developer from "./pages/Developer";
 import UserProfiles from "./pages/UserProfiles";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import CustomerLogin from "./pages/Customer/CustomerLogin";
+import CustomerSignUp from "./pages/Customer/CustomerSignUp";
+import VerifyOTP from "./pages/Customer/VerifyOTP";
 import { AuthProvider } from "./context/AuthContext";
+import { CustomerAuthProvider } from "./context/CustomerAuthContext";
 import { ShopStatusProvider } from "./context/ShopStatusContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { useEffect } from "react";
@@ -42,71 +46,78 @@ export default function App() {
       <Router>
         <LocationLogger />
         <AuthProvider>
-          <ShopStatusProvider>
-            <ScrollToTop />
-            <Routes>
-              {/* Public Landing Page */}
-              <Route path="/" element={
-                <>
-                  {console.log('📍 Route: Rendering Landing Page route "/"')}
-                  <LandingPage />
-                </>
-              } />
-              
-              {/* Guest Order Page - Public */}
-              <Route path="/order" element={
-                <>
-                  {console.log('📍 Route: Rendering Guest Order route "/order"')}
-                  <GuestOrder />
-                </>
-              } />
+          <CustomerAuthProvider>
+            <ShopStatusProvider>
+              <ScrollToTop />
+              <Routes>
+                {/* Public Landing Page */}
+                <Route path="/" element={
+                  <>
+                    {console.log('📍 Route: Rendering Landing Page route "/"')}
+                    <LandingPage />
+                  </>
+                } />
+                
+                {/* Guest Order Page - Public */}
+                <Route path="/order" element={
+                  <>
+                    {console.log('📍 Route: Rendering Guest Order route "/order"')}
+                    <GuestOrder />
+                  </>
+                } />
 
-              {/* Admin Panel - All routes under /admin (Protected) */}
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Home />} />
+                {/* Customer Auth Routes */}
+                <Route path="/customer/login" element={<CustomerLogin />} />
+                <Route path="/customer/signup" element={<CustomerSignUp />} />
+                <Route path="/customer/verify-otp" element={<VerifyOTP />} />
 
-                {/* Orders */}
-                <Route path="orders" element={<OrderManagement />} />
-                <Route path="orders/add" element={<AddOrder />} />
+                {/* Admin Panel - All routes under /admin (Protected) */}
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Home />} />
 
-                {/* Customers */}
-                <Route path="customers" element={<CustomerList />} />
+                  {/* Orders */}
+                  <Route path="orders" element={<OrderManagement />} />
+                  <Route path="orders/add" element={<AddOrder />} />
 
-                {/* Menu */}
-                <Route path="menu" element={<MenuManagement />} />
-                <Route path="menu/add" element={<AddMenu />} />
+                  {/* Customers */}
+                  <Route path="customers" element={<CustomerList />} />
 
-                {/* Categories */}
-                <Route path="categories" element={<CategoryManagement />} />
+                  {/* Menu */}
+                  <Route path="menu" element={<MenuManagement />} />
+                  <Route path="menu/add" element={<AddMenu />} />
 
-                {/* Delivery */}
-                <Route path="delivery" element={<DeliveryList />} />
-                <Route path="delivery/add" element={<AddDelivery />} />
+                  {/* Categories */}
+                  <Route path="categories" element={<CategoryManagement />} />
 
-                {/* Others */}
-                <Route path="profile" element={<UserProfiles />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="developer" element={<Developer />} />
-              </Route>
+                  {/* Delivery */}
+                  <Route path="delivery" element={<DeliveryList />} />
+                  <Route path="delivery/add" element={<AddDelivery />} />
 
-              {/* Public Privacy Policy */}
-              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                  {/* Others */}
+                  <Route path="profile" element={<UserProfiles />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="developer" element={<Developer />} />
+                </Route>
 
-              {/* Auth Layout */}
-              <Route path="/signin" element={<SignIn />} />
-              <Route path="/signup" element={<SignUp />} />
+                {/* Public Privacy Policy */}
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-              {/* Fallback Route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </ShopStatusProvider>
+                {/* Admin Auth Layout */}
+                <Route path="/signin" element={<SignIn />} />
+                <Route path="/signup" element={<SignUp />} />
+
+                {/* Fallback Route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ShopStatusProvider>
+          </CustomerAuthProvider>
         </AuthProvider>
       </Router>
     </>
