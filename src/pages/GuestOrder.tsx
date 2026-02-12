@@ -400,7 +400,7 @@ export default function GuestOrder() {
 
       // Check if order number has valid format (not just a timestamp)
       // Valid format: ORD-XXXXXX (where X is a digit)
-      const orderNumberPattern = /^ORD-\\d{6,}$/;
+      const orderNumberPattern = /^ORD-\d{6,}$/;
       if (!orderNumberPattern.test(order.orderNumber)) {
         console.warn('⚠️ Unusual order number format:', order.orderNumber);
         throw new Error('Order confirmation received but order number format is invalid. Please contact support.');
