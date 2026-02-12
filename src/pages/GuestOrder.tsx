@@ -361,6 +361,7 @@ export default function GuestOrder() {
       })));
 
       // Call the guest order API
+      console.log('🌐 Making API request to:', getApiUrl('orders/guest/create'));
       const response = await fetch(getApiUrl('orders/guest/create'), {
         method: 'POST',
         headers: {
@@ -369,12 +370,19 @@ export default function GuestOrder() {
         body: JSON.stringify(orderData),
       });
 
+      console.log('📡 Response received - Status:', response.status, response.statusText);
+      console.log('📡 Response OK?', response.ok);
+      
       // Parse response - if this fails, we'll catch it
       const result = await response.json();
-      console.log('📥 API Response:', result);
+      console.log('📥 API Response Full:', JSON.stringify(result, null, 2));
+      console.log('📥 Response status field:', result.status);
+      console.log('📥 Response data:', result.data);
+      console.log('📥 Response message:', result.message);
 
       // Strict validation: Check HTTP status, result status, and order data
       if (!response.ok) {
+        console.error('❌ HTTP Error - Response not OK');
         // HTTP error (4xx, 5xx)
         const errorMessage = result.message || `Server error: ${response.status} ${response.statusText}`;
         const errorDetails = result.errors ? '\n' + result.errors.map((e: any) => e.message).join('\n') : '';
@@ -382,32 +390,45 @@ export default function GuestOrder() {
       }
 
       // Check if response has proper structure
+      console.log('🔍 Checking result.status === "success":', result.status === 'success');
       if (result.status !== 'success') {
+        console.error('❌ Status is not success:', result.status);
         throw new Error(result.message || 'Order was not confirmed by the server');
       }
 
       // Validate order data exists
+      console.log('🔍 Checking result.data exists:', !!result.data);
+      console.log('🔍 Checking result.data.order exists:', !!result.data?.order);
       if (!result.data || !result.data.order) {
+        console.error('❌ No order data in response');
         throw new Error('Invalid response from server - no order data received');
       }
 
       const order = result.data.order;
+      console.log('📦 Order object:', order);
+      console.log('📦 Order number:', order.orderNumber);
+      console.log('📦 Order number type:', typeof order.orderNumber);
       
       // Validate order number exists and has proper format
       if (!order.orderNumber || typeof order.orderNumber !== 'string' || order.orderNumber.trim() === '') {
+        console.error('❌ Invalid order number - empty or wrong type');
         throw new Error('Invalid order confirmation - no order number received');
       }
 
       // Check if order number has valid format (not just a timestamp)
       // Valid format: ORD-XXXXXX (where X is a digit)
       const orderNumberPattern = /^ORD-\d{6,}$/;
-      if (!orderNumberPattern.test(order.orderNumber)) {
+      const patternMatches = orderNumberPattern.test(order.orderNumber);
+      console.log('🔍 Testing order number pattern:', order.orderNumber, 'matches:', patternMatches);
+      
+      if (!patternMatches) {
         console.warn('⚠️ Unusual order number format:', order.orderNumber);
+        console.warn('⚠️ Expected pattern: ORD-XXXXXX (at least 6 digits)');
         throw new Error('Order confirmation received but order number format is invalid. Please contact support.');
       }
 
       // All validations passed - order is confirmed!
-      console.log('✅ Order confirmed with valid order number:', order.orderNumber);
+      console.log('✅✅✅ All validations passed! Order confirmed with valid order number:', order.orderNumber);
       
       setOrderNumber(order.orderNumber);
       setOrderSuccess(true);
