@@ -260,6 +260,11 @@ export default function GuestOrder() {
   };
 
   const handlePlaceOrder = async () => {
+    // Prevent multiple submissions
+    if (submitting) {
+      return;
+    }
+
     // Validation
     if (cart.length === 0) {
       alert("Please add items to cart");
@@ -295,9 +300,13 @@ export default function GuestOrder() {
       return;
     }
 
+    // Set submitting IMMEDIATELY to prevent multiple clicks
+    setSubmitting(true);
+
     try {
       let token = fcmToken;
       
+      // Request FCM token if not cached (this may show permission popup)
       if (!token) {
         try {
           token = await requestFcmToken();
@@ -308,8 +317,6 @@ export default function GuestOrder() {
           // Token request failed, order will proceed without notifications
         }
       }
-
-      setSubmitting(true);
 
       // Prepare order data for API
       // Each cart item with different variant should be sent as separate item
