@@ -573,14 +573,16 @@ export default function GuestOrder() {
       {showNotificationBanner && notificationPermission !== 'granted' && (
         <div className="bg-blue-50 border-b border-blue-200 dark:bg-blue-900/10 dark:border-blue-800">
           <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1">
-                <svg className="h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-start gap-3 flex-1">
+                <svg className="h-5 w-5 flex-shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 <p className="text-sm text-blue-800 dark:text-blue-200 flex-1">
-                  Get instant updates when your order is confirmed and ready
+                  Get instant updates on your order status
                 </p>
+              </div>
+              <div className="flex items-center gap-2 sm:flex-shrink-0">
                 <button
                   onClick={async () => {
                     try {
@@ -593,29 +595,28 @@ export default function GuestOrder() {
                         }
                         setShowNotificationBanner(false);
                       } else if (permission === 'denied') {
-                        // Show alert with instructions
                         alert('Notifications blocked. To enable:\n\n1. Click the lock icon in your browser address bar\n2. Go to Site settings\n3. Find Notifications and set to "Allow"\n4. Refresh the page');
                       }
                     } catch (error) {
                       // Permission request failed
                     }
                   }}
-                  className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
-                  Enable Notifications
+                  Enable
+                </button>
+                <button
+                  onClick={() => setShowNotificationBanner(false)}
+                  className="flex-shrink-0 text-blue-600 hover:text-blue-800 dark:text-blue-400 p-1"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
-              <button
-                onClick={() => setShowNotificationBanner(false)}
-                className="flex-shrink-0 text-blue-600 hover:text-blue-800 dark:text-blue-400"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
           </div>
         </div>
