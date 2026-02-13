@@ -57,6 +57,8 @@ export default function GuestOrder() {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string>("");
   const [fcmToken, setFcmToken] = useState<string | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<string>('default');
+  const [showNotificationBanner, setShowNotificationBanner] = useState(false);
   
   // Debounced search
   const { localValue: searchQuery, debouncedValue: debouncedSearch, handleChange: handleSearchChange } = useDebounceSearch();
@@ -119,6 +121,23 @@ export default function GuestOrder() {
     };
 
     fetchData();
+  }, []);
+
+  // Check notification permission status on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const permission = Notification.permission;
+      setNotificationPermission(permission);
+      
+      // Show banner if permission is denied or if it's default (not yet asked)
+      if (permission === 'denied' || permission === 'default') {
+        // Wait 2 seconds before showing banner to avoid overwhelming new users
+        const timer = setTimeout(() => {
+          setShowNotificationBanner(true);
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
+    }
   }, []);
 
   // Fetch menu items when search or category changes
@@ -545,6 +564,66 @@ export default function GuestOrder() {
               <span className="text-sm font-medium">
                 Shop is currently closed. Orders are disabled.
               </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Permission Banner */}
+      {showNotificationBanner && notificationPermission !== 'granted' && (
+        <div className={`${notificationPermission === 'denied' ? 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800' : 'bg-blue-50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800'} border-b`}>
+          <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 flex-1">
+                <svg className={`h-5 w-5 flex-shrink-0 mt-0.5 ${notificationPermission === 'denied' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${notificationPermission === 'denied' ? 'text-red-800 dark:text-red-200' : 'text-blue-800 dark:text-blue-200'}`}>
+                    {notificationPermission === 'denied' 
+                      ? '🔕 Order notifications are blocked' 
+                      : '🔔 Get notified about your orders!'}
+                  </p>
+                  <p className={`text-xs mt-1 ${notificationPermission === 'denied' ? 'text-red-700 dark:text-red-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                    {notificationPermission === 'denied' 
+                      ? 'To receive order updates, enable notifications in your browser settings: Click the lock icon in address bar → Site settings → Notifications → Allow'
+                      : 'Enable notifications to receive instant updates when your order is confirmed and ready.'}
+                  </p>
+                  {notificationPermission === 'default' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const permission = await Notification.requestPermission();
+                          setNotificationPermission(permission);
+                          if (permission === 'granted') {
+                            const token = await requestFcmToken();
+                            if (token) {
+                              setFcmToken(token);
+                            }
+                            setShowNotificationBanner(false);
+                          }
+                        } catch (error) {
+                          // Permission request failed
+                        }
+                      }}
+                      className="mt-2 inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition-colors"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                      Enable Notifications
+                    </button>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowNotificationBanner(false)}
+                className={`flex-shrink-0 ${notificationPermission === 'denied' ? 'text-red-600 hover:text-red-800 dark:text-red-400' : 'text-blue-600 hover:text-blue-800 dark:text-blue-400'}`}
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
