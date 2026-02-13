@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { getApiUrl } from "../config/api";
 import { useDebounceSearch } from "../hooks/useDebounceSearch";
 import { useShopStatus } from "../context/ShopStatusContext";
+import { requestFcmToken } from "../config/firebase";
 
 // Define the TypeScript interface for menu items
 interface MenuItem {
@@ -55,6 +56,7 @@ export default function GuestOrder() {
   const categoryFilterRef = useRef<HTMLDivElement>(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string>("");
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
   
   // Debounced search
   const { localValue: searchQuery, debouncedValue: debouncedSearch, handleChange: handleSearchChange } = useDebounceSearch();
@@ -74,8 +76,6 @@ export default function GuestOrder() {
         // Fetch settings for tax and charges
         const settingsData = await getSettings();
         setSettings(settingsData);
-        console.log('⚙️ Settings loaded:', settingsData);
-        console.log('💰 Tax rate:', settingsData?.taxRate, 'Delivery charge:', settingsData?.deliveryCharge);
         
         // Auto-fill city, state, zip from business address
         if (settingsData.businessAddress) {
@@ -103,20 +103,16 @@ export default function GuestOrder() {
         const categoriesResponse = await fetch(getApiUrl('categories?limit=100'));
         if (categoriesResponse.ok) {
           const categoriesResult = await categoriesResponse.json();
-          console.log('📦 Categories response:', categoriesResult);
           if (categoriesResult.status === 'success' && categoriesResult.data?.categories) {
             const categoryNames = categoriesResult.data.categories
               .filter((cat: any) => cat.isActive)
               .map((cat: any) => cat.name);
             setCategories(["All", ...categoryNames]);
-            console.log('✅ Categories loaded:', categoryNames);
           }
-        } else {
-          console.error('❌ Failed to fetch categories:', categoriesResponse.status);
         }
         
       } catch (error) {
-        console.error("Error fetching data:", error);
+        // Error fetching initial data
       } finally {
         setLoading(false);
       }
@@ -146,14 +142,7 @@ export default function GuestOrder() {
         });
         if (menuResponse.ok) {
           const menuResult = await menuResponse.json();
-          console.log('📦 Menu response:', menuResult);
           if (menuResult.status === 'success' && menuResult.data?.menuItems) {
-            // Log raw items count and first item
-            console.log(`📊 Raw items from backend: ${menuResult.data.menuItems.length} items`);
-            if (menuResult.data.menuItems.length > 0) {
-              console.log('📝 Sample item from backend:', menuResult.data.menuItems[0]);
-              console.log('🔍 isActive:', menuResult.data.menuItems[0].isActive, 'isAvailable:', menuResult.data.menuItems[0].isAvailable);
-            }
             
             // Transform to match expected structure
             const items = menuResult.data.menuItems
@@ -176,21 +165,13 @@ export default function GuestOrder() {
                   priceVariants: item.priceVariants || [],
                   isAvailable: item.isAvailable
                 };
-                // Log first transformed item
-                if (index === 0) {
-                  console.log('🔄 Transformed item:', transformedItem);
-                  console.log('🔍 Price details - priceVariants:', item.priceVariants, 'calculated basePrice:', basePrice);
-                }
                 return transformedItem;
               });
             setMenuItems(items);
-            console.log(`✅ Loaded ${items.length} menu items`);
           }
-        } else {
-          console.error('❌ Failed to fetch menu:', menuResponse.status);
         }
       } catch (error) {
-        console.error('Error fetching menu items:', error);
+        // Error fetching menu items
       } finally {
         setLoading(false);
       }
@@ -235,12 +216,6 @@ export default function GuestOrder() {
         selectedVariant: variant,
         variantPrice: variantPrice
       };
-      console.log('🛒 Adding to cart:', {
-        name: item.name,
-        basePrice: item.price,
-        variantPrice,
-        selectedVariant: variant
-      });
       setCart([...cart, newItem]);
     }
     setShowVariantModal(false);
@@ -263,7 +238,6 @@ export default function GuestOrder() {
       const itemPrice = item.variantPrice || item.price;
       return total + (itemPrice * item.quantity);
     }, 0);
-    console.log('💵 Subtotal calculation:', { cart: cart.length, subtotal });
     return subtotal;
   };
 
@@ -321,12 +295,25 @@ export default function GuestOrder() {
       return;
     }
 
-    setSubmitting(true);
-
     try {
+      let token = fcmToken;
+      
+      if (!token) {
+        try {
+          token = await requestFcmToken();
+          if (token) {
+            setFcmToken(token);
+          }
+        } catch (tokenError: any) {
+          // Token request failed, order will proceed without notifications
+        }
+      }
+
+      setSubmitting(true);
+
       // Prepare order data for API
       // Each cart item with different variant should be sent as separate item
-      const orderData = {
+      const orderData: any = {
         customer: {
           name: customerName.trim(),
           phone: customerPhone.trim(),
@@ -351,17 +338,11 @@ export default function GuestOrder() {
         specialInstructions: '',
       };
 
-      console.log('📤 Sending guest order to API:', orderData);
-      console.log('📦 Cart items:', cart.map(item => ({ 
-        name: item.name, 
-        id: item.id, 
-        variant: item.selectedVariant, 
-        qty: item.quantity,
-        price: item.variantPrice || item.price
-      })));
+      if (token) {
+        orderData.fcmToken = token;
+      }
 
       // Call the guest order API
-      console.log('🌐 Making API request to:', getApiUrl('orders/guest/create'));
       const response = await fetch(getApiUrl('orders/guest/create'), {
         method: 'POST',
         headers: {
@@ -370,19 +351,11 @@ export default function GuestOrder() {
         body: JSON.stringify(orderData),
       });
 
-      console.log('📡 Response received - Status:', response.status, response.statusText);
-      console.log('📡 Response OK?', response.ok);
-      
       // Parse response - if this fails, we'll catch it
       const result = await response.json();
-      console.log('📥 API Response Full:', JSON.stringify(result, null, 2));
-      console.log('📥 Response status field:', result.status);
-      console.log('📥 Response data:', result.data);
-      console.log('📥 Response message:', result.message);
 
       // Strict validation: Check HTTP status, result status, and order data
       if (!response.ok) {
-        console.error('❌ HTTP Error - Response not OK');
         // HTTP error (4xx, 5xx)
         const errorMessage = result.message || `Server error: ${response.status} ${response.statusText}`;
         const errorDetails = result.errors ? '\n' + result.errors.map((e: any) => e.message).join('\n') : '';
@@ -390,28 +363,19 @@ export default function GuestOrder() {
       }
 
       // Check if response has proper structure
-      console.log('🔍 Checking result.status === "success":', result.status === 'success');
       if (result.status !== 'success') {
-        console.error('❌ Status is not success:', result.status);
         throw new Error(result.message || 'Order was not confirmed by the server');
       }
 
       // Validate order data exists
-      console.log('🔍 Checking result.data exists:', !!result.data);
-      console.log('🔍 Checking result.data.order exists:', !!result.data?.order);
       if (!result.data || !result.data.order) {
-        console.error('❌ No order data in response');
         throw new Error('Invalid response from server - no order data received');
       }
 
       const order = result.data.order;
-      console.log('📦 Order object:', order);
-      console.log('📦 Order number:', order.orderNumber);
-      console.log('📦 Order number type:', typeof order.orderNumber);
       
       // Validate order number exists and has proper format
       if (!order.orderNumber || typeof order.orderNumber !== 'string' || order.orderNumber.trim() === '') {
-        console.error('❌ Invalid order number - empty or wrong type');
         throw new Error('Invalid order confirmation - no order number received');
       }
 
@@ -419,17 +383,12 @@ export default function GuestOrder() {
       // Valid format: ORD-XXXXXX (where X is a digit)
       const orderNumberPattern = /^ORD-\d{6,}$/;
       const patternMatches = orderNumberPattern.test(order.orderNumber);
-      console.log('🔍 Testing order number pattern:', order.orderNumber, 'matches:', patternMatches);
       
       if (!patternMatches) {
-        console.warn('⚠️ Unusual order number format:', order.orderNumber);
-        console.warn('⚠️ Expected pattern: ORD-XXXXXX (at least 6 digits)');
         throw new Error('Order confirmation received but order number format is invalid. Please contact support.');
       }
 
       // All validations passed - order is confirmed!
-      console.log('✅✅✅ All validations passed! Order confirmed with valid order number:', order.orderNumber);
-      
       setOrderNumber(order.orderNumber);
       setOrderSuccess(true);
       
@@ -444,8 +403,6 @@ export default function GuestOrder() {
       setDeliveryZipCode("");
       
     } catch (error: any) {
-      console.error("❌ Error placing order:", error);
-      
       // Show detailed error with contact information
       const contactPhone = settings?.contactPhone || '1234567890';
       const errorMsg = error.message || 'Failed to place order. Please try again.';
@@ -459,8 +416,6 @@ export default function GuestOrder() {
       setSubmitting(false);
     }
   };
-
-  console.log('🎨 Render state:', { loading, orderSuccess, menuItemsCount: menuItems.length, categoriesCount: categories.length });
 
   if (orderSuccess) {
     return (
@@ -580,9 +535,9 @@ export default function GuestOrder() {
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-sm font-medium">
-                Sorry, we're currently closed. Orders are temporarily unavailable.
-              </p>
+              <span className="text-sm font-medium">
+                Shop is currently closed. Orders are disabled.
+              </span>
             </div>
           </div>
         </div>
@@ -884,8 +839,14 @@ export default function GuestOrder() {
                     <button
                       onClick={handlePlaceOrder}
                       disabled={submitting || cart.length === 0 || !isShopOpen}
-                      className="w-full rounded-lg bg-[#e36057] px-4 py-3 text-sm font-medium text-white hover:bg-[#d14f47] disabled:opacity-50 disabled:cursor-not-allowed dark:hover:bg-[#e36057]"
+                      className="w-full rounded-lg bg-[#e36057] px-4 py-3 text-sm font-medium text-white hover:bg-[#d14f47] disabled:opacity-50 disabled:cursor-not-allowed dark:hover:bg-[#e36057] flex items-center justify-center gap-2"
                     >
+                      {submitting && (
+                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      )}
                       {submitting ? "Placing Order..." : !isShopOpen ? "Shop Closed - Cannot Order" : "Place Order"}
                     </button>
                   </div>
