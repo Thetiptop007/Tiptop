@@ -584,9 +584,9 @@ export default function GuestOrder() {
               </div>
               <div className="flex items-center gap-2 sm:flex-shrink-0">
                 <button
-                  onClick={async () => {
-                    try {
-                      const permission = await Notification.requestPermission();
+                  onClick={() => {
+                    // Call permission request synchronously to preserve user gesture on mobile
+                    Notification.requestPermission().then(async (permission) => {
                       setNotificationPermission(permission);
                       if (permission === 'granted') {
                         const token = await requestFcmToken();
@@ -597,9 +597,9 @@ export default function GuestOrder() {
                       } else if (permission === 'denied') {
                         alert('Notifications blocked. To enable:\n\n1. Click the lock icon in your browser address bar\n2. Go to Site settings\n3. Find Notifications and set to "Allow"\n4. Refresh the page');
                       }
-                    } catch (error) {
+                    }).catch(() => {
                       // Permission request failed
-                    }
+                    });
                   }}
                   className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
                 >
