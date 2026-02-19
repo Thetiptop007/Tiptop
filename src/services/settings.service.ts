@@ -10,6 +10,7 @@ export interface ShopStatus {
   lastUpdatedBy: string;
   lastUpdatedAt: string;
   closureReason: string;
+  message?: string;
 }
 
 export interface Settings {
@@ -32,6 +33,10 @@ export interface Settings {
   indusAppStoreUrl: string;
   adminProfile: AdminProfile;
   shopStatus?: ShopStatus;
+  delivery?: {
+    fee: number;
+    freeAbove?: number;
+  };
 }
 
 export interface SettingsResponse {

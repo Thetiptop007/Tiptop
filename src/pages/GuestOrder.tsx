@@ -543,10 +543,10 @@ export default function GuestOrder() {
               </button>
               
               <Link
-                to="/#download-app"
+                to="/customer/login"
                 className="text-sm font-medium text-[#e36057] hover:text-[#d14f47]"
               >
-                Download App
+                Sign In
               </Link>
             </div>
           </div>

@@ -1,0 +1,9 @@
+export { default as CustomerHome } from './CustomerHome';
+export { default as CustomerMenu } from './CustomerMenu';
+export { default as ItemDetails } from './ItemDetails';
+export { default as Cart } from './Cart';
+export { default as CustomerOrders } from './CustomerOrders';
+export { default as CustomerProfile } from './CustomerProfile';
+export { default as CustomerLogin } from './CustomerLogin';
+export { default as CustomerSignUp } from './CustomerSignUp';
+export { default as VerifyOTP } from './VerifyOTP';

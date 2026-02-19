@@ -39,7 +39,9 @@ export const apiRequest = async (
   });
   
   // Check if this is a customer authentication endpoint (should not include admin token)
+  // This includes auth endpoints and customer-specific user endpoints
   const isCustomerAuthEndpoint = endpoint.match(/^auth\/(login|register|verify-otp|resend-otp)$/);
+  const isCustomerAddressEndpoint = endpoint.match(/^\/addresses/);
   
   // Check if Authorization header is explicitly provided in options
   const hasExplicitAuth = options.headers && 'Authorization' in options.headers;
@@ -54,8 +56,9 @@ export const apiRequest = async (
   // Only add admin token if:
   // 1. Token exists
   // 2. NOT a customer auth endpoint (login/register/verify-otp/resend-otp)
-  // 3. Authorization header not already explicitly set in options
-  if (token && !isCustomerAuthEndpoint && !hasExplicitAuth) {
+  // 3. NOT a customer address endpoint (/addresses)
+  // 4. Authorization header not already explicitly set in options
+  if (token && !isCustomerAuthEndpoint && !isCustomerAddressEndpoint && !hasExplicitAuth) {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
@@ -66,7 +69,7 @@ export const apiRequest = async (
       ...options,
       headers,
       cache: 'no-store',
-      signal: AbortSignal.timeout(30000), // 30 second timeout
+      signal: AbortSignal.timeout(10000), // 10 second timeout for debugging
     });
     
     console.log('📥 [apiRequest] Response received:', {
@@ -76,18 +79,22 @@ export const apiRequest = async (
       headers: Object.fromEntries(response.headers.entries())
     });
     
-    // If unauthorized, clear token and redirect to login
-    // BUT only if we're currently on an admin route
+    // Log 401 responses but don't automatically clear tokens
+    // Let individual components/contexts handle authentication errors appropriately
     if (response.status === 401) {
       const currentPath = window.location.pathname;
       const isAdminRoute = currentPath.startsWith('/admin');
+      const isCustomerRoute = currentPath.startsWith('/customer');
       
       console.log('⚠️ [apiRequest] 401 Unauthorized response', {
         currentPath,
         isAdminRoute,
-        willRedirect: isAdminRoute
+        isCustomerRoute,
+        endpoint: finalUrl,
+        note: 'Not auto-clearing tokens - let components handle this'
       });
       
+      // Only auto-clear and redirect for admin routes (stricter security)
       if (isAdminRoute) {
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminEmail');
@@ -95,21 +102,34 @@ export const apiRequest = async (
         localStorage.removeItem('adminRole');
         window.location.href = '/signin';
       }
+      // For customer routes, don't auto-clear tokens
+      // Components/contexts will handle token clearing when appropriate
     }
     
     return response;
   } catch (error: any) {
+    console.error('❌ [apiRequest] Error caught:', error);
+    console.error('❌ [apiRequest] Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
     // Handle network errors with user-friendly messages
     if (error.name === 'TimeoutError') {
+      console.error('❌ [apiRequest] TimeoutError detected');
       throw new Error('Request timed out. The server is taking too long to respond. Please try again.');
     }
     if (error.name === 'AbortError') {
+      console.error('❌ [apiRequest] AbortError detected');
       throw new Error('Request was cancelled. Please try again.');
     }
     if (!navigator.onLine) {
+      console.error('❌ [apiRequest] Navigator offline');
       throw new Error('Lost internet connection while processing request. Please check your network.');
     }
     // Generic network error
+    console.error('❌ [apiRequest] Generic network error');
     throw new Error('Network error occurred. Please check your internet connection and try again.');
   }
 };
@@ -122,6 +142,13 @@ export interface ApiResponse<T = any> {
   message?: string;
   data?: T;
   error?: any;
+  errors?: Array<{ message?: string; msg?: string; field?: string }>;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    totalResults: number;
+    limit: number;
+  };
 }
 
 /**

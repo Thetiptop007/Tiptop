@@ -3,13 +3,17 @@ import { useState, useEffect } from "react";
 import { getSettings, Settings } from "../services/settings.service";
 import { getPopularItems, MenuItem } from "../services/menu-management.service";
 import Footer from "../components/common/Footer";
+import { useAuth } from "../context/AuthContext";
+import { useCustomerAuth } from "../context/CustomerAuthContext";
 
 export default function LandingPage() {
+  const { user } = useAuth(); // Admin auth
+  const { customer, isAuthenticated } = useCustomerAuth(); // Customer auth
   const [settings, setSettings] = useState<Settings | null>(null);
   const [popularDishes, setPopularDishes] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  console.log('🏠 LandingPage: Component rendering');
+  console.log('🏠 LandingPage: Component rendering', { isAuthenticated, customer });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,6 +44,31 @@ export default function LandingPage() {
             <Link to="/" className="flex items-center">
               <img src="/logo-full.png" alt="The Tip Top" className="h-10" />
             </Link>
+            
+            {/* Show different buttons based on authentication status */}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-4">
+                <Link
+                  to="/customer/menu"
+                  className="inline-block rounded-lg bg-[#e36057] px-4 py-2 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors"
+                >
+                  Order Now
+                </Link>
+                <Link
+                  to="/customer/profile"
+                  className="inline-block rounded-lg border-2 border-[#e36057] px-4 py-2 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10"
+                >
+                  My Account
+                </Link>
+              </div>
+            ) : (
+              <Link
+                to="/customer/login"
+                className="inline-block rounded-lg border-2 border-[#e36057] px-4 py-2 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -63,13 +92,13 @@ export default function LandingPage() {
           </p>
           <div className="mt-6 md:mt-8 flex flex-col sm:flex-row gap-3">
             <Link
-              to="/order"
+              to={isAuthenticated ? "/customer/menu" : "/order"}
               className="inline-block rounded-lg bg-[#e36057] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors dark:hover:bg-[#e36057] text-center"
             >
               Order Now
             </Link>
             <a
-              href="#download-app"
+              href="#"
               className="inline-block rounded-lg border-2 border-[#e36057] px-6 py-2.5 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10 text-center"
             >
               Download App

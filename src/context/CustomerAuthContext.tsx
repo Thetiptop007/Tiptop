@@ -19,7 +19,7 @@ interface CustomerAuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (phone: string, password: string) => Promise<{ success: boolean; message?: string; needsVerification?: boolean; email?: string }>;
-  signUp: (data: SignUpRequest) => Promise<{ success: boolean; message?: string; userId?: string; email?: string }>;
+  signUp: (data: SignUpRequest) => Promise<{ success: boolean; message?: string; user?: CustomerUser; autoLogin?: boolean }>;
   logout: () => Promise<void>;
   verifyOTP: (email: string, otp: string) => Promise<{ success: boolean; message?: string }>;
   resendOTP: (email: string) => Promise<{ success: boolean; message?: string }>;
@@ -49,6 +49,12 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   useEffect(() => {
     const checkAuth = async () => {
       console.log('🔐 CustomerAuth: Checking authentication');
+      console.log('🔐 CustomerAuth: localStorage state:', {
+        hasCustomerToken: !!localStorage.getItem('customerToken'),
+        hasCustomerRefreshToken: !!localStorage.getItem('customerRefreshToken'),
+        hasCustomerUser: !!localStorage.getItem('customerUser'),
+        tokenPreview: localStorage.getItem('customerToken')?.substring(0, 20)
+      });
       
       if (isCustomerAuthenticated()) {
         const storedCustomer = getStoredCustomer();
@@ -56,13 +62,15 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
           console.log('✅ CustomerAuth: Customer authenticated', storedCustomer.email.address);
           setCustomer(storedCustomer);
           
-          // Try to refresh profile data
+          // Try to refresh profile data (but don't fail if it doesn't work)
           try {
             const updatedProfile = await getCustomerProfile();
             setCustomer(updatedProfile);
-          } catch (error) {
-            console.warn('⚠️  CustomerAuth: Could not refresh profile', error);
-            // Keep using stored customer data
+            console.log('✅ CustomerAuth: Profile refreshed successfully');
+          } catch (error: any) {
+            console.warn('⚠️  CustomerAuth: Could not refresh profile, keeping cached data', error);
+            // Keep using the stored customer data - don't logout automatically
+            // The user will be logged out when they try to make an authenticated request
           }
         }
       } else {
@@ -81,8 +89,13 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
       
       const response = await customerLogin(phone, password);
       
+      console.log('📦 CustomerAuth: Login response:', response);
+      console.log('📦 CustomerAuth: response.data:', response.data);
+      console.log('📦 CustomerAuth: response.data.user:', response.data?.user);
+      
       if (response.status === 'success' && response.data.user) {
         console.log('✅ CustomerAuth: Login successful');
+        console.log('✅ CustomerAuth: Setting customer state with:', response.data.user);
         setCustomer(response.data.user);
         return { success: true, message: 'Login successful' };
       }
@@ -115,12 +128,16 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
       const response = await customerSignUp(data);
       
       if (response.status === 'success' && response.data) {
-        console.log('✅ CustomerAuth: Signup successful, OTP sent');
+        console.log('✅ CustomerAuth: Signup successful, user auto-logged in');
+        
+        // User is auto-logged in, set the customer state
+        setCustomer(response.data.user);
+        
         return {
           success: true,
-          userId: response.data.userId,
-          email: response.data.email,
-          message: 'Registration successful! Please check your email for OTP.'
+          user: response.data.user,
+          autoLogin: true,
+          message: response.message || 'Registration successful! You are now logged in.'
         };
       }
       
@@ -203,7 +220,7 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
 
   const value: CustomerAuthContextType = {
     customer,
-    isAuthenticated: !!customer,
+    isAuthenticated: !!customer && !!localStorage.getItem('customerToken'),
     isLoading,
     login,
     signUp,
