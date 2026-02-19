@@ -46,7 +46,7 @@ export const updateCustomer = async (customerId: string, data: UpdateCustomerDat
 /**
  * Create a new address for customer
  */
-export const createAddress = async (customerId: string, address: AddressData) => {
+export const createAddress = async (address: AddressData) => {
   const token = localStorage.getItem('customerToken');
   
   const response = await apiRequest('/addresses', {
@@ -62,7 +62,7 @@ export const createAddress = async (customerId: string, address: AddressData) =>
 /**
  * Update an existing address
  */
-export const updateAddress = async (customerId: string, addressId: string, address: AddressData) => {
+export const updateAddress = async (addressId: string, address: Partial<AddressData>) => {
   const token = localStorage.getItem('customerToken');
   
   const response = await apiRequest(`/addresses/${addressId}`, {
@@ -78,7 +78,7 @@ export const updateAddress = async (customerId: string, addressId: string, addre
 /**
  * Delete an address
  */
-export const deleteAddress = async (customerId: string, addressId: string) => {
+export const deleteAddress = async (addressId: string) => {
   const token = localStorage.getItem('customerToken');
   
   const response = await apiRequest(`/addresses/${addressId}`, {

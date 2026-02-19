@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import GridShape from '../../components/common/GridShape';
 import ThemeTogglerTwo from '../../components/common/ThemeTogglerTwo';
+import { getSettings, Settings } from '../../services/settings.service';
 
 export default function CustomerLogin() {
   const navigate = useNavigate();
@@ -14,9 +15,24 @@ export default function CustomerLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
 
   // Get redirect path from location state (for redirecting after login)
   const from = (location.state as any)?.from?.pathname || '/customer/menu';
+
+  // Load settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settingsData = await getSettings();
+        setSettings(settingsData);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const validatePhone = (phone: string): boolean => {
     // Indian phone number format - starts with 6-9 and has 10 digits
@@ -196,12 +212,13 @@ export default function CustomerLogin() {
                     {/* Remember Me & Forgot Password */}
                     <div className="flex items-center justify-between">
                       <div className="text-sm">
-                        <Link
-                          to="/customer/forgot-password"
+                        <button
+                          type="button"
+                          onClick={() => setShowForgotPasswordModal(true)}
                           className="font-medium text-[#e36057] hover:text-[#c54e45] transition-colors"
                         >
                           Forgot password?
-                        </Link>
+                        </button>
                       </div>
                     </div>
 
@@ -290,6 +307,93 @@ export default function CustomerLogin() {
           <ThemeTogglerTwo />
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Forgot Password?
+              </h3>
+              <button
+                onClick={() => setShowForgotPasswordModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <svg className="size-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-brand-100 dark:bg-brand-900/30">
+                <svg className="size-8 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+
+              <p className="text-center text-gray-600 dark:text-gray-300 mb-6">
+                Password reset is not available at the moment. Please contact our support team for assistance.
+              </p>
+
+              {/* Contact Information */}
+              {settings?.contactPhone && (
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 text-center">
+                    Contact Support
+                  </p>
+                  <a
+                    href={`tel:${settings.contactPhone}`}
+                    className="flex items-center justify-center gap-2 text-lg font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
+                  >
+                    <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    {settings.contactPhone}
+                  </a>
+                </div>
+              )}
+
+              {/* Alternative Options */}
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-3">
+                  Or continue with:
+                </p>
+                
+                <Link
+                  to="/order"
+                  onClick={() => setShowForgotPasswordModal(false)}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white transition-colors bg-brand-500 border border-transparent rounded-lg shadow-sm w-full hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                >
+                  <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  Order as Guest
+                </Link>
+
+                <Link
+                  to="/customer/signup"
+                  onClick={() => setShowForgotPasswordModal(false)}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm w-full hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                >
+                  <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                  Create New Account
+                </Link>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowForgotPasswordModal(false)}
+              className="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

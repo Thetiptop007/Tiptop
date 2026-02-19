@@ -13,6 +13,8 @@ import {
   LoginRequest,
   SignUpRequest,
 } from '../services/customer-auth.service';
+import { requestFcmToken } from '../config/firebase';
+import { apiRequest } from '../config/api';
 
 interface CustomerAuthContextType {
   customer: CustomerUser | null;
@@ -44,6 +46,40 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   const [customer, setCustomer] = useState<CustomerUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Helper function to register FCM token
+  const registerFcmToken = async () => {
+    try {
+      console.log('🔔 Requesting FCM token...');
+      const fcmToken = await requestFcmToken();
+      
+      if (fcmToken) {
+        console.log('✅ FCM token received:', fcmToken.substring(0, 30) + '...');
+        
+        // Send token to backend
+        const authToken = localStorage.getItem('customerToken');
+        if (authToken) {
+          await apiRequest('/auth/device-token', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+              token: fcmToken, 
+              platform: 'web' 
+            }),
+          });
+          console.log('✅ FCM token registered with backend');
+        }
+      } else {
+        console.log('⚠️  FCM token request was denied or unsupported');
+      }
+    } catch (error) {
+      console.error('❌ Failed to register FCM token:', error);
+      // Don't block login if FCM fails
+    }
+  };
 
   // Check if customer is already logged in on mount
   useEffect(() => {
@@ -97,6 +133,10 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
         console.log('✅ CustomerAuth: Login successful');
         console.log('✅ CustomerAuth: Setting customer state with:', response.data.user);
         setCustomer(response.data.user);
+        
+        // Register FCM token for web notifications (non-blocking)
+        registerFcmToken().catch(err => console.error('FCM registration failed:', err));
+        
         return { success: true, message: 'Login successful' };
       }
       
@@ -132,6 +172,9 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
         
         // User is auto-logged in, set the customer state
         setCustomer(response.data.user);
+        
+        // Register FCM token for web notifications (non-blocking)
+        registerFcmToken().catch(err => console.error('FCM registration failed:', err));
         
         return {
           success: true,

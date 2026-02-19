@@ -95,14 +95,20 @@ export interface Order {
 
 // Address Types
 export interface Address {
-  _id: string;
+  _id?: string;
+  type: 'home' | 'work' | 'other';
+  label?: string;
   street: string;
-  area: string;
+  apartment?: string;
   city: string;
   state: string;
-  postalCode: string;
-  label?: string;
-  isDefault?: boolean;
+  zipCode: string;
+  landmark?: string;
+  isDefault: boolean;
+  createdAt?: string;
+  // Legacy fields for backward compatibility
+  area?: string;
+  postalCode?: string;
 }
 
 /**

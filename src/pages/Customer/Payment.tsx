@@ -2,9 +2,19 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CartItem } from './ItemDetails';
 import { createOrder, getMyAddresses, Address, CreateOrderData } from '../../services/customer-web.service';
+import { createAddress, AddressData } from '../../services/customer-operations.service';
 import { getSettings } from '../../services/settings.service';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useShopStatus } from '../../context/ShopStatusContext';
+
+// Service areas configuration - matches mobile app
+const SERVICE_AREAS = [
+  { id: 'law_gate', name: 'Law Gate', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+  { id: 't_point', name: 'T Point', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+  { id: 'green_valley', name: 'Green Valley', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+  { id: 'bhutani_colony', name: 'Bhutani Colony', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+  { id: 'riya_girls_hostel', name: 'Riya Girls Hostel', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+];
 
 export default function Payment() {
   const navigate = useNavigate();
@@ -15,12 +25,16 @@ export default function Payment() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
-  const [newAddress, setNewAddress] = useState({
+  const [selectedArea, setSelectedArea] = useState<string>('');
+  const [newAddress, setNewAddress] = useState<AddressData>({
+    type: 'home',
     street: '',
-    area: '',
+    apartment: '',
     city: '',
     state: '',
-    postalCode: '',
+    zipCode: '',
+    landmark: '',
+    isDefault: false,
   });
   const [guestInfo, setGuestInfo] = useState({
     name: '',
@@ -28,6 +42,7 @@ export default function Payment() {
     email: '',
   });
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [saveAddress, setSaveAddress] = useState(true); // Default to true - save by default
   const [paymentMethod] = useState<'COD'>('COD');
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -81,30 +96,133 @@ export default function Payment() {
   const total = subtotal + (deliveryFee > 0 ? deliveryFee : 0);
 
   const handlePlaceOrder = async () => {
+    console.log('🚀 Place Order clicked');
+    console.log('📊 Current state:', {
+      customer: !!customer,
+      saveAddress,
+      selectedArea,
+      selectedAddress,
+      newAddress,
+      showAddressForm
+    });
+    
     // Validation
     if (!customer && (!guestInfo.name || !guestInfo.phone)) {
       alert('Please provide your name and phone number');
       return;
     }
 
-    if (showAddressForm && (!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.postalCode)) {
-      alert('Please fill in all required address fields');
-      return;
+    // For customers: must have selected address OR filled new address form
+    if (customer) {
+      // If no saved address is selected, check if they're adding a new one
+      if (!selectedAddress || selectedAddress._id === 'temp') {
+        if (!selectedArea) {
+          alert('Please select a delivery area');
+          return;
+        }
+        if (!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zipCode) {
+          alert('Please fill in all required address fields');
+          return;
+        }
+      }
     }
 
-    if (!customer && !showAddressForm) {
-      alert('Please provide a delivery address');
-      return;
-    }
-
-    if (customer && !selectedAddress && !showAddressForm) {
-      alert('Please select or add a delivery address');
-      return;
+    // For guests: must have filled address form with area selection
+    if (!customer) {
+      if (!selectedArea) {
+        alert('Please select a delivery area');
+        return;
+      }
+      if (!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zipCode) {
+        alert('Please fill in all required address fields');
+        return;
+      }
     }
 
     setSubmitting(true);
 
     try {
+      let addressToSave = selectedAddress;
+      let useNewAddress = false;
+
+      // Determine if we're using a new address (for customers)
+      // If the address form is showing, we're definitely using a new address
+      if (customer && (showAddressForm || !selectedAddress || selectedAddress._id === 'temp')) {
+        useNewAddress = true;
+        console.log('🔍 Using new address for customer');
+      }
+
+      console.log('💾 Save address check:', {
+        customer: !!customer,
+        saveAddress,
+        useNewAddress,
+        selectedArea,
+        hasStreet: !!newAddress.street,
+        willSave: customer && saveAddress && useNewAddress && selectedArea && newAddress.street
+      });
+
+      // If customer wants to save the new address, create it first
+      if (customer && saveAddress && useNewAddress && selectedArea && newAddress.street) {
+        try {
+          console.log('💾 Attempting to save address to profile...');
+          // Get the selected area details and prepend to street
+          const selectedAreaDetails = SERVICE_AREAS.find(area => area.id === selectedArea);
+          const streetWithArea = selectedAreaDetails 
+            ? `${selectedAreaDetails.name}, ${newAddress.street}` 
+            : newAddress.street;
+
+          const addressData = {
+            ...newAddress,
+            street: streetWithArea,
+          };
+          console.log('📤 Sending address data:', addressData);
+          const savedAddr = await createAddress(addressData);
+          console.log('✅ Address saved successfully:', savedAddr);
+          // Extract the address from the response (API returns { status, message, data: { address } })
+          const addressFromResponse = savedAddr.data?.address || savedAddr.data || savedAddr;
+          // Use the saved address for this order
+          addressToSave = addressFromResponse;
+          useNewAddress = false; // Now using saved address
+          setSelectedAddress(addressFromResponse);
+        } catch (addrError) {
+          console.error('❌ Failed to save address:', addrError);
+          alert('Address could not be saved, but order will continue.');
+          // Continue with order even if address save fails
+        }
+      } else {
+        console.log('⚠️ Skipping address save - conditions not met');
+      }
+
+      // Prepare delivery address
+      const selectedAreaDetails = SERVICE_AREAS.find(area => area.id === selectedArea);
+      
+      let deliveryAddress;
+      if (customer && !useNewAddress && addressToSave) {
+        // Use saved/selected address
+        deliveryAddress = {
+          street: addressToSave.street,
+          apartment: addressToSave.apartment || addressToSave.area || '',
+          city: addressToSave.city,
+          state: addressToSave.state,
+          zipCode: addressToSave.zipCode || addressToSave.postalCode || '',
+          landmark: addressToSave.landmark,
+        };
+      } else {
+        // Use new address (customer or guest)
+        const streetWithArea = selectedAreaDetails
+          ? `${selectedAreaDetails.name}, ${newAddress.street}`
+          : newAddress.street;
+        
+        deliveryAddress = {
+          street: streetWithArea,
+          apartment: newAddress.apartment || '',
+          city: newAddress.city,
+          state: newAddress.state,
+          zipCode: newAddress.zipCode,
+          landmark: newAddress.landmark,
+        };
+      }
+
       const orderData: CreateOrderData = {
         items: cart.map(item => ({
           menuItem: item.menuItemId,
@@ -114,19 +232,7 @@ export default function Payment() {
           portion: item.selectedVariant,
           subtotal: item.price * item.quantity,
         })),
-        deliveryAddress: showAddressForm ? {
-          street: newAddress.street,
-          city: newAddress.city,
-          state: newAddress.state,
-          zipCode: newAddress.postalCode,
-          apartment: newAddress.area || '',
-        } : {
-          street: selectedAddress!.street,
-          city: selectedAddress!.city,
-          state: selectedAddress!.state,
-          zipCode: selectedAddress!.zipCode || selectedAddress!.postalCode || '',
-          apartment: selectedAddress!.area || selectedAddress!.apartment || '',
-        },
+        deliveryAddress,
         paymentMethod,
         totalAmount: total,
         deliveryFee: deliveryFee,
@@ -209,13 +315,25 @@ export default function Payment() {
                       : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600'
                   }`}
                 >
-                  <p className="font-semibold text-gray-900 dark:text-white text-sm">
-                    {addr.label && <span className="text-indigo-600 dark:text-indigo-400">{addr.label} - </span>}
-                    {addr.street}
-                  </p>
-                  <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
-                    {addr.area && `${addr.area}, `}{addr.city}, {addr.state} {addr.postalCode}
-                  </p>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                        {addr.label && <span className="text-indigo-600 dark:text-indigo-400">{addr.label} - </span>}
+                        <span className="capitalize">{addr.type}</span>
+                        {addr.isDefault && <span className="ml-2 px-2 py-0.5 bg-green-500 text-white text-xs rounded">Default</span>}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
+                        {addr.apartment && `${addr.apartment}, `}
+                        {addr.street}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">
+                        {addr.city}, {addr.state} {addr.zipCode || addr.postalCode}
+                      </p>
+                      {addr.landmark && (
+                        <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">Near: {addr.landmark}</p>
+                      )}
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
@@ -223,6 +341,40 @@ export default function Payment() {
 
           {showAddressForm && (
             <div className="space-y-3">
+              {customer && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Address Type
+                  </label>
+                  <div className="flex gap-2">
+                    {(['home', 'work', 'other'] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setNewAddress({ ...newAddress, type })}
+                        className={`flex-1 px-4 py-2 rounded-lg border text-sm transition-colors ${
+                          newAddress.type === type
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-600'
+                        }`}
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {customer && (
+                <input
+                  type="text"
+                  placeholder="Label (e.g., My Home, Office)"
+                  value={newAddress.label || ''}
+                  onChange={(e) => setNewAddress({ ...newAddress, label: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm"
+                />
+              )}
+              
               <input
                 type="text"
                 placeholder="Street Address *"
@@ -232,40 +384,213 @@ export default function Payment() {
               />
               <input
                 type="text"
-                placeholder="Area"
-                value={newAddress.area}
-                onChange={(e) => setNewAddress({ ...newAddress, area: e.target.value })}
+                placeholder="Apartment, Building (Optional)"
+                value={newAddress.apartment || ''}
+                onChange={(e) => setNewAddress({ ...newAddress, apartment: e.target.value })}
                 className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm"
               />
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  placeholder="City *"
-                  value={newAddress.city}
-                  onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
-                  className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm"
-                />
-                <input
-                  type="text"
-                  placeholder="State *"
-                  value={newAddress.state}
-                  onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
-                  className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm"
-                />
-              </div>
+              
               <input
                 type="text"
-                placeholder="Postal Code *"
-                value={newAddress.postalCode}
-                onChange={(e) => setNewAddress({ ...newAddress, postalCode: e.target.value })}
+                placeholder="Landmark (Optional)"
+                value={newAddress.landmark || ''}
+                onChange={(e) => setNewAddress({ ...newAddress, landmark: e.target.value })}
                 className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm"
               />
+
+              {/* Delivery Area Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Delivery Area <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {SERVICE_AREAS.map((area) => (
+                    <button
+                      key={area.id}
+                      type="button"
+                      onClick={() => {
+                        console.log('📍 Area selected:', area);
+                        setSelectedArea(area.id);
+                        setNewAddress({
+                          ...newAddress,
+                          city: area.city,
+                          state: area.state,
+                          zipCode: area.zipCode,
+                        });
+                      }}
+                      className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all text-left ${
+                        selectedArea === area.id
+                          ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-400'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 bg-white dark:bg-gray-700'
+                      }`}
+                    >
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 ${
+                        selectedArea === area.id
+                          ? 'bg-indigo-600 dark:bg-indigo-500'
+                          : 'bg-gray-100 dark:bg-gray-600'
+                      }`}>
+                        <svg className={`w-4 h-4 ${
+                          selectedArea === area.id
+                            ? 'text-white'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-semibold text-xs truncate ${
+                          selectedArea === area.id
+                            ? 'text-indigo-900 dark:text-indigo-100'
+                            : 'text-gray-900 dark:text-white'
+                        }`}>
+                          {area.name}
+                        </p>
+                        <p className={`text-xs ${
+                          selectedArea === area.id
+                            ? 'text-indigo-600 dark:text-indigo-300'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {area.zipCode}
+                        </p>
+                      </div>
+                      {selectedArea === area.id && (
+                        <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Auto-filled fields display */}
+              {selectedArea && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Auto-filled:</p>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">City</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{newAddress.city}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">State</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{newAddress.state}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">ZIP</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{newAddress.zipCode}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {customer && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={saveAddress}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      console.log('📋 Save address checkbox changed:', checked);
+                      setSaveAddress(checked);
+                    }}
+                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Save this address for future orders
+                  </span>
+                </label>
+              )}
+
+              {/* Confirm Address Button for visual feedback */}
+              {showAddressForm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('🔘 Confirm Address clicked');
+                    console.log('Current state:', { selectedArea, saveAddress, newAddress });
+                    // Validate address fields
+                    if (!selectedArea) {
+                      alert('Please select a delivery area');
+                      return;
+                    }
+                    if (!newAddress.street) {
+                      alert('Please enter street address');
+                      return;
+                    }
+                    // Collapse the form to show the entered address
+                    setShowAddressForm(false);
+                    // Create a temporary selected address for display
+                    const tempAddress: Address = {
+                      _id: 'temp',
+                      type: newAddress.type,
+                      label: newAddress.label,
+                      street: `${SERVICE_AREAS.find(a => a.id === selectedArea)?.name}, ${newAddress.street}`,
+                      apartment: newAddress.apartment,
+                      city: newAddress.city,
+                      state: newAddress.state,
+                      zipCode: newAddress.zipCode,
+                      landmark: newAddress.landmark,
+                      isDefault: false,
+                    };
+                    console.log('✅ Temp address created:', tempAddress);
+                    setSelectedAddress(tempAddress);
+                  }}
+                  className="w-full py-3 px-4 bg-indigo-600 dark:bg-indigo-500 text-white rounded-xl font-semibold hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2 text-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Confirm Address
+                </button>
+              )}
+            </div>
+          )}
+
+          {customer && !showAddressForm && selectedAddress?._id === 'temp' && (
+            <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="font-semibold text-green-900 dark:text-green-100 text-sm flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Address Confirmed
+                  </p>
+                  <p className="text-green-800 dark:text-green-200 text-xs mt-1">
+                    {selectedAddress.street}
+                    {selectedAddress.apartment && `, ${selectedAddress.apartment}`}
+                  </p>
+                  <p className="text-green-800 dark:text-green-200 text-xs">
+                    {selectedAddress.city}, {selectedAddress.state} {selectedAddress.zipCode}
+                  </p>
+                  {saveAddress && (
+                    <p className="text-green-700 dark:text-green-300 text-xs mt-1 italic">
+                      Will be saved after placing order
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setShowAddressForm(true);
+                    setSelectedAddress(null);
+                  }}
+                  className="text-green-700 dark:text-green-300 hover:text-green-800 dark:hover:text-green-200 text-sm font-medium"
+                >
+                  Edit
+                </button>
+              </div>
             </div>
           )}
 
           {customer && (
             <button
-              onClick={() => setShowAddressForm(!showAddressForm)}
+              onClick={() => {
+                setShowAddressForm(!showAddressForm);
+                if (selectedAddress?._id === 'temp') {
+                  setSelectedAddress(null);
+                }
+              }}
               className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold mt-4 text-sm flex items-center gap-1"
             >
               {showAddressForm ? (
