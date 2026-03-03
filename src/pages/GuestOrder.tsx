@@ -5,6 +5,7 @@ import { getApiUrl } from "../config/api";
 import { useDebounceSearch } from "../hooks/useDebounceSearch";
 import { useShopStatus } from "../context/ShopStatusContext";
 import { requestFcmToken } from "../config/firebase";
+import OfferBanner from "../components/customer/OfferBanner";
 
 // Define the TypeScript interface for menu items
 interface MenuItem {
@@ -109,7 +110,20 @@ export default function GuestOrder() {
             const categoryNames = categoriesResult.data.categories
               .filter((cat: any) => cat.isActive)
               .map((cat: any) => cat.name);
-            setCategories(["All", ...categoryNames]);
+            
+            // Put "Offer" category right after "All" for easy access
+            const offerIndex = categoryNames.findIndex((cat: string) => cat.toLowerCase() === 'offer');
+            
+            if (offerIndex > -1) {
+              // Remove Offer from its current position
+              const [offerCategory] = categoryNames.splice(offerIndex, 1);
+              // Add it right after "All"
+              setCategories(["All", offerCategory, ...categoryNames]);
+              console.log('✅ [GuestOrder] Reordered categories - Offer is now 2nd:', ["All", offerCategory, ...categoryNames]);
+            } else {
+              setCategories(["All", ...categoryNames]);
+              console.log('⚠️ [GuestOrder] Offer category not found in:', categoryNames);
+            }
           }
         }
         
@@ -622,8 +636,11 @@ export default function GuestOrder() {
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">        
-      <div className="mb-6">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+        {/* Offer Banners */}
+        <OfferBanner />
+        
+        <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">
             Order as Guest
           </h1>
@@ -659,33 +676,44 @@ export default function GuestOrder() {
                     <div className="relative" ref={categoryFilterRef}>
                       <button
                         onClick={() => setShowCategoryFilter(!showCategoryFilter)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium hover:bg-gray-50 ${
+                          selectedCategory === 'Offer'
+                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300 text-green-700 dark:from-green-900/20 dark:to-emerald-900/20 dark:border-green-700 dark:text-green-400'
+                            : 'border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                        }`}
                       >
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                         </svg>
-                        {selectedCategory === "All" ? "All Categories" : selectedCategory}
+                        {selectedCategory === "All" ? "All Categories" : (selectedCategory === "Offer" ? "🎁 Offer" : selectedCategory)}
                       </button>
 
                       {showCategoryFilter && (
                         <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                           <div className="max-h-64 overflow-y-auto p-1">
-                            {categories.map((category) => (
-                              <button
-                                key={category}
-                                onClick={() => {
-                                  setSelectedCategory(category);
-                                  setShowCategoryFilter(false);
-                                }}
-                                className={`w-full rounded-md px-3 py-2 text-left text-sm ${
-                                  selectedCategory === category
-                                    ? "bg-red-50 text-[#e36057] dark:bg-red-900/10"
-                                    : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-                                }`}
-                              >
-                                {category}
-                              </button>
-                            ))}
+                            {categories.map((category) => {
+                              const isOfferCategory = category === 'Offer';
+                              return (
+                                <button
+                                  key={category}
+                                  onClick={() => {
+                                    setSelectedCategory(category);
+                                    setShowCategoryFilter(false);
+                                  }}
+                                  className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium ${
+                                    selectedCategory === category
+                                      ? isOfferCategory
+                                        ? "bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 dark:from-green-900/30 dark:to-emerald-900/30 dark:text-green-400"
+                                        : "bg-red-50 text-[#e36057] dark:bg-red-900/10"
+                                      : isOfferCategory
+                                      ? "bg-green-50/50 text-green-600 hover:bg-green-100 dark:bg-green-900/10 dark:text-green-400 dark:hover:bg-green-900/20"
+                                      : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                                  }`}
+                                >
+                                  {isOfferCategory && '🎁 '}{category}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -701,7 +729,7 @@ export default function GuestOrder() {
               </div>
 
               {/* Menu Grid */}
-              <div className="p-4">
+              <div className="p-4" data-menu-section>
                 {loading ? (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                     {[...Array(8)].map((_, idx) => (

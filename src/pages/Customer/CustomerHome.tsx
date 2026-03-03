@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getPopularItems, MenuItem } from '../../services/customer-web.service';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useShopStatus } from '../../context/ShopStatusContext';
+import OfferBanner from '../../components/customer/OfferBanner';
 
 export default function CustomerHome() {
   const { customer } = useCustomerAuth();
@@ -54,6 +55,9 @@ export default function CustomerHome() {
       </div>
 
       <div className="container mx-auto px-4 py-6">
+        {/* Offer Banners */}
+        <OfferBanner />
+
         {/* Shop Status Banner */}
         {shopStatus && !shopStatus.isOpen && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/10">

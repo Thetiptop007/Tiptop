@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getMenuItems, getCategories, MenuItem } from '../../services/customer-web.service';
 import { useDebounceSearch } from '../../hooks/useDebounceSearch';
 import { useShopStatus } from '../../context/ShopStatusContext';
+import OfferBanner from '../../components/customer/OfferBanner';
 
 export default function CustomerMenu() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -26,7 +27,20 @@ export default function CustomerMenu() {
   useEffect(() => {
     const fetchCategories = async () => {
       const cats = await getCategories();
-      setCategories(['All', ...cats]);
+      
+      // Put "Offer" category right after "All" for easy access
+      const offerIndex = cats.findIndex(cat => cat.toLowerCase() === 'offer');
+      
+      if (offerIndex > -1) {
+        // Remove Offer from its current position
+        const [offerCategory] = cats.splice(offerIndex, 1);
+        // Add it right after "All"
+        setCategories(['All', offerCategory, ...cats]);
+        console.log('✅ Reordered categories - Offer is now 2nd:', ['All', offerCategory, ...cats]);
+      } else {
+        setCategories(['All', ...cats]);
+        console.log('⚠️ Offer category not found in:', cats);
+      }
     };
     fetchCategories();
   }, []);
@@ -137,21 +151,31 @@ export default function CustomerMenu() {
 
         {/* Categories Chips for desktop */}
         <div className="hidden sm:flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => handleCategoryChange(category)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                selectedCategory === category
-                  ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-gray-700'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
+          {categories.map((category) => {
+            const isOfferCategory = category === 'Offer';
+            return (
+              <button
+                key={category}
+                onClick={() => handleCategoryChange(category)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                  selectedCategory === category
+                    ? isOfferCategory
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg scale-105'
+                      : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400'
+                    : isOfferCategory
+                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border-2 border-green-300 hover:from-green-100 hover:to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 dark:text-green-400 dark:border-green-700'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-gray-700'
+                }`}
+              >
+                {isOfferCategory && '🎁 '}{category}
+              </button>
+            );
+          })}
         </div>
       </div>
+
+      {/* Offer Banners */}
+      <OfferBanner />
 
       {/* Shop Status Banner */}
       {!isShopOpen && (
@@ -164,7 +188,7 @@ export default function CustomerMenu() {
       )}
 
       {/* Results Info */}
-      <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+      <div className="mb-4 text-sm text-gray-600 dark:text-gray-400" data-menu-section>
         {loading ? (
           'Loading...'
         ) : (

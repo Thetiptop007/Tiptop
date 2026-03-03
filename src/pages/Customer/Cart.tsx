@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CartItem } from './ItemDetails';
 import { useShopStatus } from '../../context/ShopStatusContext';
+import ApplicableOffers from '../../components/customer/ApplicableOffers';
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -128,6 +129,16 @@ export default function Cart() {
             </div>
           ))}
         </div>
+
+        {/* Applicable Offers */}
+        <ApplicableOffers
+          cartItems={cart.map(item => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            price: item.price
+          }))}
+          orderAmount={subtotal}
+        />
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">Bill Details</h2>

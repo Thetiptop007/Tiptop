@@ -16,6 +16,8 @@ import AddMenu from "./pages/Menu/AddMenu";
 import DeliveryList from "./pages/Delivery/DeliveryList";
 import AddDelivery from "./pages/Delivery/AddDelivery";
 import CategoryManagement from "./pages/Categories/CategoryManagement";
+import OfferList from "./pages/Offers/OfferList";
+import CreateOffer from "./pages/Offers/CreateOffer";
 import Settings from "./pages/Settings";
 import Developer from "./pages/Developer";
 import UserProfiles from "./pages/UserProfiles";
@@ -118,6 +120,11 @@ function AppContent() {
 
                   {/* Categories */}
                   <Route path="categories" element={<CategoryManagement />} />
+
+                  {/* Offers */}
+                  <Route path="offers" element={<OfferList />} />
+                  <Route path="offers/create" element={<CreateOffer />} />
+                  <Route path="offers/edit/:id" element={<CreateOffer />} />
 
                   {/* Delivery */}
                   <Route path="delivery" element={<DeliveryList />} />
