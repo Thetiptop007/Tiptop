@@ -79,6 +79,14 @@ export default function AddOrder() {
   const [customItemName, setCustomItemName] = useState("");
   const [customItemPrice, setCustomItemPrice] = useState("");
 
+  // Set default customer details for TAKEAWAY orders
+  useEffect(() => {
+    if (orderType === "TAKEAWAY") {
+      setCustomerName("Azam");
+      setCustomerPhone("7087098886");
+    }
+  }, [orderType]);
+
   // Fetch categories, menu items, and settings
   useEffect(() => {
     const fetchData = async () => {
