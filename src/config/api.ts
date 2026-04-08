@@ -2,8 +2,21 @@
  * Get the API base URL from environment variables
  * Falls back to localhost if not set
  */
+const normalizeApiBaseUrl = (rawBaseUrl: string): string => {
+  const trimmed = rawBaseUrl.trim().replace(/\/+$/, '');
+
+  // If the configured URL already points to /api/v1, keep it as-is.
+  if (trimmed.endsWith('/api/v1')) {
+    return trimmed;
+  }
+
+  // Most backend routes are mounted under /api/v1.
+  return `${trimmed}/api/v1`;
+};
+
 export const getApiUrl = (endpoint: string = ''): string => {
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+  const configuredBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+  const baseUrl = normalizeApiBaseUrl(configuredBaseUrl);
   
   // Remove leading slash from endpoint if present
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;

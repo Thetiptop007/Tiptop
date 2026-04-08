@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL;
+import { getApiUrl } from '../config/api';
 
 export interface Offer {
   _id: string;
@@ -45,7 +45,7 @@ export interface CheckOffersResponse {
 // Get active offers (for display on menu)
 export const getActiveOffers = async (): Promise<Offer[]> => {
   try {
-    const response = await fetch(`${API_URL}/offers/active`);
+    const response = await fetch(getApiUrl('/offers/active'));
     const data = await response.json();
     
     if (!response.ok) {
@@ -62,7 +62,7 @@ export const getActiveOffers = async (): Promise<Offer[]> => {
 // Get teaser offers (for upcoming promotions)
 export const getTeaserOffers = async (): Promise<Offer[]> => {
   try {
-    const response = await fetch(`${API_URL}/offers/teasers`);
+    const response = await fetch(getApiUrl('/offers/teasers'));
     const data = await response.json();
     
     if (!response.ok) {
@@ -81,7 +81,7 @@ export const checkApplicableOffers = async (
   cartData: CheckOffersRequest
 ): Promise<ApplicableOffer[]> => {
   try {
-    const response = await fetch(`${API_URL}/offers/check`, {
+    const response = await fetch(getApiUrl('/offers/check'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
