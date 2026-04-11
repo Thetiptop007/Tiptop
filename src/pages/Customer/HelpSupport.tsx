@@ -1,9 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { getSettings, type Settings } from '../../services/settings.service';
 
 const HelpSupport: React.FC = () => {
   const navigate = useNavigate();
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await getSettings();
+        setSettings(data);
+      } catch (error) {
+        console.error('Failed to fetch settings for Help & Support:', error);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  const supportEmail = settings?.contactEmail || 'support@tiptop.com';
+  const supportPhone = settings?.contactPhone || '+91 90605 57296';
+  const supportAddress = settings?.businessAddress || 'TipTop Restaurant, Main Street, City Center';
 
   const faqs = [
     {
@@ -46,7 +65,7 @@ const HelpSupport: React.FC = () => {
         </svg>
       ),
       title: 'Email Us',
-      value: 'support@tiptop.com',
+      value: supportEmail,
       description: 'We\'ll respond within 24 hours'
     },
     {
@@ -56,7 +75,7 @@ const HelpSupport: React.FC = () => {
         </svg>
       ),
       title: 'Call Us',
-      value: '+91 90605 57296',
+      value: supportPhone,
       description: 'Available 10 AM - 10 PM'
     },
     {
@@ -67,8 +86,8 @@ const HelpSupport: React.FC = () => {
         </svg>
       ),
       title: 'Visit Us',
-      value: 'TipTop Restaurant',
-      description: 'Main Street, City Center'
+      value: supportAddress,
+      description: 'Visit our store location'
     }
   ];
 
@@ -169,7 +188,7 @@ const HelpSupport: React.FC = () => {
             Our support team is here to assist you with any questions or concerns
           </p>
           <a
-            href="mailto:support@tiptop.com"
+            href={`mailto:${supportEmail}`}
             className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

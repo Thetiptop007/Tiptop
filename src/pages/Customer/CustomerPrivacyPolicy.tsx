@@ -1,8 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { getSettings, type Settings } from '../../services/settings.service';
 
 const CustomerPrivacyPolicy: React.FC = () => {
   const navigate = useNavigate();
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await getSettings();
+        setSettings(data);
+      } catch (error) {
+        console.error('Failed to fetch settings for Privacy Policy:', error);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  const contactEmail = settings?.contactEmail || 'privacy@tiptop.com';
+  const contactPhone = settings?.contactPhone || '+91 90605 57296';
+  const contactAddress = settings?.businessAddress || 'TipTop Restaurant, Main Street, City Center';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
@@ -175,13 +194,13 @@ const CustomerPrivacyPolicy: React.FC = () => {
               </p>
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-2">
                 <p className="text-sm text-gray-900 dark:text-white">
-                  <strong>Email:</strong> privacy@tiptop.com
+                  <strong>Email:</strong> {contactEmail}
                 </p>
                 <p className="text-sm text-gray-900 dark:text-white">
-                  <strong>Phone:</strong> +91 90605 57296
+                  <strong>Phone:</strong> {contactPhone}
                 </p>
                 <p className="text-sm text-gray-900 dark:text-white">
-                  <strong>Address:</strong> TipTop Restaurant, Main Street, City Center
+                  <strong>Address:</strong> {contactAddress}
                 </p>
               </div>
             </section>
