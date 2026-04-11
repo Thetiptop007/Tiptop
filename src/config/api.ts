@@ -14,6 +14,31 @@ const normalizeApiBaseUrl = (rawBaseUrl: string): string => {
   return `${trimmed}/api/v1`;
 };
 
+interface ResponseSnapshot {
+  body: string;
+  status: number;
+  statusText: string;
+  headers: Array<[string, string]>;
+}
+
+const inFlightGetRequests = new Map<string, Promise<ResponseSnapshot>>();
+const recentGetResponses = new Map<string, { snapshot: ResponseSnapshot; expiresAt: number }>();
+const GET_RESPONSE_TTL_MS = 1500;
+
+const createResponseFromSnapshot = (snapshot: ResponseSnapshot): Response =>
+  new Response(snapshot.body, {
+    status: snapshot.status,
+    statusText: snapshot.statusText,
+    headers: new Headers(snapshot.headers),
+  });
+
+const snapshotResponse = async (response: Response): Promise<ResponseSnapshot> => ({
+  body: await response.text(),
+  status: response.status,
+  statusText: response.statusText,
+  headers: Array.from(response.headers.entries()),
+});
+
 export const getApiUrl = (endpoint: string = ''): string => {
   const configuredBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
   const baseUrl = normalizeApiBaseUrl(configuredBaseUrl);
@@ -33,16 +58,14 @@ export const apiRequest = async (
   options: RequestInit = {}
 ): Promise<Response> => {
   const fullUrl = getApiUrl(endpoint);
+  const method = (options.method || 'GET').toUpperCase();
   
   // Check if online before making request
   if (!navigator.onLine) {
     throw new Error('No internet connection. Please check your network and try again.');
   }
   
-  // Add cache-busting timestamp to URL
-  const cacheBuster = `_t=${Date.now()}`;
-  const separator = fullUrl.includes('?') ? '&' : '?';
-  const finalUrl = `${fullUrl}${separator}${cacheBuster}`;
+  const finalUrl = fullUrl;
   
   console.log('🚀 [apiRequest] Starting request:', {
     endpoint,
@@ -77,9 +100,10 @@ export const apiRequest = async (
   
   console.log('📤 [apiRequest] Request headers:', headers);
   
-  try {
+  const executeRequest = async (): Promise<Response> => {
     const response = await fetch(finalUrl, {
       ...options,
+      method,
       headers,
       cache: 'no-store',
       signal: AbortSignal.timeout(10000), // 10 second timeout for debugging
@@ -120,6 +144,44 @@ export const apiRequest = async (
     }
     
     return response;
+  };
+
+  try {
+    if (method === 'GET') {
+      const authKey = headers['Authorization'] || '';
+      const dedupeKey = `${method}:${finalUrl}:auth:${authKey}`;
+      const now = Date.now();
+
+      const cached = recentGetResponses.get(dedupeKey);
+      if (cached && cached.expiresAt > now) {
+        return createResponseFromSnapshot(cached.snapshot);
+      }
+
+      const inFlight = inFlightGetRequests.get(dedupeKey);
+      if (inFlight) {
+        const snapshot = await inFlight;
+        return createResponseFromSnapshot(snapshot);
+      }
+
+      const requestPromise = executeRequest()
+        .then(snapshotResponse)
+        .then((snapshot) => {
+          recentGetResponses.set(dedupeKey, {
+            snapshot,
+            expiresAt: Date.now() + GET_RESPONSE_TTL_MS,
+          });
+          return snapshot;
+        })
+        .finally(() => {
+          inFlightGetRequests.delete(dedupeKey);
+        });
+
+      inFlightGetRequests.set(dedupeKey, requestPromise);
+      const snapshot = await requestPromise;
+      return createResponseFromSnapshot(snapshot);
+    }
+
+    return await executeRequest();
   } catch (error: any) {
     console.error('❌ [apiRequest] Error caught:', error);
     console.error('❌ [apiRequest] Error details:', {

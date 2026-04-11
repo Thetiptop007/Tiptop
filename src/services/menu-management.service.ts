@@ -1,5 +1,42 @@
 import { apiRequest, parseApiResponse } from '../config/api';
 
+type CacheEntry<T> = {
+  value: T;
+  expiresAt: number;
+};
+
+const inFlightRequests = new Map<string, Promise<unknown>>();
+const responseCache = new Map<string, CacheEntry<unknown>>();
+
+const dedupeRequest = async <T>(
+  key: string,
+  request: () => Promise<T>,
+  ttlMs = 1500,
+): Promise<T> => {
+  const now = Date.now();
+  const cached = responseCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.value as T;
+  }
+
+  const inFlight = inFlightRequests.get(key);
+  if (inFlight) {
+    return inFlight as Promise<T>;
+  }
+
+  const promise = request()
+    .then((value) => {
+      responseCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+      return value;
+    })
+    .finally(() => {
+      inFlightRequests.delete(key);
+    });
+
+  inFlightRequests.set(key, promise as Promise<unknown>);
+  return promise;
+};
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -43,30 +80,32 @@ export interface CategoriesResponse {
  */
 export const getPopularItems = async (limit: number = 3): Promise<MenuItem[]> => {
   try {
-    const response = await apiRequest(`menu/popular/items?limit=${limit}`);
-    const data = await parseApiResponse(response);
+    return await dedupeRequest(`menu:popular:${limit}`, async () => {
+      const response = await apiRequest(`menu/popular/items?limit=${limit}`);
+      const data = await parseApiResponse(response);
 
-    if (data.status === 'success' && data.data?.menuItems) {
-      return data.data.menuItems.map((item: any) => ({
-        id: item._id,
-        name: item.name,
-        description: item.description || '',
-        image: item.image || item.images?.[0] || '',
-        category: item.categories?.[0] || item.category || 'Other',
-        categories: item.categories || [],
-        price: item.priceVariants?.[0]?.price || 0,
-        priceVariants: item.priceVariants || [],
-        rating: item.rating || 0,
-        reviews: item.reviews || 0,
-        availability: item.isAvailable ? 'Available' : 'Out of Stock',
-        isAvailable: item.isAvailable ?? true,
-        isActive: item.isActive ?? true,
-        totalOrders: item.totalOrders || 0,
-        totalRevenue: item.totalRevenue || 0
-      }));
-    }
+      if (data.status === 'success' && data.data?.menuItems) {
+        return data.data.menuItems.map((item: any) => ({
+          id: item._id,
+          name: item.name,
+          description: item.description || '',
+          image: item.image || item.images?.[0] || '',
+          category: item.categories?.[0] || item.category || 'Other',
+          categories: item.categories || [],
+          price: item.priceVariants?.[0]?.price || 0,
+          priceVariants: item.priceVariants || [],
+          rating: item.rating || 0,
+          reviews: item.reviews || 0,
+          availability: item.isAvailable ? 'Available' : 'Out of Stock',
+          isAvailable: item.isAvailable ?? true,
+          isActive: item.isActive ?? true,
+          totalOrders: item.totalOrders || 0,
+          totalRevenue: item.totalRevenue || 0
+        }));
+      }
 
-    return [];
+      return [];
+    }, 15000);
   } catch (error) {
     console.error('Error fetching popular items:', error);
     return [];
@@ -96,14 +135,16 @@ export const getMenuItems = async (
       params.append('search', search.trim());
     }
 
-    const response = await apiRequest(`admin/menu-items?${params.toString()}`);
-    const data = await parseApiResponse(response);
+    return await dedupeRequest(`admin:menu-items:${params.toString()}`, async () => {
+      const response = await apiRequest(`admin/menu-items?${params.toString()}`);
+      const data = await parseApiResponse(response);
 
-    if (data.status === 'success' && data.data) {
-      return data.data;
-    }
+      if (data.status === 'success' && data.data) {
+        return data.data;
+      }
 
-    return null;
+      return null;
+    }, 1200);
   } catch (error) {
     console.error('Error fetching menu items:', error);
     return null;
@@ -115,14 +156,16 @@ export const getMenuItems = async (
  */
 export const getCategories = async (): Promise<string[]> => {
   try {
-    const response = await apiRequest('admin/menu-items/categories');
-    const data = await parseApiResponse(response);
+    return await dedupeRequest('admin:menu-categories', async () => {
+      const response = await apiRequest('admin/menu-items/categories');
+      const data = await parseApiResponse(response);
 
-    if (data.status === 'success' && data.data) {
-      return data.data.categories;
-    }
+      if (data.status === 'success' && data.data) {
+        return data.data.categories;
+      }
 
-    return [];
+      return [];
+    }, 30000);
   } catch (error) {
     console.error('Error fetching categories:', error);
     return [];

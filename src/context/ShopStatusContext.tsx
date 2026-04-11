@@ -1,41 +1,100 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getShopStatus, ShopStatus } from '../services/settings.service';
 
 interface ShopStatusContextType {
   shopStatus: ShopStatus | null;
-  refreshShopStatus: () => Promise<void>;
+  refreshShopStatus: (force?: boolean) => Promise<void>;
+  setShopStatus: (status: ShopStatus) => void;
   isLoading: boolean;
 }
 
 const ShopStatusContext = createContext<ShopStatusContextType | undefined>(undefined);
 
 export function ShopStatusProvider({ children }: { children: ReactNode }) {
-  const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const location = useLocation();
+  const [shopStatus, setShopStatusState] = useState<ShopStatus | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const lastFetchedAtRef = useRef(0);
+  const inFlightRef = useRef<Promise<void> | null>(null);
+  const requestCooldownMs = 10000;
 
-  const fetchStatus = async () => {
-    try {
-      const status = await getShopStatus();
-      setShopStatus(status);
-    } catch (error) {
-      console.error('Error fetching shop status:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const refreshShopStatus = async () => {
-    await fetchStatus();
-  };
-
-  useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 30000); // Poll every 30 seconds
-    return () => clearInterval(interval);
+  const setShopStatus = useCallback((status: ShopStatus) => {
+    setShopStatusState(status);
+    lastFetchedAtRef.current = Date.now();
   }, []);
 
+  const fetchStatus = useCallback(async (force = false) => {
+    if (inFlightRef.current) {
+      return inFlightRef.current;
+    }
+
+    if (!force && Date.now() - lastFetchedAtRef.current < requestCooldownMs) {
+      return;
+    }
+
+    const request = (async () => {
+      setIsLoading(true);
+      try {
+        const status = await getShopStatus();
+        setShopStatusState(status);
+        lastFetchedAtRef.current = Date.now();
+      } catch {
+        // Keep existing state if request fails; UI can continue with last known value.
+      } finally {
+        setIsLoading(false);
+        inFlightRef.current = null;
+      }
+    })();
+
+    inFlightRef.current = request;
+
+    try {
+      await request;
+    } catch {
+      // Errors are handled internally to avoid unhandled rejections in effects.
+    }
+  }, []);
+
+  const refreshShopStatus = useCallback(async (force = false) => {
+    await fetchStatus(force);
+  }, [fetchStatus]);
+
+  useEffect(() => {
+    const path = location.pathname;
+    const shouldFetch = ![
+      '/signin',
+      '/signup',
+      '/privacy-policy',
+    ].includes(path);
+
+    if (shouldFetch) {
+      void fetchStatus();
+    }
+  }, [location.pathname, fetchStatus]);
+
+  useEffect(() => {
+    const handleFocusRefresh = () => {
+      void fetchStatus();
+    };
+
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchStatus();
+      }
+    };
+
+    window.addEventListener('focus', handleFocusRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityRefresh);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityRefresh);
+    };
+  }, [fetchStatus]);
+
   return (
-    <ShopStatusContext.Provider value={{ shopStatus, refreshShopStatus, isLoading }}>
+    <ShopStatusContext.Provider value={{ shopStatus, refreshShopStatus, setShopStatus, isLoading }}>
       {children}
     </ShopStatusContext.Provider>
   );

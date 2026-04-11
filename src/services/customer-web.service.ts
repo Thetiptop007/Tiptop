@@ -6,6 +6,43 @@
 
 import { apiRequest, parseApiResponse } from '../config/api';
 
+type CacheEntry<T> = {
+  value: T;
+  expiresAt: number;
+};
+
+const inFlightRequests = new Map<string, Promise<unknown>>();
+const responseCache = new Map<string, CacheEntry<unknown>>();
+
+const dedupeRequest = async <T>(
+  key: string,
+  request: () => Promise<T>,
+  ttlMs = 1500,
+): Promise<T> => {
+  const now = Date.now();
+  const cached = responseCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.value as T;
+  }
+
+  const inFlight = inFlightRequests.get(key);
+  if (inFlight) {
+    return inFlight as Promise<T>;
+  }
+
+  const promise = request()
+    .then((value) => {
+      responseCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+      return value;
+    })
+    .finally(() => {
+      inFlightRequests.delete(key);
+    });
+
+  inFlightRequests.set(key, promise as Promise<unknown>);
+  return promise;
+};
+
 // Menu Types
 export interface PriceVariant {
   quantity: string;
@@ -41,6 +78,53 @@ export interface MenuResponse {
     limit: number;
   };
 }
+
+const FULL_MENU_CACHE_TTL_MS = 60000;
+const FULL_MENU_LIMIT = 300;
+
+const getLowestPrice = (item: MenuItem): number => {
+  if (!item.priceVariants || item.priceVariants.length === 0) {
+    return 0;
+  }
+  return Math.min(...item.priceVariants.map((variant) => variant.price || 0));
+};
+
+const applyMenuSort = (items: MenuItem[], sort?: string): MenuItem[] => {
+  if (!sort) {
+    return items;
+  }
+
+  const sorted = [...items];
+  switch (sort) {
+    case '-rating':
+      return sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    case 'rating':
+      return sorted.sort((a, b) => (a.rating || 0) - (b.rating || 0));
+    case 'name':
+      return sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    case '-name':
+      return sorted.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+    case 'price':
+      return sorted.sort((a, b) => getLowestPrice(a) - getLowestPrice(b));
+    case '-price':
+      return sorted.sort((a, b) => getLowestPrice(b) - getLowestPrice(a));
+    default:
+      return sorted;
+  }
+};
+
+const getAllMenuSnapshot = async (): Promise<MenuItem[]> => {
+  return dedupeRequest('customer:menu-all', async () => {
+    const response = await apiRequest(`/menu/all?limit=${FULL_MENU_LIMIT}`);
+    const data = await parseApiResponse(response);
+    const items = data?.data?.menuItems || [];
+
+    return items.map((item: any) => ({
+      ...item,
+      id: item.id || item._id,
+    })) as MenuItem[];
+  }, FULL_MENU_CACHE_TTL_MS);
+};
 
 // Order Types
 export interface OrderItem {
@@ -132,30 +216,65 @@ export const getMenuItems = async (params: {
   minRating?: number;
 }): Promise<MenuResponse> => {
   try {
-    const queryParams = new URLSearchParams();
-    
-    if (params.page) queryParams.append('page', params.page.toString());
-    if (params.limit) queryParams.append('limit', params.limit.toString());
-    if (params.category && params.category !== 'All') queryParams.append('category', params.category);
-    if (params.search) queryParams.append('search', params.search);
-    if (params.sort) queryParams.append('sort', params.sort);
-    if (params.isAvailable !== undefined) queryParams.append('isAvailable', params.isAvailable.toString());
-    if (params.minPrice) queryParams.append('minPrice', params.minPrice.toString());
-    if (params.maxPrice) queryParams.append('maxPrice', params.maxPrice.toString());
-    if (params.minRating) queryParams.append('minRating', params.minRating.toString());
+    const page = Math.max(params.page || 1, 1);
+    const limit = Math.min(Math.max(params.limit || 12, 1), 100);
+    const category = params.category && params.category !== 'All' ? params.category.toLowerCase() : null;
+    const search = params.search ? params.search.trim().toLowerCase() : null;
 
-    const url = `/menu?${queryParams.toString()}`;
-    const response = await apiRequest(url, { cache: 'no-cache' });
-    const data = await parseApiResponse(response);
+    let filteredItems = await getAllMenuSnapshot();
 
-    // Return the response with pagination from the API response
+    if (params.isAvailable !== undefined) {
+      filteredItems = filteredItems.filter((item) => (item.isAvailable ?? false) === params.isAvailable);
+    }
+
+    if (category) {
+      filteredItems = filteredItems.filter((item) => {
+        const categories = item.categories || [];
+        return categories.some((itemCategory) => itemCategory.toLowerCase() === category);
+      });
+    }
+
+    if (search) {
+      filteredItems = filteredItems.filter((item) => {
+        const name = (item.name || '').toLowerCase();
+        const description = (item.description || '').toLowerCase();
+        const categories = (item.categories || []).join(' ').toLowerCase();
+        return name.includes(search) || description.includes(search) || categories.includes(search);
+      });
+    }
+
+    if (params.minPrice !== undefined) {
+      filteredItems = filteredItems.filter((item) => getLowestPrice(item) >= params.minPrice!);
+    }
+
+    if (params.maxPrice !== undefined) {
+      filteredItems = filteredItems.filter((item) => getLowestPrice(item) <= params.maxPrice!);
+    }
+
+    if (params.minRating !== undefined) {
+      filteredItems = filteredItems.filter((item) => (item.rating || 0) >= params.minRating!);
+    }
+
+    filteredItems = applyMenuSort(filteredItems, params.sort);
+
+    const totalResults = filteredItems.length;
+    const totalPages = Math.max(Math.ceil(totalResults / limit), 1);
+    const safePage = Math.min(page, totalPages);
+    const start = (safePage - 1) * limit;
+    const pagedItems = filteredItems.slice(start, start + limit);
+
     return {
-      status: data.status || 'success',
+      status: 'success',
       data: {
-        menuItems: data.data?.menuItems || []
+        menuItems: pagedItems,
       },
-      pagination: data.pagination
-    } as MenuResponse;
+      pagination: {
+        currentPage: safePage,
+        totalPages,
+        totalResults,
+        limit,
+      },
+    };
   } catch (error) {
     console.error('Error fetching menu items:', error);
     throw error;
@@ -205,14 +324,16 @@ export const getMenuItemBySlug = async (slug: string): Promise<MenuItem> => {
  */
 export const getCategories = async (): Promise<string[]> => {
   try {
-    const response = await apiRequest('/menu/categories/all');
-    const data = await parseApiResponse(response);
-    
-    if (data.status === 'success' && data.data?.categories) {
-      return data.data.categories;
-    }
-    
-    return [];
+    return await dedupeRequest('customer:menu-categories', async () => {
+      const response = await apiRequest('/menu/categories/all');
+      const data = await parseApiResponse(response);
+      
+      if (data.status === 'success' && data.data?.categories) {
+        return data.data.categories;
+      }
+      
+      return [];
+    }, 30000);
   } catch (error) {
     console.error('Error fetching categories:', error);
     return [];
@@ -243,14 +364,13 @@ export const getPopularItems = async (limit: number = 10): Promise<MenuItem[]> =
  */
 export const getMenuItemsByCategory = async (category: string, limit: number = 20): Promise<MenuItem[]> => {
   try {
-    const response = await apiRequest(`/menu/category/${encodeURIComponent(category)}?limit=${limit}`);
-    const data = await parseApiResponse(response);
-    
-    if (data.status === 'success' && data.data?.menuItems) {
-      return data.data.menuItems;
-    }
-    
-    return [];
+    const response = await getMenuItems({
+      category,
+      limit,
+      page: 1,
+      isAvailable: true,
+    });
+    return response.data?.menuItems || [];
   } catch (error) {
     console.error('Error fetching menu items by category:', error);
     return [];
@@ -266,14 +386,14 @@ export const searchMenu = async (query: string, limit: number = 50): Promise<Men
       return [];
     }
 
-    const response = await apiRequest(`/menu?search=${encodeURIComponent(query)}&limit=${limit}&isAvailable=true`);
-    const data = await parseApiResponse(response);
-    
-    if (data.status === 'success' && data.data?.menuItems) {
-      return data.data.menuItems;
-    }
-    
-    return [];
+    const response = await getMenuItems({
+      search: query,
+      limit,
+      page: 1,
+      isAvailable: true,
+    });
+
+    return response.data?.menuItems || [];
   } catch (error) {
     console.error('Error searching menu:', error);
     return [];

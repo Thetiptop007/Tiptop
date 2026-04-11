@@ -3,10 +3,11 @@ import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { getCategories } from "../../services/menu-management.service";
 import { getPOSMenuItems, createAdminOrder, type CreateAdminOrderData } from "../../services/order-management.service";
-import { getSettings, type Settings, getShopStatus, ShopStatus } from "../../services/settings.service";
+import { getSettings, type Settings } from "../../services/settings.service";
 import { useNavigate, Link } from "react-router-dom";
 import { useDebounceSearch } from "../../hooks/useDebounceSearch";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
+import { useShopStatus } from "../../context/ShopStatusContext";
 
 // Define the TypeScript interface for menu items
 interface MenuItem {
@@ -51,8 +52,7 @@ export default function AddOrder() {
   // Notification state
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
-  // Shop status state
-  const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
+  const { shopStatus, refreshShopStatus } = useShopStatus();
   
   // Network status
   const { isOnline } = useNetworkStatus();
@@ -92,9 +92,7 @@ export default function AddOrder() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch shop status first
-        const status = await getShopStatus();
-        setShopStatus(status);
+        await refreshShopStatus();
         
         // Fetch settings for tax and charges
         const settingsData = await getSettings();
@@ -132,9 +130,8 @@ export default function AddOrder() {
           setCategories(["All", ...categoriesData]);
         }
 
-        // Fetch POS menu items (minimal data for fast loading)
-        // Using larger limit to fetch all items
-        const menuData = await getPOSMenuItems(1, 500);
+        // Fetch POS menu items with a safe page size to avoid heavy payloads
+        const menuData = await getPOSMenuItems(1, 20);
         console.log('📦 POS Menu Data:', menuData);
         
         if (menuData && menuData.items && Array.isArray(menuData.items)) {

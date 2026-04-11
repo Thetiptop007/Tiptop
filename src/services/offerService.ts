@@ -1,4 +1,4 @@
-import { getApiUrl } from '../config/api';
+import { apiRequest, parseApiResponse } from '../config/api';
 
 export interface Offer {
   _id: string;
@@ -45,13 +45,13 @@ export interface CheckOffersResponse {
 // Get active offers (for display on menu)
 export const getActiveOffers = async (): Promise<Offer[]> => {
   try {
-    const response = await fetch(getApiUrl('/offers/active'));
-    const data = await response.json();
-    
-    if (!response.ok) {
+    const response = await apiRequest('/offers/active', { method: 'GET' });
+    const data = await parseApiResponse<any>(response);
+
+    if (data.status === 'error') {
       throw new Error(data.message || 'Failed to fetch active offers');
     }
-    
+
     return data.data || [];
   } catch (error) {
     console.error('Error fetching active offers:', error);
@@ -62,13 +62,13 @@ export const getActiveOffers = async (): Promise<Offer[]> => {
 // Get teaser offers (for upcoming promotions)
 export const getTeaserOffers = async (): Promise<Offer[]> => {
   try {
-    const response = await fetch(getApiUrl('/offers/teasers'));
-    const data = await response.json();
-    
-    if (!response.ok) {
+    const response = await apiRequest('/offers/teasers', { method: 'GET' });
+    const data = await parseApiResponse<any>(response);
+
+    if (data.status === 'error') {
       throw new Error(data.message || 'Failed to fetch teaser offers');
     }
-    
+
     return data.data || [];
   } catch (error) {
     console.error('Error fetching teaser offers:', error);
@@ -81,20 +81,17 @@ export const checkApplicableOffers = async (
   cartData: CheckOffersRequest
 ): Promise<ApplicableOffer[]> => {
   try {
-    const response = await fetch(getApiUrl('/offers/check'), {
+    const response = await apiRequest('/offers/check', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(cartData),
     });
-    
-    const data: CheckOffersResponse = await response.json();
-    
-    if (!response.ok) {
+
+    const data = await parseApiResponse<CheckOffersResponse>(response);
+
+    if (data.status === 'error') {
       throw new Error(data.message || 'Failed to check applicable offers');
     }
-    
+
     return data.data || [];
   } catch (error) {
     console.error('Error checking applicable offers:', error);

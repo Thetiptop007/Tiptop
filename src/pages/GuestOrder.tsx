@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { getSettings, type Settings } from "../services/settings.service";
+import { getMenuItems, getCategories as getMenuCategories } from "../services/customer-web.service";
 import { Link } from "react-router";
-import { getApiUrl } from "../config/api";
+import { apiRequest, parseApiResponse } from "../config/api";
 import { useDebounceSearch } from "../hooks/useDebounceSearch";
 import { useShopStatus } from "../context/ShopStatusContext";
 import { requestFcmToken } from "../config/firebase";
@@ -102,29 +103,21 @@ export default function GuestOrder() {
           }
         }
         
-        // Fetch categories from public endpoint with a high limit to get all categories
-        const categoriesResponse = await fetch(getApiUrl('categories?limit=100'));
-        if (categoriesResponse.ok) {
-          const categoriesResult = await categoriesResponse.json();
-          if (categoriesResult.status === 'success' && categoriesResult.data?.categories) {
-            const categoryNames = categoriesResult.data.categories
-              .filter((cat: any) => cat.isActive)
-              .map((cat: any) => cat.name);
-            
-            // Put "Offer" category right after "All" for easy access
-            const offerIndex = categoryNames.findIndex((cat: string) => cat.toLowerCase() === 'offer');
-            
-            if (offerIndex > -1) {
-              // Remove Offer from its current position
-              const [offerCategory] = categoryNames.splice(offerIndex, 1);
-              // Add it right after "All"
-              setCategories(["All", offerCategory, ...categoryNames]);
-              console.log('✅ [GuestOrder] Reordered categories - Offer is now 2nd:', ["All", offerCategory, ...categoryNames]);
-            } else {
-              setCategories(["All", ...categoryNames]);
-              console.log('⚠️ [GuestOrder] Offer category not found in:', categoryNames);
-            }
-          }
+        // Fetch public categories once from shared customer service
+        const categoryNames = await getMenuCategories();
+
+        // Put "Offer" category right after "All" for easy access
+        const offerIndex = categoryNames.findIndex((cat: string) => cat.toLowerCase() === 'offer');
+
+        if (offerIndex > -1) {
+          // Remove Offer from its current position
+          const [offerCategory] = categoryNames.splice(offerIndex, 1);
+          // Add it right after "All"
+          setCategories(["All", offerCategory, ...categoryNames]);
+          console.log('✅ [GuestOrder] Reordered categories - Offer is now 2nd:', ["All", offerCategory, ...categoryNames]);
+        } else {
+          setCategories(["All", ...categoryNames]);
+          console.log('⚠️ [GuestOrder] Offer category not found in:', categoryNames);
         }
         
       } catch (error) {
@@ -159,23 +152,16 @@ export default function GuestOrder() {
     const fetchMenuItems = async () => {
       setLoading(true);
       try {
-        // Build query parameters with cache busting
-        let url = 'menu?limit=100';
-        if (selectedCategory !== 'All') {
-          url += `&category=${encodeURIComponent(selectedCategory)}`;
-        }
-        if (debouncedSearch) {
-          url += `&search=${encodeURIComponent(debouncedSearch)}`;
-        }
-        // Add cache busting timestamp
-        url += `&_t=${Date.now()}`;
-
-        const menuResponse = await fetch(getApiUrl(url), {
-          cache: 'no-cache'
+        const menuResult = await getMenuItems({
+          page: 1,
+          limit: 300,
+          category: selectedCategory !== 'All' ? selectedCategory : undefined,
+          search: debouncedSearch || undefined,
+          isAvailable: true,
+          sort: 'name',
         });
-        if (menuResponse.ok) {
-          const menuResult = await menuResponse.json();
-          if (menuResult.status === 'success' && menuResult.data?.menuItems) {
+
+        if (menuResult.status === 'success' && menuResult.data?.menuItems) {
             
             // Transform to match expected structure
             const items = menuResult.data.menuItems
@@ -201,7 +187,6 @@ export default function GuestOrder() {
                 return transformedItem;
               });
             setMenuItems(items);
-          }
         }
       } catch (error) {
         // Error fetching menu items
@@ -383,16 +368,13 @@ export default function GuestOrder() {
       }
 
       // Call the guest order API
-      const response = await fetch(getApiUrl('orders/guest/create'), {
+      const response = await apiRequest('orders/guest/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(orderData),
       });
 
       // Parse response - if this fails, we'll catch it
-      const result = await response.json();
+      const result = await parseApiResponse<any>(response);
 
       // Strict validation: Check HTTP status, result status, and order data
       if (!response.ok) {

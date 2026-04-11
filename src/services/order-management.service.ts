@@ -1,5 +1,42 @@
 import { apiRequest, parseApiResponse } from '../config/api';
 
+type CacheEntry<T> = {
+  value: T;
+  expiresAt: number;
+};
+
+const inFlightRequests = new Map<string, Promise<unknown>>();
+const responseCache = new Map<string, CacheEntry<unknown>>();
+
+const dedupeRequest = async <T>(
+  key: string,
+  request: () => Promise<T>,
+  ttlMs = 1500,
+): Promise<T> => {
+  const now = Date.now();
+  const cached = responseCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.value as T;
+  }
+
+  const inFlight = inFlightRequests.get(key);
+  if (inFlight) {
+    return inFlight as Promise<T>;
+  }
+
+  const promise = request()
+    .then((value) => {
+      responseCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+      return value;
+    })
+    .finally(() => {
+      inFlightRequests.delete(key);
+    });
+
+  inFlightRequests.set(key, promise as Promise<unknown>);
+  return promise;
+};
+
 export interface Order {
   id: string;
   orderId: string;
@@ -238,14 +275,16 @@ export const getPOSMenuItems = async (
       url += `&search=${encodeURIComponent(search)}`;
     }
 
-    const response = await apiRequest(url);
-    const data = await parseApiResponse(response);
+    return await dedupeRequest(`admin:pos-menu:${url}`, async () => {
+      const response = await apiRequest(url);
+      const data = await parseApiResponse(response);
 
-    if (data.status === 'success' && data.data) {
-      return data.data;
-    }
+      if (data.status === 'success' && data.data) {
+        return data.data;
+      }
 
-    return null;
+      return null;
+    }, 1200);
   } catch (error) {
     console.error('Error fetching POS menu items:', error);
     return null;

@@ -15,6 +15,53 @@ interface Category {
   name: string;
 }
 
+let offerMenuInFlight: Promise<MenuItem[]> | null = null;
+let offerCategoryInFlight: Promise<Category[]> | null = null;
+
+const fetchOfferMenuItemsOnce = async (): Promise<MenuItem[]> => {
+  if (offerMenuInFlight) {
+    return offerMenuInFlight;
+  }
+
+  offerMenuInFlight = (async () => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/menu?limit=100`);
+    if (!response.ok) {
+      throw new Error(`Menu API failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data?.menuItems || [];
+  })();
+
+  try {
+    return await offerMenuInFlight;
+  } finally {
+    offerMenuInFlight = null;
+  }
+};
+
+const fetchOfferCategoriesOnce = async (): Promise<Category[]> => {
+  if (offerCategoryInFlight) {
+    return offerCategoryInFlight;
+  }
+
+  offerCategoryInFlight = (async () => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/categories`);
+    if (!response.ok) {
+      throw new Error(`Categories API failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data?.categories || data.data || [];
+  })();
+
+  try {
+    return await offerCategoryInFlight;
+  } finally {
+    offerCategoryInFlight = null;
+  }
+};
+
 const CreateOffer: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -107,22 +154,8 @@ const CreateOffer: React.FC = () => {
 
   const fetchMenuItems = async () => {
     try {
-      console.log('🍽️ Fetching menu items...');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/menu?limit=100`);
-      console.log('📡 Menu API response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📦 Menu data received:', data);
-        console.log('🍴 Menu items array:', data.data?.menuItems);
-        console.log('📊 Menu items count:', data.data?.menuItems?.length || 0);
-        if (data.data?.menuItems?.length > 0) {
-          console.log('🔍 First menu item structure:', data.data.menuItems[0]);
-        }
-        setMenuItems(data.data?.menuItems || []);
-      } else {
-        console.error('❌ Menu API failed with status:', response.status);
-      }
+      const items = await fetchOfferMenuItemsOnce();
+      setMenuItems(items);
     } catch (error) {
       console.error('❌ Error fetching menu items:', error);
     }
@@ -130,17 +163,8 @@ const CreateOffer: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      console.log('📂 Fetching categories...');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/categories`);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📦 Categories API response:', data);
-        console.log('📋 Categories data structure:', data.data);
-        // Check if categories are nested in data.data.categories or just data.data
-        const categoriesArray = data.data?.categories || data.data || [];
-        console.log('✅ Setting categories array:', categoriesArray);
-        setCategories(categoriesArray);
-      }
+      const categoriesArray = await fetchOfferCategoriesOnce();
+      setCategories(categoriesArray);
     } catch (error) {
       console.error('Error fetching categories:', error);
     }

@@ -1,40 +1,10 @@
-import { useState, useEffect } from 'react';
-import { toggleShopStatus, getShopStatus, ShopStatus } from '../../services/settings.service';
+import { useState } from 'react';
+import { toggleShopStatus } from '../../services/settings.service';
 import { useShopStatus } from '../../context/ShopStatusContext';
 
 export default function ShopStatusCard() {
-  const { shopStatus: globalShopStatus, refreshShopStatus } = useShopStatus();
-  const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { shopStatus, isLoading: loading, setShopStatus } = useShopStatus();
   const [toggling, setToggling] = useState(false);
-
-  useEffect(() => {
-    if (globalShopStatus) {
-      setShopStatus(globalShopStatus);
-      setLoading(false);
-    } else {
-      fetchShopStatus();
-    }
-  }, [globalShopStatus]);
-
-  const fetchShopStatus = async () => {
-    try {
-      setLoading(true);
-      const status = await getShopStatus();
-      setShopStatus(status);
-    } catch (error) {
-      console.error('Error fetching shop status:', error);
-      // Set default if fetch fails
-      setShopStatus({
-        isOpen: true,
-        lastUpdatedBy: '',
-        lastUpdatedAt: '',
-        closureReason: ''
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleToggleShop = async (isOpen: boolean) => {
     if (!isOpen) {
@@ -46,7 +16,6 @@ export default function ShopStatusCard() {
         setToggling(true);
         const updatedStatus = await toggleShopStatus(false, reason);
         setShopStatus(updatedStatus);
-        await refreshShopStatus(); // Refresh global shop status
         alert('Shop is now CLOSED');
       } catch (error) {
         console.error('Error closing shop:', error);
@@ -60,7 +29,6 @@ export default function ShopStatusCard() {
         setToggling(true);
         const updatedStatus = await toggleShopStatus(true, '');
         setShopStatus(updatedStatus);
-        await refreshShopStatus(); // Refresh global shop status
         alert('Shop is now OPEN');
       } catch (error) {
         console.error('Error opening shop:', error);
