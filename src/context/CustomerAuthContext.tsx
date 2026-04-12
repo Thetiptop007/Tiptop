@@ -15,6 +15,7 @@ import {
 } from '../services/customer-auth.service';
 import { requestFcmToken } from '../config/firebase';
 import { apiRequest } from '../config/api';
+import { logger } from '../utils/logger';
 
 interface CustomerAuthContextType {
   customer: CustomerUser | null;
@@ -50,11 +51,11 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   // Helper function to register FCM token
   const registerFcmToken = async () => {
     try {
-      console.log('🔔 Requesting FCM token...');
+      logger.debug('Requesting FCM token');
       const fcmToken = await requestFcmToken();
       
       if (fcmToken) {
-        console.log('✅ FCM token received:', fcmToken.substring(0, 30) + '...');
+        logger.debug('FCM token received');
         
         // Send token to backend
         const authToken = localStorage.getItem('customerToken');
@@ -70,13 +71,13 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
               platform: 'web' 
             }),
           });
-          console.log('✅ FCM token registered with backend');
+          logger.debug('FCM token registered with backend');
         }
       } else {
-        console.log('⚠️  FCM token request was denied or unsupported');
+        logger.warn('FCM token request denied or unsupported');
       }
     } catch (error) {
-      console.error('❌ Failed to register FCM token:', error);
+      logger.error('Failed to register FCM token');
       // Don't block login if FCM fails
     }
   };
@@ -84,33 +85,25 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   // Check if customer is already logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
-      console.log('🔐 CustomerAuth: Checking authentication');
-      console.log('🔐 CustomerAuth: localStorage state:', {
-        hasCustomerToken: !!localStorage.getItem('customerToken'),
-        hasCustomerRefreshToken: !!localStorage.getItem('customerRefreshToken'),
-        hasCustomerUser: !!localStorage.getItem('customerUser'),
-        tokenPreview: localStorage.getItem('customerToken')?.substring(0, 20)
-      });
+      logger.debug('Checking customer authentication');
       
       if (isCustomerAuthenticated()) {
         const storedCustomer = getStoredCustomer();
         if (storedCustomer) {
-          console.log('✅ CustomerAuth: Customer authenticated', storedCustomer.email.address);
+          logger.debug('Customer authenticated from storage');
           setCustomer(storedCustomer);
           
           // Try to refresh profile data (but don't fail if it doesn't work)
           try {
             const updatedProfile = await getCustomerProfile();
             setCustomer(updatedProfile);
-            console.log('✅ CustomerAuth: Profile refreshed successfully');
+            logger.debug('Customer profile refreshed');
           } catch (error: any) {
-            console.warn('⚠️  CustomerAuth: Could not refresh profile, keeping cached data', error);
+            logger.warn('Could not refresh customer profile, using cached data');
             // Keep using the stored customer data - don't logout automatically
             // The user will be logged out when they try to make an authenticated request
           }
         }
-      } else {
-        console.log('❌ CustomerAuth: No customer authenticated');
       }
       
       setIsLoading(false);
@@ -121,28 +114,23 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
 
   const login = async (phone: string, password: string) => {
     try {
-      console.log('🔐 CustomerAuth: Attempting login for phone:', phone);
+      logger.debug('Customer login attempt started');
       
       const response = await customerLogin(phone, password);
       
-      console.log('📦 CustomerAuth: Login response:', response);
-      console.log('📦 CustomerAuth: response.data:', response.data);
-      console.log('📦 CustomerAuth: response.data.user:', response.data?.user);
-      
       if (response.status === 'success' && response.data.user) {
-        console.log('✅ CustomerAuth: Login successful');
-        console.log('✅ CustomerAuth: Setting customer state with:', response.data.user);
+        logger.info('Customer login successful');
         setCustomer(response.data.user);
         
         // Register FCM token for web notifications (non-blocking)
-        registerFcmToken().catch(err => console.error('FCM registration failed:', err));
+        registerFcmToken().catch(() => logger.warn('FCM registration failed after login'));
         
         return { success: true, message: 'Login successful' };
       }
       
       return { success: false, message: 'Login failed' };
     } catch (error: any) {
-      console.error('❌ CustomerAuth: Login failed', error);
+      logger.error('Customer login failed');
       
       // Check if email verification is needed
       if (error.needsVerification) {
@@ -163,18 +151,18 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
 
   const signUp = async (data: SignUpRequest) => {
     try {
-      console.log('📝 CustomerAuth: Attempting signup for email:', data.email);
+      logger.debug('Customer signup attempt started');
       
       const response = await customerSignUp(data);
       
       if (response.status === 'success' && response.data) {
-        console.log('✅ CustomerAuth: Signup successful, user auto-logged in');
+        logger.info('Customer signup successful');
         
         // User is auto-logged in, set the customer state
         setCustomer(response.data.user);
         
         // Register FCM token for web notifications (non-blocking)
-        registerFcmToken().catch(err => console.error('FCM registration failed:', err));
+        registerFcmToken().catch(() => logger.warn('FCM registration failed after signup'));
         
         return {
           success: true,
@@ -186,7 +174,7 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
       
       return { success: false, message: 'Registration failed' };
     } catch (error: any) {
-      console.error('❌ CustomerAuth: Signup failed', error);
+      logger.error('Customer signup failed');
       return {
         success: false,
         message: error.message || 'Registration failed. Please try again.'
@@ -196,19 +184,19 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
 
   const verifyOTP = async (email: string, otp: string) => {
     try {
-      console.log('🔐 CustomerAuth: Verifying OTP for email:', email);
+      logger.debug('Customer OTP verification started');
       
       const response = await verifyOTPService(email, otp);
       
       if (response.status === 'success' && response.data.user) {
-        console.log('✅ CustomerAuth: OTP verification successful');
+        logger.info('Customer OTP verification successful');
         setCustomer(response.data.user);
         return { success: true, message: 'Email verified successfully!' };
       }
       
       return { success: false, message: 'Verification failed' };
     } catch (error: any) {
-      console.error('❌ CustomerAuth: OTP verification failed', error);
+      logger.error('Customer OTP verification failed');
       return {
         success: false,
         message: error.message || 'Invalid OTP. Please try again.'
@@ -218,18 +206,18 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
 
   const resendOTP = async (email: string) => {
     try {
-      console.log('📧 CustomerAuth: Resending OTP to:', email);
+      logger.debug('Customer OTP resend started');
       
       const response = await resendOTPService(email);
       
       if (response.status === 'success') {
-        console.log('✅ CustomerAuth: OTP resent successfully');
+        logger.info('Customer OTP resent successfully');
         return { success: true, message: 'OTP sent successfully!' };
       }
       
       return { success: false, message: 'Failed to resend OTP' };
     } catch (error: any) {
-      console.error('❌ CustomerAuth: Resend OTP failed', error);
+      logger.error('Customer OTP resend failed');
       return {
         success: false,
         message: error.message || 'Failed to resend OTP. Please try again.'
@@ -239,13 +227,13 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
 
   const logout = async () => {
     try {
-      console.log('🚪 CustomerAuth: Logging out');
+      logger.debug('Customer logout started');
       await customerLogout();
       setCustomer(null);
       navigate('/');
-      console.log('✅ CustomerAuth: Logout successful');
+      logger.info('Customer logout successful');
     } catch (error) {
-      console.error('❌ CustomerAuth: Logout error', error);
+      logger.error('Customer logout failed');
       // Clear state anyway
       setCustomer(null);
       navigate('/');
@@ -257,7 +245,7 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
       const updatedProfile = await getCustomerProfile();
       setCustomer(updatedProfile);
     } catch (error) {
-      console.error('Failed to refresh profile:', error);
+      logger.error('Failed to refresh customer profile');
     }
   };
 

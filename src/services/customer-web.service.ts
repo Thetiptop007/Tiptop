@@ -5,6 +5,7 @@
  */
 
 import { apiRequest, parseApiResponse } from '../config/api';
+import { logger } from '../utils/logger';
 
 type CacheEntry<T> = {
   value: T;
@@ -414,12 +415,10 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
     // Check if user is authenticated (has customer token)
     const customerToken = localStorage.getItem('customerToken');
     const endpoint = customerToken ? '/orders' : '/orders/guest/create';
-    
-    console.log('📦 [createOrder] Creating order:', {
+    logger.debug('Creating order request', {
       isAuthenticated: !!customerToken,
       endpoint,
       itemCount: orderData.items.length,
-      totalAmount: orderData.totalAmount
     });
     
     const response = await apiRequest(endpoint, {
@@ -440,13 +439,13 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
     // Handle validation errors with details
     if (data.errors && Array.isArray(data.errors)) {
       const errorMessages = data.errors.map((err: any) => err.message || err.msg || JSON.stringify(err)).join(', ');
-      console.error('📦 [createOrder] Validation errors:', data.errors);
+      logger.warn('Order validation failed');
       throw new Error(`Validation failed: ${errorMessages}`);
     }
     
     throw new Error(data.message || 'Failed to create order');
   } catch (error: any) {
-    console.error('Error creating order:', error);
+    logger.error('Error creating order');
     throw error;
   }
 };

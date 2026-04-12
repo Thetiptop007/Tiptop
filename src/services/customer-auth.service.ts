@@ -4,6 +4,7 @@
  */
 
 import { apiRequest, parseApiResponse } from '../config/api';
+import { logger } from '../utils/logger';
 
 export interface CustomerUser {
   _id: string;
@@ -103,18 +104,14 @@ export const customerLogin = async (phone: string, password: string): Promise<Lo
       localStorage.setItem('customerToken', accessToken);
       localStorage.setItem('customerRefreshToken', refreshToken);
       localStorage.setItem('customerUser', JSON.stringify(data.data.user));
-      
-      console.log('✅ Tokens stored in localStorage:', { 
-        hasAccessToken: !!accessToken, 
-        hasRefreshToken: !!refreshToken 
-      });
+      logger.debug('Customer tokens persisted after login');
       
       return data as LoginResponse;
     }
 
     // Log validation errors for debugging
     if (data.error) {
-      console.error('Login error:', data.error);
+      logger.warn('Customer login API returned error payload');
       // Handle array of errors or single error
       if (Array.isArray(data.error)) {
         const errorMessages = data.error.map((err: any) => err.message || err.msg || err).join(', ');
@@ -130,7 +127,7 @@ export const customerLogin = async (phone: string, password: string): Promise<Lo
 
     throw new Error(data.message || 'Login failed');
   } catch (error: any) {
-    console.error('Customer login error:', error);
+    logger.error('Customer login request failed');
     // Make sure we always throw a proper Error with a string message
     if (error instanceof Error) {
       throw error;
@@ -149,7 +146,7 @@ export const customerLogin = async (phone: string, password: string): Promise<Lo
  */
 export const customerSignUp = async (data: SignUpRequest): Promise<SignUpResponse> => {
   try {
-    console.log('🔄 Attempting customer signup with data:', { ...data, password: '***' });
+    logger.debug('Customer signup request started');
     
     const response = await apiRequest('auth/register', {
       method: 'POST',
@@ -159,14 +156,14 @@ export const customerSignUp = async (data: SignUpRequest): Promise<SignUpRespons
     const result = await parseApiResponse(response);
     
     if (result.status === 'success' && result.data) {
-      console.log('✅ Signup successful:', result);
+      logger.info('Customer signup successful');
       
       // Store tokens and user data (auto-login after registration)
       if (result.data.tokens && result.data.user) {
         localStorage.setItem('customerToken', result.data.tokens.accessToken);
         localStorage.setItem('customerRefreshToken', result.data.tokens.refreshToken);
         localStorage.setItem('customerUser', JSON.stringify(result.data.user));
-        console.log('💾 Stored auth tokens and user data');
+        logger.debug('Customer auth persisted after signup');
       }
       
       return result as SignUpResponse;
@@ -174,7 +171,7 @@ export const customerSignUp = async (data: SignUpRequest): Promise<SignUpRespons
 
     // Handle validation errors
     if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
-      console.error('❌ Validation errors:', result.errors);
+      logger.warn('Customer signup validation failed');
       const errorMessages = result.errors
         .map((err: any) => err.message || err.msg)
         .filter(Boolean);
@@ -184,10 +181,10 @@ export const customerSignUp = async (data: SignUpRequest): Promise<SignUpRespons
       }
     }
 
-    console.error('❌ Signup failed:', result.message);
+    logger.warn('Customer signup failed');
     throw new Error(result.message || 'Registration failed');
   } catch (error: any) {
-    console.error('Customer signup error:', error);
+    logger.error('Customer signup request failed');
     // Make sure we always throw a proper Error with a string message
     if (error instanceof Error) {
       throw error;
@@ -221,15 +218,14 @@ export const verifyOTP = async (email: string, otp: string): Promise<VerifyOTPRe
       localStorage.setItem('customerToken', accessToken);
       localStorage.setItem('customerRefreshToken', refreshToken);
       localStorage.setItem('customerUser', JSON.stringify(data.data.user));
-      
-      console.log('✅ Tokens stored in localStorage after OTP verification');
+      logger.debug('Customer tokens persisted after OTP verification');
       
       return data as VerifyOTPResponse;
     }
 
     throw new Error(data.message || 'OTP verification failed');
   } catch (error: any) {
-    console.error('OTP verification error:', error);
+    logger.error('Customer OTP verification request failed');
     // Make sure we always throw a proper Error with a string message
     if (error instanceof Error) {
       throw error;
@@ -255,7 +251,7 @@ export const resendOTP = async (email: string): Promise<{ status: string; messag
 
     return await parseApiResponse(response);
   } catch (error: any) {
-    console.error('Resend OTP error:', error);
+    logger.error('Customer OTP resend request failed');
     // Make sure we always throw a proper Error with a string message
     if (error instanceof Error) {
       throw error;

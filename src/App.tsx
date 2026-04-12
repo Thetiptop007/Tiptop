@@ -41,6 +41,7 @@ import { CustomerAuthProvider, useCustomerAuth } from "./context/CustomerAuthCon
 import { ShopStatusProvider } from "./context/ShopStatusContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { useEffect } from "react";
+import { logger } from "./utils/logger";
 
 function AppContent() {
   const { isLoading } = useCustomerAuth();
@@ -60,20 +61,10 @@ function AppContent() {
   return (
     <Routes>
       {/* Public Landing Page */}
-      <Route path="/" element={
-        <>
-          {console.log('📍 Route: Rendering Landing Page route "/"')}
-          <LandingPage />
-        </>
-      } />
+      <Route path="/" element={<LandingPage />} />
                 
                 {/* Guest Order Page - Public */}
-                <Route path="/order" element={
-                  <>
-                    {console.log('📍 Route: Rendering Guest Order route "/order"')}
-                    <GuestOrder />
-                  </>
-                } />
+                <Route path="/order" element={<GuestOrder />} />
 
                 {/* Customer Auth Routes */}
                 <Route path="/customer/login" element={<CustomerLogin />} />
@@ -153,15 +144,13 @@ function LocationLogger() {
   const location = useLocation();
   
   useEffect(() => {
-    console.log('📍 Current Location:', location.pathname, location);
+    logger.debug('Route changed', { pathname: location.pathname });
   }, [location]);
   
   return null;
 }
 
 export default function App() {
-  console.log('🚀 App.tsx: Rendering App component');
-  
   return (
     <>
       <Router>

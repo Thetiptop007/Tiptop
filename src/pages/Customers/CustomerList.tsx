@@ -8,15 +8,20 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import Badge from "../../components/ui/badge/Badge";
 import { getCustomers, toggleBlockCustomer, deleteCustomer, Customer } from "../../services/customer.service";
+import { logger } from "../../utils/logger";
+
+type CustomerSortOption = "-createdAt" | "-customerData.totalOrders" | "customerData.totalOrders" | "-customerData.totalSpent" | "customerData.totalSpent";
 
 export default function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCustomerId, setExpandedCustomerId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<CustomerSortOption>("-createdAt");
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const itemsPerPage = 10;
@@ -53,70 +58,59 @@ export default function CustomerList() {
   };
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput.trim());
+      setCurrentPage(1);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
     fetchCustomers();
-  }, [currentPage, searchTerm]);
+  }, [currentPage, searchTerm, sortBy]);
 
   const fetchCustomers = async () => {
     try {
-      console.log('🟢 [CUSTOMER LIST] Starting fetchCustomers with params:', {
-        currentPage,
-        itemsPerPage,
-        searchTerm
-      });
-      
       setLoading(true);
       const response = await getCustomers({
         page: currentPage,
         limit: itemsPerPage,
         search: searchTerm,
         role: 'customer',
-      });
-      
-      console.log('🟢 [CUSTOMER LIST] API Response received:', response);
-      console.log('🟢 [CUSTOMER LIST] Response structure:', {
-        status: response.status,
-        results: response.results,
-        pagination: response.pagination,
-        usersCount: response.data?.users?.length || 0
-      });
-      console.log('🟢 [CUSTOMER LIST] Users data:', response.data.users);
-      console.log('🟢 [CUSTOMER LIST] Pagination:', response.pagination);
-      console.log('🟢 [CUSTOMER LIST] Results:', response.results);
-      
-      if (response.data.users.length > 0) {
-        console.log('🟢 [CUSTOMER LIST] First user sample:', response.data.users[0]);
-      } else {
-        console.log('⚠️ [CUSTOMER LIST] No users in response!');
-      }
-      
-      console.log('🟢 [CUSTOMER LIST] Setting state with:', {
-        customersCount: response.data.users.length,
-        totalPages: response.pagination?.totalPages || 1,
-        totalResults: response.pagination?.totalResults || 0
+        sort: sortBy,
       });
       
       setCustomers(response.data.users);
       setTotalPages(response.pagination?.totalPages || 1);
       setTotalResults(response.pagination?.totalResults || 0);
-      
-      console.log('🟢 [CUSTOMER LIST] State updated successfully');
     } catch (error) {
-      console.error('❌ [CUSTOMER LIST] Error fetching customers:', error);
-      console.error('❌ [CUSTOMER LIST] Error details:', {
-        message: error.message,
-        stack: error.stack
-      });
+      logger.error('Error fetching customers');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleBlock = async (customerId: string) => {
+  const handleToggleBlock = async (customerId: string, currentlyBlocked: boolean) => {
     try {
-      await toggleBlockCustomer(customerId);
-      fetchCustomers();
+      setActionLoadingId(customerId);
+      const updated = await toggleBlockCustomer(
+        customerId,
+        !currentlyBlocked,
+        !currentlyBlocked ? 'Blocked by admin' : ''
+      );
+
+      setCustomers((prev) =>
+        prev.map((customer) =>
+          customer._id === customerId
+            ? { ...customer, isBlocked: updated.isBlocked }
+            : customer
+        )
+      );
     } catch (error) {
-      console.error('Error toggling customer block:', error);
+      logger.error('Error toggling customer block status');
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -126,7 +120,7 @@ export default function CustomerList() {
         await deleteCustomer(customerId);
         fetchCustomers();
       } catch (error) {
-        console.error('Error deleting customer:', error);
+        logger.error('Error deleting customer');
       }
     }
   };
@@ -136,7 +130,11 @@ export default function CustomerList() {
   };
 
   const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
+    setSearchInput(value);
+  };
+
+  const handleSortChange = (value: CustomerSortOption) => {
+    setSortBy(value);
     setCurrentPage(1);
   };
 
@@ -160,7 +158,7 @@ export default function CustomerList() {
           <input
             type="text"
             placeholder="Search by name, email, or phone..."
-            value={searchTerm}
+            value={searchInput}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 pl-10 text-sm text-gray-700 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500"
           />
@@ -177,6 +175,20 @@ export default function CustomerList() {
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
           </svg>
+        </div>
+
+        <div className="w-full sm:w-64">
+          <select
+            value={sortBy}
+            onChange={(e) => handleSortChange(e.target.value as CustomerSortOption)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+          >
+            <option value="-createdAt">Newest first</option>
+            <option value="-customerData.totalOrders">Total orders: high to low</option>
+            <option value="customerData.totalOrders">Total orders: low to high</option>
+            <option value="-customerData.totalSpent">Total spent: high to low</option>
+            <option value="customerData.totalSpent">Total spent: low to high</option>
+          </select>
         </div>
       </div>
 
@@ -213,6 +225,12 @@ export default function CustomerList() {
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
                   Total Spent
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Status
                 </TableCell>
                 <TableCell
                   isHeader
@@ -286,13 +304,33 @@ export default function CustomerList() {
                         ₹{(customer.customerData?.totalSpent || 0).toFixed(2)}
                       </div>
                     </TableCell>
+                    <TableCell className="px-4 py-3 text-start">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                          customer.isBlocked
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        }`}
+                      >
+                        {customer.isBlocked ? 'Blocked' : 'Active'}
+                      </span>
+                    </TableCell>
                     <TableCell className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleDelete(customer._id)}
-                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 transition-colors"
+                          onClick={() => handleToggleBlock(customer._id, customer.isBlocked)}
+                          disabled={actionLoadingId === customer._id}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                            customer.isBlocked
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
+                              : 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400'
+                          } ${actionLoadingId === customer._id ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          Delete
+                          {actionLoadingId === customer._id
+                            ? 'Updating...'
+                            : customer.isBlocked
+                              ? 'Unblock'
+                              : 'Block'}
                         </button>
                       </div>
                     </TableCell>
@@ -349,6 +387,21 @@ export default function CustomerList() {
 
                           {/* Action Buttons */}
                           <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                            <button 
+                              onClick={() => handleToggleBlock(customer._id, customer.isBlocked)}
+                              disabled={actionLoadingId === customer._id}
+                              className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                                customer.isBlocked
+                                  ? 'border-green-300 bg-white text-green-600 hover:bg-green-50 dark:border-green-700 dark:bg-gray-800 dark:text-green-400 dark:hover:bg-green-500/10'
+                                  : 'border-orange-300 bg-white text-orange-600 hover:bg-orange-50 dark:border-orange-700 dark:bg-gray-800 dark:text-orange-400 dark:hover:bg-orange-500/10'
+                              } ${actionLoadingId === customer._id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              {actionLoadingId === customer._id
+                                ? 'Updating...'
+                                : customer.isBlocked
+                                  ? 'Unblock Customer'
+                                  : 'Block Customer'}
+                            </button>
                             <button 
                               onClick={() => handleDelete(customer._id)}
                               className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-500/10"

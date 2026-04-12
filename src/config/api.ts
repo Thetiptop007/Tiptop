@@ -2,6 +2,8 @@
  * Get the API base URL from environment variables
  * Falls back to localhost if not set
  */
+import { logger } from '../utils/logger';
+
 const normalizeApiBaseUrl = (rawBaseUrl: string): string => {
   const trimmed = rawBaseUrl.trim().replace(/\/+$/, '');
 
@@ -67,11 +69,9 @@ export const apiRequest = async (
   
   const finalUrl = fullUrl;
   
-  console.log('🚀 [apiRequest] Starting request:', {
+  logger.debug('API request started', {
     endpoint,
-    finalUrl,
     method: options.method || 'GET',
-    timestamp: new Date().toISOString()
   });
   
   // Check if this is a customer authentication endpoint (should not include admin token)
@@ -98,8 +98,6 @@ export const apiRequest = async (
     headers['Authorization'] = `Bearer ${token}`;
   }
   
-  console.log('📤 [apiRequest] Request headers:', headers);
-  
   const executeRequest = async (): Promise<Response> => {
     const response = await fetch(finalUrl, {
       ...options,
@@ -109,11 +107,9 @@ export const apiRequest = async (
       signal: AbortSignal.timeout(10000), // 10 second timeout for debugging
     });
     
-    console.log('📥 [apiRequest] Response received:', {
+    logger.debug('API response received', {
+      endpoint,
       status: response.status,
-      statusText: response.statusText,
-      url: response.url,
-      headers: Object.fromEntries(response.headers.entries())
     });
     
     // Log 401 responses but don't automatically clear tokens
@@ -123,12 +119,11 @@ export const apiRequest = async (
       const isAdminRoute = currentPath.startsWith('/admin');
       const isCustomerRoute = currentPath.startsWith('/customer');
       
-      console.log('⚠️ [apiRequest] 401 Unauthorized response', {
+      logger.warn('Unauthorized API response', {
         currentPath,
         isAdminRoute,
         isCustomerRoute,
-        endpoint: finalUrl,
-        note: 'Not auto-clearing tokens - let components handle this'
+        endpoint,
       });
       
       // Only auto-clear and redirect for admin routes (stricter security)
@@ -183,28 +178,24 @@ export const apiRequest = async (
 
     return await executeRequest();
   } catch (error: any) {
-    console.error('❌ [apiRequest] Error caught:', error);
-    console.error('❌ [apiRequest] Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
+    logger.error('API request failed', {
+      endpoint,
+      method,
+      name: error?.name,
+      message: error?.message,
     });
     
     // Handle network errors with user-friendly messages
     if (error.name === 'TimeoutError') {
-      console.error('❌ [apiRequest] TimeoutError detected');
       throw new Error('Request timed out. The server is taking too long to respond. Please try again.');
     }
     if (error.name === 'AbortError') {
-      console.error('❌ [apiRequest] AbortError detected');
       throw new Error('Request was cancelled. Please try again.');
     }
     if (!navigator.onLine) {
-      console.error('❌ [apiRequest] Navigator offline');
       throw new Error('Lost internet connection while processing request. Please check your network.');
     }
     // Generic network error
-    console.error('❌ [apiRequest] Generic network error');
     throw new Error('Network error occurred. Please check your internet connection and try again.');
   }
 };
@@ -233,13 +224,11 @@ export const parseApiResponse = async <T = any>(
   response: Response
 ): Promise<ApiResponse<T>> => {
   try {
-    console.log('🔍 [parseApiResponse] Parsing response with status:', response.status);
     const data = await response.json();
-    console.log('🔍 [parseApiResponse] Parsed data:', data);
-    console.log('🔍 [parseApiResponse] Data keys:', Object.keys(data));
+    logger.debug('API response parsed', { status: response.status });
     return data;
   } catch (error) {
-    console.error('❌ [parseApiResponse] Failed to parse response:', error);
+    logger.error('Failed to parse API response', { status: response.status });
     return {
       status: 'error',
       message: 'Failed to parse response',

@@ -130,8 +130,8 @@ export default function AddOrder() {
           setCategories(["All", ...categoriesData]);
         }
 
-        // Fetch POS menu items with a safe page size to avoid heavy payloads
-        const menuData = await getPOSMenuItems(1, 20);
+        // Fetch POS menu items - get all available items for admin to select from
+        const menuData = await getPOSMenuItems(1, 1000);
         console.log('📦 POS Menu Data:', menuData);
         
         if (menuData && menuData.items && Array.isArray(menuData.items)) {

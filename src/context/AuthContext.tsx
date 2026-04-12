@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { getApiUrl, parseApiResponse, ApiResponse } from '../config/api';
+import { logger } from '../utils/logger';
 
 interface User {
   email: string;
@@ -39,28 +40,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Check if user is already logged in on mount
   useEffect(() => {
-    console.log('🔐 AuthContext: Checking for existing authentication');
     const token = localStorage.getItem('adminToken');
     const email = localStorage.getItem('adminEmail');
     const name = localStorage.getItem('adminName');
     const role = localStorage.getItem('adminRole');
 
-    console.log('🔐 AuthContext: LocalStorage check', { 
-      hasToken: !!token, 
-      hasEmail: !!email, 
-      hasName: !!name,
-      role 
-    });
-
     if (token && email && name) {
-      console.log('✅ AuthContext: Found existing auth, setting user');
+      logger.debug('Admin auth restored from local storage');
       setUser({ email, name, role: role || 'admin' });
-    } else {
-      console.log('❌ AuthContext: No existing auth found');
     }
     
     setIsLoading(false);
-    console.log('🔐 AuthContext: Finished loading');
   }, []);
 
   const login = async (
@@ -112,7 +102,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         };
       }
     } catch (error) {
-      console.error('Login error:', error);
+      logger.error('Admin login failed');
       
       // Fallback to demo login if backend is not available
       if (email === 'admin@thetiptop.com' && password === 'admin123') {
