@@ -25,6 +25,18 @@ import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void, onRefresh: () => void }) => {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
+  const getCustomerSourceMeta = (customerType?: Order['customerType']) => {
+    switch (customerType) {
+      case 'LOGGED_IN':
+        return { label: 'Logged In', className: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' };
+      case 'ADMIN':
+        return { label: 'Admin Created', className: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300' };
+      case 'GUEST':
+      default:
+        return { label: 'Guest', className: 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300' };
+    }
+  };
+
   const toggleExpand = async (orderId: string) => {
     if (expandedOrderId === orderId) {
       setExpandedOrderId(null);
@@ -618,7 +630,10 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                       <div className="cursor-pointer" onClick={() => toggleExpand(order.id)}>
-                        {order.customer}
+                        <div className="text-gray-800 text-theme-sm dark:text-white/90">{order.customer}</div>
+                        <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${getCustomerSourceMeta(order.customerType).className}`}>
+                          {getCustomerSourceMeta(order.customerType).label}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
@@ -699,6 +714,12 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
                                   <p><span className="font-medium text-gray-700 dark:text-gray-300">Order ID:</span> {order.orderId}</p>
                                   <p><span className="font-medium text-gray-700 dark:text-gray-300">Date:</span> {order.date}</p>
                                   <p><span className="font-medium text-gray-700 dark:text-gray-300">Time:</span> {order.time}</p>
+                                  <p>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">Order Source:</span>{' '}
+                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getCustomerSourceMeta(order.customerType).className}`}>
+                                      {getCustomerSourceMeta(order.customerType).label}
+                                    </span>
+                                  </p>
                                   <p><span className="font-medium text-gray-700 dark:text-gray-300">Total Amount:</span> {order.total}</p>
                                 </div>
                               </div>

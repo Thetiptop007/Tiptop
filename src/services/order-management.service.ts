@@ -42,6 +42,7 @@ export interface Order {
   orderId: string;
   customer: string;
   phone: string;
+  customerType?: 'GUEST' | 'LOGGED_IN' | 'ADMIN';
   items: Array<{
     name: string;
     portion?: string;
