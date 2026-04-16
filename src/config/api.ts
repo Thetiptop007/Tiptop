@@ -53,11 +53,61 @@ export const getApiUrl = (endpoint: string = ''): string => {
 };
 
 /**
- * Make an authenticated API request
+ * Refresh the access token using the refresh token
+ * Stores new token in localStorage if successful
+ */
+const refreshAccessToken = async (): Promise<string | null> => {
+  const refreshToken = localStorage.getItem('adminRefreshToken');
+  
+  if (!refreshToken) {
+    logger.warn('No refresh token available for token refresh');
+    return null;
+  }
+
+  try {
+    const response = await fetch(getApiUrl('auth/refresh-token'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (response.status === 200) {
+      const data = await response.json();
+      if (data.status === 'success' && data.data?.accessToken) {
+        const newAccessToken = data.data.accessToken;
+        localStorage.setItem('adminToken', newAccessToken);
+        logger.info('Token refreshed successfully');
+        return newAccessToken;
+      }
+    } else {
+      logger.warn('Failed to refresh token:', response.status);
+      // Clear stored tokens if refresh fails
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminRefreshToken');
+      localStorage.removeItem('adminEmail');
+      localStorage.removeItem('adminName');
+      localStorage.removeItem('adminRole');
+    }
+  } catch (error: any) {
+    logger.error('Token refresh failed:', error?.message);
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminRefreshToken');
+  }
+
+  return null;
+};
+
+/**
+ * Make an authenticated API request with automatic token refresh on 401
  */
 export const apiRequest = async (
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retryCount = 0
 ): Promise<Response> => {
   const fullUrl = getApiUrl(endpoint);
   const method = (options.method || 'GET').toUpperCase();
@@ -72,12 +122,14 @@ export const apiRequest = async (
   logger.debug('API request started', {
     endpoint,
     method: options.method || 'GET',
+    retry: retryCount > 0 ? retryCount : undefined,
   });
   
   // Check if this is a customer authentication endpoint (should not include admin token)
   // This includes auth endpoints and customer-specific user endpoints
   const isCustomerAuthEndpoint = endpoint.match(/^auth\/(login|register|verify-otp|resend-otp)$/);
   const isCustomerAddressEndpoint = endpoint.match(/^\/addresses/);
+  const isRefreshEndpoint = endpoint === 'auth/refresh-token';
   
   // Check if Authorization header is explicitly provided in options
   const hasExplicitAuth = options.headers && 'Authorization' in options.headers;
@@ -93,8 +145,9 @@ export const apiRequest = async (
   // 1. Token exists
   // 2. NOT a customer auth endpoint (login/register/verify-otp/resend-otp)
   // 3. NOT a customer address endpoint (/addresses)
-  // 4. Authorization header not already explicitly set in options
-  if (token && !isCustomerAuthEndpoint && !isCustomerAddressEndpoint && !hasExplicitAuth) {
+  // 4. NOT the refresh endpoint itself
+  // 5. Authorization header not already explicitly set in options
+  if (token && !isCustomerAuthEndpoint && !isCustomerAddressEndpoint && !isRefreshEndpoint && !hasExplicitAuth) {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
@@ -112,8 +165,20 @@ export const apiRequest = async (
       status: response.status,
     });
     
-    // Log 401 responses but don't automatically clear tokens
-    // Let individual components/contexts handle authentication errors appropriately
+    // Handle 401 Unauthorized - try to refresh token and retry
+    if (response.status === 401 && retryCount < 1 && !isRefreshEndpoint && token) {
+      logger.warn('Received 401, attempting token refresh...', { endpoint });
+      
+      const newToken = await refreshAccessToken();
+      
+      if (newToken && method === 'GET') {
+        // Only auto-retry GET requests (safe to retry)
+        logger.info('Retrying request with refreshed token', { endpoint });
+        return apiRequest(endpoint, options, retryCount + 1);
+      }
+    }
+    
+    // Handle 401 when no retry possible or refresh failed
     if (response.status === 401) {
       const currentPath = window.location.pathname;
       const isAdminRoute = currentPath.startsWith('/admin');
@@ -124,11 +189,14 @@ export const apiRequest = async (
         isAdminRoute,
         isCustomerRoute,
         endpoint,
+        retryCount,
       });
       
       // Only auto-clear and redirect for admin routes (stricter security)
-      if (isAdminRoute) {
+      if (isAdminRoute && retryCount > 0) {
+        // Only redirect on retry exhaustion to avoid redirect loops
         localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminRefreshToken');
         localStorage.removeItem('adminEmail');
         localStorage.removeItem('adminName');
         localStorage.removeItem('adminRole');
