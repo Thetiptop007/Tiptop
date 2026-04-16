@@ -171,6 +171,14 @@ export const apiRequest = async (
   if (token && !isCustomerAuthEndpoint && !isCustomerAddressEndpoint && !isRefreshEndpoint && !hasExplicitAuth) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+
+  const authHeader = headers['Authorization'] || '';
+  const adminBearer = token ? `Bearer ${token}` : '';
+  const isAdminAuthRequest =
+    !!token &&
+    authHeader.length > 0 &&
+    authHeader === adminBearer &&
+    !isRefreshEndpoint;
   
   const executeRequest = async (): Promise<Response> => {
     const response = await fetch(finalUrl, {
@@ -187,7 +195,7 @@ export const apiRequest = async (
     });
     
     // Handle 401 Unauthorized - try to refresh token and retry
-    if (response.status === 401 && retryCount < 1 && !isRefreshEndpoint && token) {
+    if (response.status === 401 && retryCount < 1 && isAdminAuthRequest) {
       logger.warn('Received 401, attempting token refresh...', { endpoint });
       
       const newToken = await refreshAccessToken();
@@ -215,7 +223,7 @@ export const apiRequest = async (
       
       // Clear and redirect admin sessions as soon as auth is invalid.
       // This handles legacy sessions that still have access token but no refresh token.
-      if (isAdminRoute) {
+      if (isAdminRoute && isAdminAuthRequest) {
         clearAdminSession();
         redirectToSignIn();
       }

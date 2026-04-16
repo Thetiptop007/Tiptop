@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import {
   customerLogin,
   customerSignUp,
@@ -47,6 +48,7 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   const [customer, setCustomer] = useState<CustomerUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Helper function to register FCM token
   const registerFcmToken = async () => {
@@ -86,6 +88,12 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   useEffect(() => {
     const checkAuth = async () => {
       logger.debug('Checking customer authentication');
+
+      // Skip customer bootstrapping on admin routes to avoid cross-context auth requests.
+      if (location.pathname.startsWith('/admin')) {
+        setIsLoading(false);
+        return;
+      }
       
       if (isCustomerAuthenticated()) {
         const storedCustomer = getStoredCustomer();
@@ -110,7 +118,7 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
     };
 
     checkAuth();
-  }, []);
+  }, [location.pathname]);
 
   const login = async (phone: string, password: string) => {
     try {
