@@ -10,20 +10,57 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import {
-  getTodayOrders,
   getAllOrders,
   getOrderDetails,
   updateOrderStatus,
+  bulkUpdateOrderStatus,
   type Order,
   type TodayOrdersResponse,
   type AllOrdersResponse
 } from "../../services/order-management.service";
 import { apiRequest, parseApiResponse } from "../../config/api";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
+import { appQueryKeys, useTodayOrdersQuery } from "../../hooks/useAppDataQueries";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Define order data
-const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { orders: Order[], title: string, badgeColor: string, onStatusUpdate: (orderId: string, newStatus: string) => void, onRefresh: () => void }) => {
+type BulkActionMode = 'new' | 'accepted' | 'readyDelivery' | 'readyPickup' | 'outForDelivery';
+
+const OrderTable = ({
+  orders,
+  title,
+  badgeColor,
+  onStatusUpdate,
+  onRefresh,
+  bulkActionMode,
+  onBulkAccept,
+  onBulkReady,
+  onBulkAssign,
+  onBulkDeliver,
+}: {
+  orders: Order[];
+  title: string;
+  badgeColor: string;
+  onStatusUpdate: (orderId: string, newStatus: string) => void;
+  onRefresh: () => void;
+  bulkActionMode?: BulkActionMode;
+  onBulkAccept?: (orders: Order[]) => Promise<void>;
+  onBulkReady?: (orders: Order[]) => Promise<void>;
+  onBulkAssign?: (orders: Order[]) => Promise<void>;
+  onBulkDeliver?: (orders: Order[]) => Promise<void>;
+}) => {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [runningBulkAction, setRunningBulkAction] = useState<string | null>(null);
+
+  const showBulkControls = !!bulkActionMode;
+  const allSelected = orders.length > 0 && selectedOrderIds.length === orders.length;
+  const selectedOrders = orders.filter((order) => selectedOrderIds.includes(order.id));
+
+  useEffect(() => {
+    // Keep selection in sync when list updates.
+    setSelectedOrderIds((prev) => prev.filter((id) => orders.some((order) => order.id === id)));
+  }, [orders]);
 
   const getCustomerSourceMeta = (customerType?: Order['customerType']) => {
     switch (customerType) {
@@ -520,6 +557,51 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
     }
   };
 
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedOrderIds([]);
+      return;
+    }
+
+    setSelectedOrderIds(orders.map((order) => order.id));
+  };
+
+  const toggleSelectOrder = (orderId: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
+  };
+
+  const runBulkAction = async (action: 'accept' | 'ready' | 'assign' | 'deliver') => {
+    if (selectedOrders.length === 0) {
+      return;
+    }
+
+    try {
+      setRunningBulkAction(action);
+
+      if (action === 'accept' && onBulkAccept) {
+        await onBulkAccept(selectedOrders);
+      }
+
+      if (action === 'ready' && onBulkReady) {
+        await onBulkReady(selectedOrders);
+      }
+
+      if (action === 'assign' && onBulkAssign) {
+        await onBulkAssign(selectedOrders);
+      }
+
+      if (action === 'deliver' && onBulkDeliver) {
+        await onBulkDeliver(selectedOrders);
+      }
+
+      setSelectedOrderIds([]);
+    } finally {
+      setRunningBulkAction(null);
+    }
+  };
+
   return (
     <div>
       <div className="mb-4 flex items-center gap-2">
@@ -530,6 +612,75 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
           {orders.length}
         </span>
       </div>
+
+      {showBulkControls && orders.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleSelectAll}
+              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span>Select All</span>
+          </label>
+
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {selectedOrderIds.length} selected
+          </span>
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {bulkActionMode === 'new' && (
+              <button
+                onClick={() => runBulkAction('accept')}
+                disabled={selectedOrderIds.length === 0 || !!runningBulkAction}
+                className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {runningBulkAction === 'accept' ? 'Accepting...' : `Accept Selected (${selectedOrderIds.length})`}
+              </button>
+            )}
+
+            {bulkActionMode === 'accepted' && (
+              <button
+                onClick={() => runBulkAction('ready')}
+                disabled={selectedOrderIds.length === 0 || !!runningBulkAction}
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {runningBulkAction === 'ready' ? 'Updating...' : `Mark Ready (${selectedOrderIds.length})`}
+              </button>
+            )}
+
+            {bulkActionMode === 'readyDelivery' && (
+              <>
+                <button
+                  onClick={() => runBulkAction('assign')}
+                  disabled={selectedOrderIds.length === 0 || !!runningBulkAction}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {runningBulkAction === 'assign' ? 'Opening...' : `Assign Agent (${selectedOrderIds.length})`}
+                </button>
+                <button
+                  onClick={() => runBulkAction('deliver')}
+                  disabled={selectedOrderIds.length === 0 || !!runningBulkAction}
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {runningBulkAction === 'deliver' ? 'Updating...' : `Mark Delivered (${selectedOrderIds.length})`}
+                </button>
+              </>
+            )}
+
+            {(bulkActionMode === 'readyPickup' || bulkActionMode === 'outForDelivery') && (
+              <button
+                onClick={() => runBulkAction('deliver')}
+                disabled={selectedOrderIds.length === 0 || !!runningBulkAction}
+                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {runningBulkAction === 'deliver' ? 'Updating...' : `Mark Delivered (${selectedOrderIds.length})`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* Info banner for Ready orders */}
       {title === "Ready for Delivery" && orders.length > 0 && (
@@ -562,6 +713,14 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
+                {showBulkControls && (
+                  <TableCell
+                    isHeader
+                    className="px-4 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    Select
+                  </TableCell>
+                )}
                 <TableCell
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
@@ -608,11 +767,22 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {orders.map((order) => (
-                <>
+                <React.Fragment key={order.id}>
                   <TableRow 
-                    key={order.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                   >
+                    {showBulkControls && (
+                      <TableCell className="px-4 py-3 text-start">
+                        <div onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedOrderIds.includes(order.id)}
+                            onChange={() => toggleSelectOrder(order.id)}
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell className="px-5 py-4 sm:px-6 text-start">
                       <div className="flex items-center gap-2 cursor-pointer" onClick={() => toggleExpand(order.id)}>
                         <svg
@@ -699,7 +869,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
                   </TableRow>
                   {expandedOrderId === order.id && (
                     <tr>
-                      <td colSpan={7} className="px-5 py-4 bg-gray-50 dark:bg-white/[0.02]">
+                      <td colSpan={showBulkControls ? 8 : 7} className="px-5 py-4 bg-gray-50 dark:bg-white/[0.02]">
                         <div className="space-y-4">
                           {/* Order Details */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -908,7 +1078,7 @@ const OrderTable = ({ orders, title, badgeColor, onStatusUpdate, onRefresh }: { 
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
@@ -1654,9 +1824,10 @@ export default function OrderManagement() {
   const view = (searchParams.get('tab') as "today" | "all") || "today";
   const [todayOrders, setTodayOrders] = useState<TodayOrdersResponse | null>(null);
   const [allOrdersData, setAllOrdersData] = useState<AllOrdersResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingAll, setLoadingAll] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const { isOnline } = useNetworkStatus();
+  const { data: todayOrdersQueryData, isLoading: todayOrdersLoading, refetch: refetchTodayOrders } = useTodayOrdersQuery();
   
   // Notification state
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -1664,18 +1835,13 @@ export default function OrderManagement() {
   // Assignment modal state
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedOrderForAssign, setSelectedOrderForAssign] = useState<Order | null>(null);
+  const [selectedOrderIdsForAssign, setSelectedOrderIdsForAssign] = useState<string[]>([]);
   const [deliveryPartners, setDeliveryPartners] = useState<any[]>([]);
   const [assigningPartner, setAssigningPartner] = useState(false);
   const [tempSelectedPartnerId, setTempSelectedPartnerId] = useState<string | null>(null); // For two-step selection
   const [assigningPartnerId, setAssigningPartnerId] = useState<string | null>(null); // Currently assigning
   const [assignError, setAssignError] = useState<string | null>(null);
-  
-  // Fetch today's orders
-  useEffect(() => {
-    if (view === "today") {
-      fetchTodayOrders();
-    }
-  }, [view]);
+  const queryClient = useQueryClient();
   
   // Fetch all orders
   useEffect(() => {
@@ -1683,21 +1849,21 @@ export default function OrderManagement() {
       fetchAllOrders(currentPage);
     }
   }, [view, currentPage]);
-  
-  const fetchTodayOrders = async () => {
-    setLoading(true);
-    const data = await getTodayOrders();
-    
-    setTodayOrders(data);
-    setLoading(false);
+
+  useEffect(() => {
+    setTodayOrders(todayOrdersQueryData ?? null);
+  }, [todayOrdersQueryData]);
+
+  const refreshTodayOrders = async () => {
+    await refetchTodayOrders();
   };
   
   const fetchAllOrders = async (page: number) => {
-    setLoading(true);
+    setLoadingAll(true);
     const data = await getAllOrders(page, 10);
     
     setAllOrdersData(data);
-    setLoading(false);
+    setLoadingAll(false);
   };
   
   const fetchDeliveryPartners = async () => {
@@ -1712,34 +1878,48 @@ export default function OrderManagement() {
     }
   };
   
-  const assignDeliveryPartner = async (orderId: string, partnerId: string) => {
+  const assignDeliveryPartner = async (orderIds: string[], partnerId: string) => {
     try {
       setAssigningPartner(true);
       setAssigningPartnerId(partnerId);
       setAssignError(null);
-      
-      const response = await apiRequest(`orders/admin/${orderId}/assign-delivery`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deliveryPartnerId: partnerId })
-      });
-      
-      const data = await parseApiResponse(response);
-      
-      if (data.status === 'success') {
-        showNotification('Delivery partner assigned successfully!', 'success');
+
+      let successCount = 0;
+
+      for (const orderId of orderIds) {
+        const response = await apiRequest(`orders/admin/${orderId}/assign-delivery`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deliveryPartnerId: partnerId })
+        });
+
+        const data = await parseApiResponse(response);
+        if (data.status === 'success') {
+          successCount += 1;
+        }
+      }
+
+      if (successCount > 0) {
+        showNotification(
+          successCount === orderIds.length
+            ? `Delivery partner assigned to ${successCount} order(s)!`
+            : `Assigned ${successCount}/${orderIds.length} order(s).`,
+          successCount === orderIds.length ? 'success' : 'error'
+        );
         setShowAssignModal(false);
+        setSelectedOrderForAssign(null);
+        setSelectedOrderIdsForAssign([]);
         setTempSelectedPartnerId(null);
         setAssigningPartnerId(null);
         setAssignError(null);
         // Refresh orders to show updated status
         if (view === "today") {
-          fetchTodayOrders();
+          refreshTodayOrders();
         } else {
           fetchAllOrders(currentPage);
         }
       } else {
-        const errorMsg = data.message || 'Failed to assign delivery partner';
+        const errorMsg = 'Failed to assign delivery partner to selected orders';
         setAssignError(errorMsg);
         showNotification(errorMsg, 'error');
       }
@@ -1762,9 +1942,73 @@ export default function OrderManagement() {
   
   // Handler for confirming assignment (second step)
   const handleConfirmAssignment = () => {
-    if (tempSelectedPartnerId && selectedOrderForAssign) {
-      assignDeliveryPartner(selectedOrderForAssign.id, tempSelectedPartnerId);
+    if (tempSelectedPartnerId && selectedOrderIdsForAssign.length > 0) {
+      assignDeliveryPartner(selectedOrderIdsForAssign, tempSelectedPartnerId);
     }
+  };
+
+  const handleBulkStatusUpdate = async (
+    orders: Order[],
+    resolveStatus: (order: Order) => string,
+    successLabel: string
+  ) => {
+    if (!isOnline) {
+      showNotification('No internet connection. Please check your network and try again.', 'error');
+      return;
+    }
+
+    if (!orders.length) {
+      return;
+    }
+
+    const resolvedStatuses = orders.map((order) => resolveStatus(order));
+    const uniqueStatuses = new Set(resolvedStatuses);
+
+    if (uniqueStatuses.size !== 1) {
+      showNotification('Selected orders do not share the same target status.', 'error');
+      return;
+    }
+
+    const bulkStatus = Array.from(uniqueStatuses)[0] as 'ACCEPTED' | 'READY' | 'DELIVERED' | 'CANCELLED';
+    const result = await bulkUpdateOrderStatus(
+      orders.map((order) => order.id),
+      bulkStatus
+    );
+
+    if (!result) {
+      showNotification('Bulk update failed. Please retry.', 'error');
+      return;
+    }
+
+    if (result.failed > 0 || result.skipped > 0) {
+      showNotification(
+        `Bulk update completed with issues: ${result.modified}/${result.totalRequested} updated, ${result.skipped} skipped, ${result.failed} failed.`,
+        'error'
+      );
+    } else {
+      showNotification(`${result.modified} order(s) moved to ${successLabel}.`, 'success');
+    }
+
+    await refreshTodayOrders();
+  };
+
+  const handleBulkAccept = async (orders: Order[]) => {
+    await handleBulkStatusUpdate(orders, () => 'ACCEPTED', 'Accepted');
+  };
+
+  const handleBulkReady = async (orders: Order[]) => {
+    await handleBulkStatusUpdate(orders, () => 'READY', 'Ready');
+  };
+
+  const handleBulkAssign = async (orders: Order[]) => {
+    setSelectedOrderForAssign(orders[0] || null);
+    setSelectedOrderIdsForAssign(orders.map((order) => order.id));
+    setShowAssignModal(true);
+    await fetchDeliveryPartners();
+  };
+
+  const handleBulkDelivered = async (orders: Order[]) => {
+    await handleBulkStatusUpdate(orders, () => 'DELIVERED', 'Delivered');
   };
   
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
@@ -1789,6 +2033,7 @@ export default function OrderManagement() {
       const order = todayOrders?.ready?.find(o => o.id === orderId);
       if (order) {
         setSelectedOrderForAssign(order);
+        setSelectedOrderIdsForAssign([order.id]);
         setShowAssignModal(true);
         // Fetch delivery partners when modal opens
         fetchDeliveryPartners();
@@ -1858,6 +2103,7 @@ export default function OrderManagement() {
           
           // Update state immediately (optimistic update)
           setTodayOrders(newTodayOrders);
+          queryClient.setQueryData(appQueryKeys.todayOrders, newTodayOrders);
           
           // Show notification
           showNotification(`Order moved from ${fromStatus} to ${toStatusInfo.display}!`, 'success');
@@ -1878,7 +2124,7 @@ export default function OrderManagement() {
       
       // Only refresh on failure to revert optimistic update
       if (view === "today") {
-        fetchTodayOrders();
+        refreshTodayOrders();
       } else {
         fetchAllOrders(currentPage);
       }
@@ -1900,6 +2146,8 @@ export default function OrderManagement() {
     Delivered: todayOrders?.delivered || [],
     Canceled: todayOrders?.cancelled || [],
   };
+
+  const loading = view === "today" ? (todayOrdersLoading && !todayOrders) : loadingAll;
 
   return (
     <>
@@ -1936,7 +2184,7 @@ export default function OrderManagement() {
         <button
           onClick={() => {
             if (view === "today") {
-              fetchTodayOrders();
+              refreshTodayOrders();
             } else {
               fetchAllOrders(currentPage);
             }
@@ -1991,25 +2239,66 @@ export default function OrderManagement() {
           ) : (
             <>
               {/* New Orders Table */}
-              <OrderTable orders={ordersByStatus.New} title="New Orders" badgeColor="indigo" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
+              <OrderTable
+                orders={ordersByStatus.New}
+                title="New Orders"
+                badgeColor="indigo"
+                onStatusUpdate={handleStatusUpdate}
+                onRefresh={refreshTodayOrders}
+                bulkActionMode="new"
+                onBulkAccept={handleBulkAccept}
+              />
               
               {/* Accepted Orders Table */}
-              <OrderTable orders={ordersByStatus.Accepted} title="Accepted" badgeColor="blue" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
+              <OrderTable
+                orders={ordersByStatus.Accepted}
+                title="Accepted"
+                badgeColor="blue"
+                onStatusUpdate={handleStatusUpdate}
+                onRefresh={refreshTodayOrders}
+                bulkActionMode="accepted"
+                onBulkReady={handleBulkReady}
+              />
               
               {/* Ready Orders Table */}
-              <OrderTable orders={ordersByStatus.Ready} title="Ready for Delivery" badgeColor="purple" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
+              <OrderTable
+                orders={ordersByStatus.Ready}
+                title="Ready for Delivery"
+                badgeColor="purple"
+                onStatusUpdate={handleStatusUpdate}
+                onRefresh={refreshTodayOrders}
+                bulkActionMode="readyDelivery"
+                onBulkAssign={handleBulkAssign}
+                onBulkDeliver={handleBulkDelivered}
+              />
               
               {/* Ready for Pickup Orders Table (Takeaway) */}
-              <OrderTable orders={ordersByStatus["Ready for Pickup"]} title="Ready for Pickup" badgeColor="green" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
+              <OrderTable
+                orders={ordersByStatus["Ready for Pickup"]}
+                title="Ready for Pickup"
+                badgeColor="green"
+                onStatusUpdate={handleStatusUpdate}
+                onRefresh={refreshTodayOrders}
+                bulkActionMode="readyPickup"
+                onBulkDeliver={handleBulkDelivered}
+              />
               
               {/* Out for Delivery Orders Table */}
-              <OrderTable orders={ordersByStatus["Out for Delivery"]} title="Out for Delivery" badgeColor="indigo" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
+              <OrderTable
+                orders={ordersByStatus["Out for Delivery"]}
+                title="Out for Delivery"
+                badgeColor="indigo"
+                onStatusUpdate={handleStatusUpdate}
+                onRefresh={refreshTodayOrders}
+                bulkActionMode="outForDelivery"
+                onBulkDeliver={handleBulkDelivered}
+              />
               
               {/* Delivered Orders Table */}
-              <OrderTable orders={ordersByStatus.Delivered} title="Delivered" badgeColor="green" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
+              <OrderTable orders={ordersByStatus.Delivered} title="Delivered" badgeColor="green" onStatusUpdate={handleStatusUpdate} onRefresh={refreshTodayOrders} />
               
               {/* Canceled Orders Table */}
-              <OrderTable orders={ordersByStatus.Canceled} title="Canceled" badgeColor="red" onStatusUpdate={handleStatusUpdate} onRefresh={fetchTodayOrders} />
+              <OrderTable orders={ordersByStatus.Canceled} title="Canceled" badgeColor="red" onStatusUpdate={handleStatusUpdate} onRefresh={refreshTodayOrders} />
             </>
           )}
         </div>
@@ -2089,7 +2378,7 @@ export default function OrderManagement() {
       )}
       
       {/* Assign Delivery Partner Modal */}
-      {showAssignModal && selectedOrderForAssign && (
+      {showAssignModal && selectedOrderIdsForAssign.length > 0 && (
         <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-xl bg-white shadow-2xl dark:bg-gray-800 m-4">
             {/* Modal Header */}
@@ -2098,6 +2387,8 @@ export default function OrderManagement() {
               <button
                 onClick={() => {
                   setShowAssignModal(false);
+                  setSelectedOrderForAssign(null);
+                  setSelectedOrderIdsForAssign([]);
                   setAssignError(null);
                   setTempSelectedPartnerId(null);
                   setAssigningPartnerId(null);
@@ -2114,7 +2405,15 @@ export default function OrderManagement() {
             {/* Modal Body */}
             <div className="max-h-[60vh] overflow-y-auto p-6">
               <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                Order: <span className="font-semibold text-gray-900 dark:text-white">#{selectedOrderForAssign.orderId}</span>
+                {selectedOrderIdsForAssign.length === 1 ? (
+                  <>
+                    Order: <span className="font-semibold text-gray-900 dark:text-white">#{selectedOrderForAssign?.orderId || selectedOrderIdsForAssign[0]}</span>
+                  </>
+                ) : (
+                  <>
+                    Orders selected: <span className="font-semibold text-gray-900 dark:text-white">{selectedOrderIdsForAssign.length}</span>
+                  </>
+                )}
               </p>
               
               {/* Inline Error Message */}

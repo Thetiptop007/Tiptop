@@ -6,6 +6,7 @@ import AppLayout from "./layout/AppLayout";
 import CustomerLayout from "./layout/CustomerLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
+import BusinessInsights from "./pages/BusinessInsights";
 import LandingPage from "./pages/LandingPage";
 import GuestOrder from "./pages/GuestOrder";
 import OrderManagement from "./pages/Orders/OrderManagement";
@@ -97,6 +98,7 @@ function AppContent() {
                   }
                 >
                   <Route index element={<Home />} />
+                  <Route path="insights" element={<BusinessInsights />} />
 
                   {/* Orders */}
                   <Route path="orders" element={<OrderManagement />} />

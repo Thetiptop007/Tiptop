@@ -32,6 +32,9 @@ importers:
       '@react-jvectormap/world':
         specifier: ^1.1.2
         version: 1.1.2
+      '@tanstack/react-query':
+        specifier: ^5.99.0
+        version: 5.99.0(react@19.0.0)
       apexcharts:
         specifier: ^4.1.0
         version: 4.4.0
@@ -1045,6 +1048,14 @@ packages:
 
   '@tailwindcss/postcss@4.0.8':
     resolution: {integrity: sha512-SUwlrXjn1ycmUbA0o0n3Y0LqlXqxN5R8HR+ti+OBbRS79wl2seDmiypEs3xJCuQXe07ol81s1AmRMitBmPveJA==}
+
+  '@tanstack/query-core@5.99.0':
+    resolution: {integrity: sha512-3Jv3WQG0BCcH7G+7lf/bP8QyBfJOXeY+T08Rin3GZ1bshvwlbPt7NrDHMEzGdKIOmOzvIQmxjk28YEQX60k7pQ==}
+
+  '@tanstack/react-query@5.99.0':
+    resolution: {integrity: sha512-OY2bCqPemT1LlqJ8Y2CUau4KELnIhhG9Ol3ZndPbdnB095pRbPo1cHuXTndg8iIwtoHTgwZjyaDnQ0xD0mYwAw==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -2931,6 +2942,13 @@ snapshots:
       lightningcss: 1.29.1
       postcss: 8.5.2
       tailwindcss: 4.0.8
+
+  '@tanstack/query-core@5.99.0': {}
+
+  '@tanstack/react-query@5.99.0(react@19.0.0)':
+    dependencies:
+      '@tanstack/query-core': 5.99.0
+      react: 19.0.0
 
   '@types/babel__core@7.20.5':
     dependencies:

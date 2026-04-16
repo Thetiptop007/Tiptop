@@ -1,24 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { useAuth } from "../../context/AuthContext";
-import { getCurrentUser, User } from "../../services/auth.service";
+import { useCurrentAdminUserQuery } from "../../hooks/useAppDataQueries";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const { logout } = useAuth();
-  const [user, setUser] = useState<User | null>(null);
+  const { logout, user: authUser } = useAuth();
+  const { data: currentUser } = useCurrentAdminUserQuery();
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
-  const fetchUser = async () => {
-    try {
-      const userData = await getCurrentUser();
-      setUser(userData);
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
+  const formatAdminName = (name: unknown) => {
+    if (typeof name === 'string') {
+      return name;
     }
+
+    if (name && typeof name === 'object') {
+      const typedName = name as { first?: string; last?: string };
+      return [typedName.first, typedName.last].filter(Boolean).join(' ');
+    }
+
+    return '';
+  };
+
+  const formatAdminEmail = (email: unknown) => {
+    if (typeof email === 'string') {
+      return email;
+    }
+
+    if (email && typeof email === 'object') {
+      return (email as { address?: string }).address || '';
+    }
+
+    return '';
   };
 
   function toggleDropdown() {
@@ -34,8 +46,8 @@ export default function UserDropdown() {
     logout();
   }
 
-  const displayName = user?.name || "Admin User";
-  const displayEmail = user?.email || "admin@example.com";
+  const displayName = formatAdminName(currentUser?.name) || authUser?.name || "Admin User";
+  const displayEmail = formatAdminEmail(currentUser?.email) || authUser?.email || "admin@example.com";
 
   return (
     <div className="relative">

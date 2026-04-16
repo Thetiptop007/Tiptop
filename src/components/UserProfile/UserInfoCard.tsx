@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
-import { getCurrentUser, updateCurrentUser, User } from "../../services/auth.service";
+import { updateCurrentUser, type User } from "../../services/auth.service";
+import { appQueryKeys, useCurrentAdminUserQuery } from "../../hooks/useAppDataQueries";
 
 export default function UserInfoCard() {
   const { isOpen, openModal, closeModal } = useModal();
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
@@ -18,31 +19,57 @@ export default function UserInfoCard() {
     phone: '',
   });
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { data: currentUser, isLoading: loading } = useCurrentAdminUserQuery();
+
+  const getDisplayName = (name: unknown) => {
+    if (typeof name === 'string') {
+      return name;
+    }
+
+    if (name && typeof name === 'object') {
+      const typedName = name as { first?: string; last?: string };
+      return [typedName.first, typedName.last].filter(Boolean).join(' ');
+    }
+
+    return '';
+  };
+
+  const getDisplayEmail = (email: unknown) => {
+    if (typeof email === 'string') {
+      return email;
+    }
+
+    if (email && typeof email === 'object') {
+      return (email as { address?: string }).address || '';
+    }
+
+    return '';
+  };
+
+  const getDisplayPhone = (phone: unknown) => {
+    if (typeof phone === 'string') {
+      return phone;
+    }
+
+    if (phone && typeof phone === 'object') {
+      return (phone as { number?: string }).number || '';
+    }
+
+    return '';
+  };
 
   useEffect(() => {
-    fetchUser();
-  }, []);
-
-  const fetchUser = async () => {
-    try {
-      setLoading(true);
-      const userData = await getCurrentUser();
-      setUser(userData);
-      if (userData) {
-        const nameParts = (userData.name || '').split(' ');
-        setFormData({
-          firstName: nameParts[0] || '',
-          lastName: nameParts.slice(1).join(' ') || '',
-          email: userData.email || '',
-          phone: userData.phone || '',
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-    } finally {
-      setLoading(false);
+    if (currentUser) {
+      setUser(currentUser);
+      setFormData({
+        firstName: getDisplayName(currentUser.name).split(' ')[0] || '',
+        lastName: getDisplayName(currentUser.name).split(' ').slice(1).join(' ') || '',
+        email: getDisplayEmail(currentUser.email),
+        phone: getDisplayPhone(currentUser.phone),
+      });
     }
-  };
+  }, [currentUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -62,7 +89,7 @@ export default function UserInfoCard() {
         email: formData.email,
         phone: formData.phone,
       });
-      await fetchUser();
+      await queryClient.invalidateQueries({ queryKey: appQueryKeys.currentUser, exact: true });
       closeModal();
     } catch (error: any) {
       console.error('Failed to save user profile:', error);
@@ -103,7 +130,7 @@ export default function UserInfoCard() {
                 Name
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {user?.name || 'N/A'}
+                {getDisplayName(user?.name) || 'N/A'}
               </p>
             </div>
 
@@ -112,7 +139,7 @@ export default function UserInfoCard() {
                 Email address
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {user?.email || 'N/A'}
+                {getDisplayEmail(user?.email) || 'N/A'}
               </p>
             </div>
 
@@ -121,7 +148,7 @@ export default function UserInfoCard() {
                 Phone
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {user?.phone || 'N/A'}
+                {getDisplayPhone(user?.phone) || 'N/A'}
               </p>
             </div>
 

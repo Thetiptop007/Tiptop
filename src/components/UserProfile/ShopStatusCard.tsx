@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { toggleShopStatus } from '../../services/settings.service';
 import { useShopStatus } from '../../context/ShopStatusContext';
+import { useToggleShopStatusMutation } from '../../hooks/useAppDataQueries';
 
 export default function ShopStatusCard() {
   const { shopStatus, isLoading: loading, setShopStatus } = useShopStatus();
   const [toggling, setToggling] = useState(false);
+  const toggleShopStatusMutation = useToggleShopStatusMutation();
 
   const handleToggleShop = async (isOpen: boolean) => {
     if (!isOpen) {
@@ -14,7 +15,7 @@ export default function ShopStatusCard() {
       
       try {
         setToggling(true);
-        const updatedStatus = await toggleShopStatus(false, reason);
+        const updatedStatus = await toggleShopStatusMutation.mutateAsync({ isOpen: false, closureReason: reason });
         setShopStatus(updatedStatus);
         alert('Shop is now CLOSED');
       } catch (error) {
@@ -27,7 +28,7 @@ export default function ShopStatusCard() {
       // Open shop directly
       try {
         setToggling(true);
-        const updatedStatus = await toggleShopStatus(true, '');
+        const updatedStatus = await toggleShopStatusMutation.mutateAsync({ isOpen: true, closureReason: '' });
         setShopStatus(updatedStatus);
         alert('Shop is now OPEN');
       } catch (error) {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getSettings, updateSettings, Settings as SettingsType, toggleShopStatus, ShopStatus } from '../services/settings.service';
+import { getSettings, updateSettings, Settings as SettingsType, ShopStatus } from '../services/settings.service';
+import { useToggleShopStatusMutation } from '../hooks/useAppDataQueries';
 
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsType | null>(null);
@@ -10,6 +11,7 @@ export default function Settings() {
   const [togglingShop, setTogglingShop] = useState(false);
   const [closureReason, setClosureReason] = useState('');
   const [showReasonInput, setShowReasonInput] = useState(false);
+  const toggleShopStatusMutation = useToggleShopStatusMutation();
 
   useEffect(() => {
     fetchSettings();
@@ -37,7 +39,10 @@ export default function Settings() {
 
     try {
       setTogglingShop(true);
-      const updatedStatus = await toggleShopStatus(isOpen, isOpen ? '' : closureReason);
+      const updatedStatus = await toggleShopStatusMutation.mutateAsync({
+        isOpen,
+        closureReason: isOpen ? '' : closureReason,
+      });
       setShopStatus(updatedStatus);
       setShowReasonInput(false);
       setClosureReason('');

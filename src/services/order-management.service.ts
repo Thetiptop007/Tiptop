@@ -104,6 +104,15 @@ export interface AllOrdersResponse {
   };
 }
 
+export interface BulkStatusUpdateResult {
+  totalRequested: number;
+  matched: number;
+  modified: number;
+  skipped: number;
+  failed: number;
+  failedIds: string[];
+}
+
 /**
  * Get today's orders grouped by status
  */
@@ -202,7 +211,8 @@ export const updateOrderStatus = async (
     console.log(`📦 Updating order ${orderId} to status: ${newStatus}, type: ${orderType}`);
     
     let endpoint = '';
-    let method = 'PATCH';
+    const method = 'PATCH';
+    let requestBody: Record<string, unknown> | undefined;
     
     // Map status to specific backend endpoints
     switch (newStatus) {
@@ -221,8 +231,12 @@ export const updateOrderStatus = async (
           endpoint = `orders/${orderId}/complete-takeaway`;
           console.log('✅ Using /complete-takeaway endpoint (READY_FOR_PICKUP → DELIVERED)');
         } else {
-          console.error('⚠️ DELIVERED status change only supported for takeaway orders in this flow');
-          return false;
+          endpoint = `admin/orders/${orderId}/status`;
+          requestBody = {
+            status: 'DELIVERED',
+            notes: 'Marked delivered by admin',
+          };
+          console.log('✅ Using admin /status endpoint to mark delivery order as DELIVERED');
         }
         break;
       case 'CANCELLED':
@@ -238,7 +252,8 @@ export const updateOrderStatus = async (
       method,
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      ...(requestBody ? { body: JSON.stringify(requestBody) } : {})
     });
     
     const data = await parseApiResponse(response);
@@ -253,6 +268,37 @@ export const updateOrderStatus = async (
   } catch (error) {
     console.error('Error updating order status:', error);
     return false;
+  }
+};
+
+export const bulkUpdateOrderStatus = async (
+  orderIds: string[],
+  status: 'ACCEPTED' | 'READY' | 'DELIVERED' | 'CANCELLED'
+): Promise<BulkStatusUpdateResult | null> => {
+  const payload = {
+    orderIds,
+    status,
+  };
+
+  try {
+    const response = await apiRequest('orders/bulk-update-status', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await parseApiResponse(response);
+
+    if (data.status === 'success' && data.data) {
+      return data.data as BulkStatusUpdateResult;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Bulk status update failed:', error);
+    return null;
   }
 };
 
