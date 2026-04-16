@@ -26,6 +26,23 @@ interface ResponseSnapshot {
 const inFlightGetRequests = new Map<string, Promise<ResponseSnapshot>>();
 const recentGetResponses = new Map<string, { snapshot: ResponseSnapshot; expiresAt: number }>();
 const GET_RESPONSE_TTL_MS = 1500;
+let inFlightRefreshPromise: Promise<string | null> | null = null;
+
+const clearAdminSession = () => {
+  localStorage.removeItem('adminToken');
+  localStorage.removeItem('adminRefreshToken');
+  localStorage.removeItem('adminEmail');
+  localStorage.removeItem('adminName');
+  localStorage.removeItem('adminRole');
+  inFlightGetRequests.clear();
+  recentGetResponses.clear();
+};
+
+const redirectToSignIn = () => {
+  if (window.location.pathname !== '/signin') {
+    window.location.href = '/signin';
+  }
+};
 
 const createResponseFromSnapshot = (snapshot: ResponseSnapshot): Response =>
   new Response(snapshot.body, {
@@ -57,6 +74,10 @@ export const getApiUrl = (endpoint: string = ''): string => {
  * Stores new token in localStorage if successful
  */
 const refreshAccessToken = async (): Promise<string | null> => {
+  if (inFlightRefreshPromise) {
+    return inFlightRefreshPromise;
+  }
+
   const refreshToken = localStorage.getItem('adminRefreshToken');
   
   if (!refreshToken) {
@@ -64,41 +85,41 @@ const refreshAccessToken = async (): Promise<string | null> => {
     return null;
   }
 
-  try {
-    const response = await fetch(getApiUrl('auth/refresh-token'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refreshToken }),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5000),
-    });
+  inFlightRefreshPromise = (async () => {
+    try {
+      const response = await fetch(getApiUrl('auth/refresh-token'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(5000),
+      });
 
-    if (response.status === 200) {
-      const data = await response.json();
-      if (data.status === 'success' && data.data?.accessToken) {
-        const newAccessToken = data.data.accessToken;
-        localStorage.setItem('adminToken', newAccessToken);
-        logger.info('Token refreshed successfully');
-        return newAccessToken;
+      if (response.status === 200) {
+        const data = await response.json();
+        if (data.status === 'success' && data.data?.accessToken) {
+          const newAccessToken = data.data.accessToken;
+          localStorage.setItem('adminToken', newAccessToken);
+          logger.info('Token refreshed successfully');
+          return newAccessToken;
+        }
       }
-    } else {
-      logger.warn('Failed to refresh token:', response.status);
-      // Clear stored tokens if refresh fails
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminRefreshToken');
-      localStorage.removeItem('adminEmail');
-      localStorage.removeItem('adminName');
-      localStorage.removeItem('adminRole');
-    }
-  } catch (error: any) {
-    logger.error('Token refresh failed:', error?.message);
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminRefreshToken');
-  }
 
-  return null;
+      logger.warn('Failed to refresh token:', response.status);
+      clearAdminSession();
+      return null;
+    } catch (error: any) {
+      logger.error('Token refresh failed:', error?.message);
+      clearAdminSession();
+      return null;
+    } finally {
+      inFlightRefreshPromise = null;
+    }
+  })();
+
+  return inFlightRefreshPromise;
 };
 
 /**
@@ -192,15 +213,11 @@ export const apiRequest = async (
         retryCount,
       });
       
-      // Only auto-clear and redirect for admin routes (stricter security)
-      if (isAdminRoute && retryCount > 0) {
-        // Only redirect on retry exhaustion to avoid redirect loops
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminRefreshToken');
-        localStorage.removeItem('adminEmail');
-        localStorage.removeItem('adminName');
-        localStorage.removeItem('adminRole');
-        window.location.href = '/signin';
+      // Clear and redirect admin sessions as soon as auth is invalid.
+      // This handles legacy sessions that still have access token but no refresh token.
+      if (isAdminRoute) {
+        clearAdminSession();
+        redirectToSignIn();
       }
       // For customer routes, don't auto-clear tokens
       // Components/contexts will handle token clearing when appropriate
@@ -229,10 +246,12 @@ export const apiRequest = async (
       const requestPromise = executeRequest()
         .then(snapshotResponse)
         .then((snapshot) => {
-          recentGetResponses.set(dedupeKey, {
-            snapshot,
-            expiresAt: Date.now() + GET_RESPONSE_TTL_MS,
-          });
+          if (snapshot.status < 400) {
+            recentGetResponses.set(dedupeKey, {
+              snapshot,
+              expiresAt: Date.now() + GET_RESPONSE_TTL_MS,
+            });
+          }
           return snapshot;
         })
         .finally(() => {

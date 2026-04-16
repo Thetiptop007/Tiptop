@@ -43,8 +43,10 @@ export const useBusinessInsightsQuery = () =>
   useQuery<BusinessInsightsData | null>({
     queryKey: appQueryKeys.businessInsights,
     queryFn: getBusinessInsightsData,
+    enabled: !!localStorage.getItem('adminToken'),
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
+    retry: false,
   });
 
 export const useTodayOrdersQuery = () =>

@@ -24,17 +24,20 @@ export interface BusinessInsightsData {
 }
 
 export const getBusinessInsightsData = async (): Promise<BusinessInsightsData | null> => {
-  try {
-    const response = await apiRequest('dashboard/business-insights');
-    const parsed = await parseApiResponse(response);
+  const response = await apiRequest('dashboard/business-insights');
+  const parsed = await parseApiResponse(response);
 
-    if (parsed.status === 'success' && parsed.data) {
-      return parsed.data as BusinessInsightsData;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error fetching business insights data:', error);
-    return null;
+  if (response.status === 401) {
+    throw new Error(parsed.message || 'Session expired. Please sign in again.');
   }
+
+  if (!response.ok) {
+    throw new Error(parsed.message || 'Failed to load business insights.');
+  }
+
+  if (parsed.status === 'success' && parsed.data) {
+    return parsed.data as BusinessInsightsData;
+  }
+
+  throw new Error(parsed.message || 'Failed to load business insights.');
 };

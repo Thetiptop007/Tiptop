@@ -244,9 +244,10 @@ export default function BusinessInsights() {
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const { data: insights, isLoading: loading, error } = useBusinessInsightsQuery();
   const errorMessage = error instanceof Error ? error.message : error ? 'Failed to load business insights.' : null;
+  const hasError = Boolean(errorMessage);
 
   const summaryMetrics = useMemo<SummaryMetric[]>(() => {
-    const summary = insights?.summary;
+    const summary = hasError ? null : insights?.summary;
 
     return [
       {
@@ -278,10 +279,10 @@ export default function BusinessInsights() {
         icon: <PieChartIcon className="size-6" />,
       },
     ];
-  }, [insights]);
+  }, [hasError, insights]);
 
-  const yearlyTrend = useMemo(() => insights?.trends?.yearly || [], [insights]);
-  const monthlyByYear = useMemo(() => insights?.trends?.monthlyByYear || {}, [insights]);
+  const yearlyTrend = useMemo(() => (hasError ? [] : insights?.trends?.yearly || []), [hasError, insights]);
+  const monthlyByYear = useMemo(() => (hasError ? {} : insights?.trends?.monthlyByYear || {}), [hasError, insights]);
 
   const handleSelectYear = useCallback((year: string) => {
     setSelectedYear(year);

@@ -35,22 +35,22 @@ export interface UpdateProfileData {
  * Get current authenticated user's profile
  */
 export const getCurrentUser = async (): Promise<User | null> => {
-  try {
-    const response = await apiRequest('auth/me');
-    const data = await parseApiResponse(response);
+  const response = await apiRequest('auth/me');
+  const data = await parseApiResponse(response);
 
-    console.log('getCurrentUser response:', data);
-
-    if (data.status === 'success' && data.data?.user) {
-      console.log('User data:', data.data.user);
-      return data.data.user;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error fetching current user:', error);
-    return null;
+  if (response.status === 401) {
+    throw new Error(data.message || 'Invalid token. Please log in again.');
   }
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch current user.');
+  }
+
+  if (data.status === 'success' && data.data?.user) {
+    return data.data.user;
+  }
+
+  return null;
 };
 
 /**
