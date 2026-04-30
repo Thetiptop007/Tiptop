@@ -107,27 +107,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     } catch (error) {
       logger.error('Admin login failed');
-      
-      // Fallback to demo login if backend is not available
-      if (email === 'admin@thetiptop.com' && password === 'admin123') {
-        localStorage.setItem('adminToken', 'demo-token');
-        localStorage.setItem('adminEmail', email);
-        localStorage.setItem('adminName', 'Demo Admin');
-        localStorage.setItem('adminRole', 'admin');
-        
-        setUser({
-          email,
-          name: 'Demo Admin',
-          role: 'admin',
-        });
-
-        return { success: true };
-      }
-
-      return {
-        success: false,
-        message: 'Cannot connect to server. Please check your connection or use demo credentials.',
-      };
+        return {
+          success: false,
+          message: 'Cannot connect to server. Please check your connection and try again.',
+        };
     }
   };
 
