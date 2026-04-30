@@ -41,7 +41,6 @@ export interface LoginResponse {
   data: {
     user: CustomerUser;
     accessToken: string;
-    refreshToken: string;
   };
 }
 
@@ -60,7 +59,6 @@ export interface SignUpResponse {
     user: CustomerUser;
     tokens: {
       accessToken: string;
-      refreshToken: string;
       expiresIn: string;
     };
   };
@@ -77,7 +75,6 @@ export interface VerifyOTPResponse {
   data: {
     user: CustomerUser;
     accessToken: string;
-    refreshToken: string;
   };
 }
 
@@ -88,6 +85,9 @@ export const customerLogin = async (phone: string, password: string): Promise<Lo
   try {
     const response = await apiRequest('auth/login', {
       method: 'POST',
+      headers: {
+        'X-Auth-Scope': 'customer',
+      },
       body: JSON.stringify({
         email: phone,  // Backend expects 'email' field for phone OR email
         password,
@@ -99,10 +99,8 @@ export const customerLogin = async (phone: string, password: string): Promise<Lo
     if (data.status === 'success' && data.data) {
       // Store tokens and user data (tokens are nested in data.tokens)
       const accessToken = data.data.tokens?.accessToken || data.data.accessToken;
-      const refreshToken = data.data.tokens?.refreshToken || data.data.refreshToken;
       
       localStorage.setItem('customerToken', accessToken);
-      localStorage.setItem('customerRefreshToken', refreshToken);
       localStorage.setItem('customerUser', JSON.stringify(data.data.user));
       logger.debug('Customer tokens persisted after login');
       
@@ -150,6 +148,9 @@ export const customerSignUp = async (data: SignUpRequest): Promise<SignUpRespons
     
     const response = await apiRequest('auth/register', {
       method: 'POST',
+      headers: {
+        'X-Auth-Scope': 'customer',
+      },
       body: JSON.stringify(data)
     });
 
@@ -161,7 +162,6 @@ export const customerSignUp = async (data: SignUpRequest): Promise<SignUpRespons
       // Store tokens and user data (auto-login after registration)
       if (result.data.tokens && result.data.user) {
         localStorage.setItem('customerToken', result.data.tokens.accessToken);
-        localStorage.setItem('customerRefreshToken', result.data.tokens.refreshToken);
         localStorage.setItem('customerUser', JSON.stringify(result.data.user));
         logger.debug('Customer auth persisted after signup');
       }
@@ -205,6 +205,9 @@ export const verifyOTP = async (email: string, otp: string): Promise<VerifyOTPRe
   try {
     const response = await apiRequest('auth/verify-otp', {
       method: 'POST',
+      headers: {
+        'X-Auth-Scope': 'customer',
+      },
       body: JSON.stringify({ email, otp })
     });
 
@@ -213,10 +216,8 @@ export const verifyOTP = async (email: string, otp: string): Promise<VerifyOTPRe
     if (data.status === 'success' && data.data) {
       // Store tokens and user data after verification (tokens are nested in data.tokens)
       const accessToken = data.data.tokens?.accessToken || data.data.accessToken;
-      const refreshToken = data.data.tokens?.refreshToken || data.data.refreshToken;
       
       localStorage.setItem('customerToken', accessToken);
-      localStorage.setItem('customerRefreshToken', refreshToken);
       localStorage.setItem('customerUser', JSON.stringify(data.data.user));
       logger.debug('Customer tokens persisted after OTP verification');
       
@@ -246,6 +247,9 @@ export const resendOTP = async (email: string): Promise<{ status: string; messag
   try {
     const response = await apiRequest('auth/resend-otp', {
       method: 'POST',
+      headers: {
+        'X-Auth-Scope': 'customer',
+      },
       body: JSON.stringify({ email })
     });
 
@@ -276,8 +280,9 @@ export const customerLogout = async (): Promise<void> => {
       await apiRequest('auth/logout', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'X-Auth-Scope': 'customer',
+        },
       });
     }
   } catch (error) {
@@ -285,7 +290,6 @@ export const customerLogout = async (): Promise<void> => {
   } finally {
     // Clear local storage regardless of API call success
     localStorage.removeItem('customerToken');
-    localStorage.removeItem('customerRefreshToken');
     localStorage.removeItem('customerUser');
   }
 };
@@ -353,15 +357,11 @@ export const getStoredCustomer = (): CustomerUser | null => {
  */
 export const refreshAccessToken = async (): Promise<string> => {
   try {
-    const refreshToken = localStorage.getItem('customerRefreshToken');
-    
-    if (!refreshToken) {
-      throw new Error('No refresh token found');
-    }
-
     const response = await apiRequest('auth/refresh-token', {
       method: 'POST',
-      body: JSON.stringify({ refreshToken })
+      headers: {
+        'X-Auth-Scope': 'customer',
+      },
     });
 
     const data = await parseApiResponse(response);
@@ -376,7 +376,6 @@ export const refreshAccessToken = async (): Promise<string> => {
     console.error('Token refresh error:', error);
     // Clear tokens on refresh failure
     localStorage.removeItem('customerToken');
-    localStorage.removeItem('customerRefreshToken');
     localStorage.removeItem('customerUser');
     throw error;
   }
