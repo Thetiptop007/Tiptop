@@ -43,18 +43,6 @@ import { ShopStatusProvider } from "./context/ShopStatusContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { useEffect } from "react";
 import { logger } from "./utils/logger";
-import MaintenancePage from "./components/common/MaintenancePage";
-
-const MAINTENANCE_MODE = true;
-
-function MaintenanceRoutes() {
-  return (
-    <Routes>
-      <Route path="/maintenance" element={<MaintenancePage />} />
-      <Route path="*" element={<Navigate to="/maintenance" replace />} />
-    </Routes>
-  );
-}
 
 function AppRoutes() {
   const { isLoading } = useCustomerAuth();
@@ -155,10 +143,6 @@ function AppRoutes() {
 }
 
 function AppContent() {
-  if (MAINTENANCE_MODE) {
-    return <MaintenanceRoutes />;
-  }
-
   return <AppRoutes />;
 }
 
