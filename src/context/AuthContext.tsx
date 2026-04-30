@@ -62,7 +62,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Auth-Scope': 'admin',
         },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
 
@@ -79,15 +81,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         // Store auth tokens and user info
         const accessToken = data.data.tokens.accessToken;
-        const refreshToken = data.data.tokens.refreshToken;
         const userEmail = data.data.user.email?.address || data.data.user.email;
         const userName = `${data.data.user.name.first} ${data.data.user.name.last}`;
         const userRole = data.data.user.role;
 
         localStorage.setItem('adminToken', accessToken);
-        if (refreshToken) {
-          localStorage.setItem('adminRefreshToken', refreshToken);
-        }
         localStorage.setItem('adminEmail', userEmail);
         localStorage.setItem('adminName', userName);
         localStorage.setItem('adminRole', userRole);
@@ -115,8 +113,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = () => {
+    fetch(getApiUrl('auth/logout'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Scope': 'admin',
+      },
+      credentials: 'include',
+    }).catch(() => logger.warn('Admin logout request failed'));
+
     localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminRefreshToken');
     localStorage.removeItem('adminEmail');
     localStorage.removeItem('adminName');
     localStorage.removeItem('adminRole');

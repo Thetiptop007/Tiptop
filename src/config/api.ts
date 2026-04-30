@@ -30,7 +30,6 @@ let inFlightRefreshPromise: Promise<string | null> | null = null;
 
 const clearAdminSession = () => {
   localStorage.removeItem('adminToken');
-  localStorage.removeItem('adminRefreshToken');
   localStorage.removeItem('adminEmail');
   localStorage.removeItem('adminName');
   localStorage.removeItem('adminRole');
@@ -78,21 +77,16 @@ const refreshAccessToken = async (): Promise<string | null> => {
     return inFlightRefreshPromise;
   }
 
-  const refreshToken = localStorage.getItem('adminRefreshToken');
-  
-  if (!refreshToken) {
-    logger.warn('No refresh token available for token refresh');
-    return null;
-  }
-
   inFlightRefreshPromise = (async () => {
     try {
       const response = await fetch(getApiUrl('auth/refresh-token'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Auth-Scope': 'admin',
         },
-        body: JSON.stringify({ refreshToken }),
+        credentials: 'include',
+        body: JSON.stringify({}),
         cache: 'no-store',
         signal: AbortSignal.timeout(5000),
       });
@@ -185,6 +179,7 @@ export const apiRequest = async (
       ...options,
       method,
       headers,
+      credentials: 'include',
       cache: 'no-store',
       signal: AbortSignal.timeout(10000), // 10 second timeout for debugging
     });
