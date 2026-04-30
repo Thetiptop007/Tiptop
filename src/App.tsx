@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router";
+import { BrowserRouter as Router, Navigate, Routes, Route, useLocation } from "react-router";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -43,8 +43,20 @@ import { ShopStatusProvider } from "./context/ShopStatusContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { useEffect } from "react";
 import { logger } from "./utils/logger";
+import MaintenancePage from "./components/common/MaintenancePage";
 
-function AppContent() {
+const MAINTENANCE_MODE = true;
+
+function MaintenanceRoutes() {
+  return (
+    <Routes>
+      <Route path="/maintenance" element={<MaintenancePage />} />
+      <Route path="*" element={<Navigate to="/maintenance" replace />} />
+    </Routes>
+  );
+}
+
+function AppRoutes() {
   const { isLoading } = useCustomerAuth();
   
   // Show loading screen while checking authentication
@@ -140,6 +152,14 @@ function AppContent() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
   );
+}
+
+function AppContent() {
+  if (MAINTENANCE_MODE) {
+    return <MaintenanceRoutes />;
+  }
+
+  return <AppRoutes />;
 }
 
 function LocationLogger() {
