@@ -70,7 +70,7 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
       logger.warn('Failed to register FCM token');
     }
   };
-
+// i have made some changes in this file, please check the changes and let me know if you have any questions.
   useEffect(() => {
     const checkAuth = async () => {
       logger.debug('Checking customer authentication');
