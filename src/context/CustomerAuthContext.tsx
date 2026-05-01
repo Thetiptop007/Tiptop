@@ -8,7 +8,6 @@ import {
   customerLogout,
   getCustomerProfile,
   refreshAccessToken,
-  getStoredCustomer,
   CustomerUser,
   SignUpRequest,
 } from '../services/customer-auth.service';
