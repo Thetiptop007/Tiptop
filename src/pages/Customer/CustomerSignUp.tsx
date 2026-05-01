@@ -109,7 +109,7 @@ export default function CustomerSignUp() {
       console.log('📥 Signup result:', result);
 
       if (result.success) {
-        if (result.autoLogin && result.user) {
+        if ('autoLogin' in result && result.autoLogin && 'user' in result && result.user) {
           console.log('✅ User auto-logged in:', result.user.name);
           
           // Show success message briefly before redirect

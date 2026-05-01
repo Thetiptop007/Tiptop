@@ -67,10 +67,10 @@ export const getCustomers = async (params?: {
   if (params?.page) queryParams.append('page', params.page.toString());
   if (params?.limit) queryParams.append('limit', params.limit.toString());
   if (params?.search) queryParams.append('search', params.search);
-  if (params?.role) queryParams.append('role', params.role);
   if (params?.sort) queryParams.append('sort', params.sort);
   
-  const url = `/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const rolePath = params?.role ? `/users/role/${params.role}` : '/users';
+  const url = `${rolePath}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   
   logger.debug('Fetching customers', {
     page: params?.page,
@@ -81,6 +81,7 @@ export const getCustomers = async (params?: {
   
   const response = await apiRequest(url, {
     method: 'GET',
+    timeoutMs: 30000,
   });
 
   const parsedResponse = await parseApiResponse(response) as any;
@@ -108,6 +109,7 @@ export const getCustomers = async (params?: {
 export const getCustomerById = async (id: string): Promise<Customer> => {
   const response = await apiRequest(`/users/${id}`, {
     method: 'GET',
+    timeoutMs: 30000,
   });
 
   const parsedResponse = await parseApiResponse(response);
@@ -118,6 +120,7 @@ export const updateCustomer = async (id: string, data: Partial<Customer>): Promi
   const response = await apiRequest(`/users/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
+    timeoutMs: 30000,
   });
 
   const parsedResponse = await parseApiResponse(response);
@@ -127,6 +130,7 @@ export const updateCustomer = async (id: string, data: Partial<Customer>): Promi
 export const deleteCustomer = async (id: string): Promise<void> => {
   await apiRequest(`/users/${id}`, {
     method: 'DELETE',
+    timeoutMs: 30000,
   });
 };
 
@@ -138,6 +142,7 @@ export const toggleBlockCustomer = async (
   const response = await apiRequest(`/users/${id}/block`, {
     method: 'PATCH',
     body: JSON.stringify({ isBlocked, blockReason }),
+    timeoutMs: 30000,
   });
 
   const parsedResponse = await parseApiResponse(response);

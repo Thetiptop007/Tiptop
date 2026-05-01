@@ -34,7 +34,17 @@ export function ShopStatusProvider({ children }: { children: ReactNode }) {
 export function useShopStatus() {
   const context = useContext(ShopStatusContext);
   if (context === undefined) {
+    if (import.meta.env.DEV) {
+      return {
+        shopStatus: null,
+        refreshShopStatus: async () => undefined,
+        setShopStatus: () => undefined,
+        isLoading: true,
+      };
+    }
+
     throw new Error('useShopStatus must be used within a ShopStatusProvider');
   }
+
   return context;
 }

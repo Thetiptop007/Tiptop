@@ -13,8 +13,9 @@ import {
 } from '../services/customer-auth.service';
 import { requestFcmToken } from '../config/firebase';
 import { apiRequest } from '../config/api';
-import { clearAccessToken, clearAuthUser, getAccessToken, setAuthUser } from '../services/auth-session.store';
+import { clearAccessToken, clearAuthUser, getAccessToken, getAuthUser, setAuthUser } from '../services/auth-session.store';
 import { logger } from '../utils/logger';
+import { useToast } from './ToastContext';
 
 interface CustomerAuthContextType {
   customer: CustomerUser | null;
@@ -31,8 +32,23 @@ const CustomerAuthContext = createContext<CustomerAuthContextType | undefined>(u
 export const useCustomerAuth = () => {
   const context = useContext(CustomerAuthContext);
   if (!context) {
+    if (import.meta.env.DEV) {
+      // In dev, return a safe stub to avoid runtime crashes in stories/tests,
+      // but do not mark it as "loading" so UI buttons remain enabled.
+      return {
+        customer: null,
+        isAuthenticated: false,
+        isLoading: false,
+        login: async () => ({ success: false, message: 'Customer auth is initializing' }),
+        signUp: async () => ({ success: false, message: 'Customer auth is initializing' }),
+        logout: async () => undefined,
+        refreshProfile: async () => undefined,
+      };
+    }
+
     throw new Error('useCustomerAuth must be used within a CustomerAuthProvider');
   }
+
   return context;
 };
 
@@ -45,6 +61,7 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToast();
 
   const clearCustomerSession = () => {
     clearAccessToken('customer');
@@ -104,12 +121,33 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
       }
 
       try {
-        await refreshAccessToken();
+        // Only attempt to refresh if we don't already have a valid access token.
+        // Unnecessary refresh attempts can return 401 if refresh cookie is missing
+        // (e.g., immediately after login when token is present), causing unwanted
+        // session clearing and redirects.
+        if (!getAccessToken('customer')) {
+          const newToken = await refreshAccessToken();
+          if (!newToken) {
+            throw new Error('Token refresh failed');
+          }
+        }
+
         const updatedProfile = await getCustomerProfile();
         setCustomer(updatedProfile);
         setAuthUser('customer', updatedProfile);
-      } catch (error) {
+      } catch (error: any) {
+        const errMsg = error?.message || 'Session expired';
+        logger.warn('Customer auth refresh failed', { message: errMsg, pathname: location.pathname });
+        
+        // Only show toast if user was previously authenticated and on a protected route
+        if ((getAccessToken('customer') || getAuthUser('customer')) && location.pathname.startsWith('/customer')) {
+          showToast('Your session has expired. Please log in again.', 'warning', 5000);
+        }
+        
         clearCustomerSession();
+        if (location.pathname.startsWith('/customer') && !location.pathname.includes('/login') && !location.pathname.includes('/signup')) {
+          navigate('/customer/login', { replace: true });
+        }
       } finally {
         setIsLoading(false);
       }
@@ -179,7 +217,11 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
     try {
       const updatedProfile = await getCustomerProfile();
       setCustomer(updatedProfile);
-    } catch (error) {
+    } catch (error: any) {
+      const errMsg = error?.message || 'Failed to refresh profile';
+      logger.error('Customer refreshProfile failed', { message: errMsg });
+      
+      showToast('Your session has expired. Please log in again.', 'warning', 5000);
       clearCustomerSession();
       if (!location.pathname.startsWith('/customer/login')) {
         navigate('/customer/login', { replace: true });

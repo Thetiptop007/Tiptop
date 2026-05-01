@@ -109,6 +109,44 @@ const snapshotResponse = async (response: Response): Promise<ResponseSnapshot> =
   headers: Array.from(response.headers.entries()),
 });
 
+const extractErrorContext = (error: any, endpoint: string, response?: Response, timeoutMs?: number) => {
+  const context: any = {
+    endpoint,
+    name: error?.name,
+    message: error?.message,
+    statusCode: response?.status,
+    timeoutMs,
+  };
+
+  if (response) {
+    context.httpStatus = response.status;
+    context.statusText = response.statusText;
+  }
+
+  if (error?.name === 'TimeoutError') {
+    context.errorType = 'TIMEOUT';
+    context.hint = timeoutMs
+      ? `Backend service is slower than the configured ${timeoutMs}ms timeout`
+      : 'Backend service is slow or unreachable';
+  } else if (error?.name === 'AbortError') {
+    context.errorType = 'ABORTED';
+    context.hint = 'Request was cancelled or signal timed out';
+  } else if (response?.status === 401) {
+    context.errorType = 'UNAUTHORIZED';
+    context.hint = 'Access token expired or invalid';
+  } else if (response?.status === 403) {
+    context.errorType = 'FORBIDDEN';
+    context.hint = 'User does not have permission';
+  } else if (!navigator.onLine) {
+    context.errorType = 'OFFLINE';
+    context.hint = 'No internet connection';
+  } else {
+    context.errorType = 'NETWORK_ERROR';
+  }
+
+  return context;
+};
+
 export const getApiUrl = (endpoint: string = ''): string => {
   const configuredBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
   const baseUrl = normalizeApiBaseUrl(configuredBaseUrl);
@@ -193,11 +231,12 @@ const refreshAccessToken = async (): Promise<string | null> => {
  */
 export const apiRequest = async (
   endpoint: string,
-  options: RequestInit = {},
+  options: RequestInit & { timeoutMs?: number } = {},
   retryCount = 0
 ): Promise<Response> => {
   const fullUrl = getApiUrl(endpoint);
   const method = (options.method || 'GET').toUpperCase();
+  const { timeoutMs = 10000, ...requestOptions } = options;
   
   // Check if online before making request
   if (!navigator.onLine) {
@@ -210,19 +249,20 @@ export const apiRequest = async (
     endpoint,
     method: options.method || 'GET',
     retry: retryCount > 0 ? retryCount : undefined,
+    timeoutMs,
   });
   
   const authScope = getRequestAuthScope(endpoint);
   const isRefreshEndpoint = endpoint.endsWith('/refresh') || endpoint === 'auth/refresh-token';
   
   // Check if Authorization header is explicitly provided in options
-  const hasExplicitAuth = options.headers && 'Authorization' in options.headers;
+  const hasExplicitAuth = requestOptions.headers && 'Authorization' in requestOptions.headers;
   const token = authScope ? getAccessToken(authScope) : null;
   const csrfToken = authScope ? getCsrfTokenForScope(authScope) : null;
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...(requestOptions.headers as Record<string, string>),
   };
   if (csrfToken && method !== 'GET' && !headers['X-CSRF-Token']) {
     headers['X-CSRF-Token'] = csrfToken;
@@ -261,12 +301,12 @@ export const apiRequest = async (
   
   const executeRequest = async (): Promise<Response> => {
     const response = await fetch(finalUrl, {
-      ...options,
+      ...requestOptions,
       method,
       headers,
       credentials: 'include',
       cache: 'no-store',
-      signal: AbortSignal.timeout(10000), // 10 second timeout for debugging
+      signal: AbortSignal.timeout(timeoutMs),
     });
     
     logger.debug('API response received', {
@@ -392,21 +432,32 @@ export const apiRequest = async (
 
     return await executeRequest();
   } catch (error: any) {
-    logger.error('API request failed', {
-      endpoint,
-      method,
-      name: error?.name,
-      message: error?.message,
-    });
+    const errorContext = extractErrorContext(error, endpoint, undefined, timeoutMs);
+    
+    logger.error('API request failed', errorContext);
     
     // Handle network errors with user-friendly messages
     if (error.name === 'TimeoutError') {
+      logger.debug('Timeout error details', {
+        endpoint,
+        errorType: 'TIMEOUT',
+        suggestion: 'Check backend server status and network connectivity',
+      });
       throw new Error('Request timed out. The server is taking too long to respond. Please try again.');
     }
     if (error.name === 'AbortError') {
+      logger.debug('Abort error details', {
+        endpoint,
+        errorType: 'ABORTED',
+        suggestion: 'Request was cancelled, possibly due to auth failure or client abort',
+      });
       throw new Error('Request was cancelled. Please try again.');
     }
     if (!navigator.onLine) {
+      logger.debug('Offline error', {
+        endpoint,
+        errorType: 'OFFLINE',
+      });
       throw new Error('Lost internet connection while processing request. Please check your network.');
     }
     // Generic network error

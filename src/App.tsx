@@ -37,28 +37,16 @@ import SavedAddresses from "./pages/Customer/SavedAddresses";
 import HelpSupport from "./pages/Customer/HelpSupport";
 import CustomerPrivacyPolicy from "./pages/Customer/CustomerPrivacyPolicy";
 import { AuthProvider } from "./context/AuthContext";
-import { CustomerAuthProvider, useCustomerAuth } from "./context/CustomerAuthContext";
+import { CustomerAuthProvider } from "./context/CustomerAuthContext";
 import { ShopStatusProvider } from "./context/ShopStatusContext";
+import { ToastProvider } from "./context/ToastContext";
+import { ToastContainer } from "./components/Toast";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { CustomerProtectedRoute } from "./components/auth/CustomerProtectedRoute";
 import { useEffect } from "react";
 import { logger } from "./utils/logger";
 
 function AppRoutes() {
-  const { isLoading } = useCustomerAuth();
-  
-  // Show loading screen while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-  
   return (
     <Routes>
       {/* Public Landing Page */}
@@ -202,14 +190,17 @@ export default function App() {
     <>
       <Router>
         <LocationLogger />
-        <AuthProvider>
-          <CustomerAuthProvider>
-            <ShopStatusProvider>
-              <ScrollToTop />
-              <AppContent />
-            </ShopStatusProvider>
-          </CustomerAuthProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <CustomerAuthProvider>
+              <ShopStatusProvider>
+                <ScrollToTop />
+                <ToastContainer />
+                <AppContent />
+              </ShopStatusProvider>
+            </CustomerAuthProvider>
+          </AuthProvider>
+        </ToastProvider>
       </Router>
     </>
   );

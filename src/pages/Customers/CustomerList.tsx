@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
 import {
@@ -85,7 +85,10 @@ export default function CustomerList() {
       setTotalPages(response.pagination?.totalPages || 1);
       setTotalResults(response.pagination?.totalResults || 0);
     } catch (error) {
-      logger.error('Error fetching customers');
+      logger.error('Error fetching customers', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error,
+      });
     } finally {
       setLoading(false);
     }
@@ -242,17 +245,17 @@ export default function CustomerList() {
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                <TableRow>
+                  <TableCell colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                     Loading customers...
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : customers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                <TableRow>
+                  <TableCell colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                     No customers found matching your search criteria.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 customers.map((customer) => {
                   const name = getName(customer);
@@ -260,162 +263,159 @@ export default function CustomerList() {
                   const phone = getPhone(customer);
                   
                   return (
-                  <>
-                    <TableRow 
-                      key={customer._id}
-                      className="hover:bg-gray-50 dark:hover:bg-white/[0.02]"
-                    >
-                    <TableCell className="px-5 py-4 sm:px-6 text-start">
-                      <div className="flex items-center gap-3 cursor-pointer" onClick={() => toggleExpand(customer._id)}>
-                        <svg
-                          className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${expandedCustomerId === customer._id ? 'rotate-90' : ''}`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                        <div className="w-10 h-10 overflow-hidden rounded-full flex-shrink-0 bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-semibold">
-                          {name.first.charAt(0)}{name.last.charAt(0) || 'U'}
-                        </div>
-                        <div>
-                          <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                            {name.full}
-                          </span>
-                          <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
-                            Joined {new Date(customer.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                      <div className="cursor-pointer" onClick={() => toggleExpand(customer._id)}>
-                        <div className="text-gray-800 dark:text-white/90">{email.address}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{phone.number}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                      <div className="cursor-pointer" onClick={() => toggleExpand(customer._id)}>
-                        {customer.customerData?.totalOrders || 0}
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                      <div className="cursor-pointer" onClick={() => toggleExpand(customer._id)}>
-                        ₹{(customer.customerData?.totalSpent || 0).toFixed(2)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-start">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                          customer.isBlocked
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        }`}
-                      >
-                        {customer.isBlocked ? 'Blocked' : 'Active'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleToggleBlock(customer._id, customer.isBlocked)}
-                          disabled={actionLoadingId === customer._id}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                            customer.isBlocked
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400'
-                          } ${actionLoadingId === customer._id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          {actionLoadingId === customer._id
-                            ? 'Updating...'
-                            : customer.isBlocked
-                              ? 'Unblock'
-                              : 'Block'}
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {expandedCustomerId === customer._id && (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-4 bg-gray-50 dark:bg-white/[0.02]">
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {/* Customer Details */}
-                            <div>
-                              <h4 className="font-semibold text-gray-800 dark:text-white/90 text-sm mb-2">
-                                Customer Information
-                              </h4>
-                              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                                <p><span className="font-medium text-gray-700 dark:text-gray-300">Name:</span> {name.full}</p>
-                                <p><span className="font-medium text-gray-700 dark:text-gray-300">Email:</span> {email.address} {email.isVerified && <span className="text-green-600">✓</span>}</p>
-                                <p><span className="font-medium text-gray-700 dark:text-gray-300">Phone:</span> {phone.number} {phone.isVerified && <span className="text-green-600">✓</span>}</p>
-                                <p><span className="font-medium text-gray-700 dark:text-gray-300">Joined:</span> {new Date(customer.createdAt).toLocaleDateString()}</p>
-                              </div>
+                    <Fragment key={customer._id}>
+                      <TableRow className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                        <TableCell className="px-5 py-4 sm:px-6 text-start">
+                          <div className="flex items-center gap-3 cursor-pointer" onClick={() => toggleExpand(customer._id)}>
+                            <svg
+                              className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${expandedCustomerId === customer._id ? 'rotate-90' : ''}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            <div className="w-10 h-10 overflow-hidden rounded-full flex-shrink-0 bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-semibold">
+                              {name.first.charAt(0)}{name.last.charAt(0) || 'U'}
                             </div>
-
-                            {/* Address */}
                             <div>
-                              <h4 className="font-semibold text-gray-800 dark:text-white/90 text-sm mb-2">
-                                Address
-                              </h4>
-                              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                                {customer.addresses && customer.addresses.length > 0 ? (
-                                  <>
-                                    <p>{customer.addresses[0].street}</p>
-                                    {customer.addresses[0].apartment && <p>Apt: {customer.addresses[0].apartment}</p>}
-                                    <p>{customer.addresses[0].city}, {customer.addresses[0].state} {customer.addresses[0].zipCode}</p>
-                                    {customer.addresses[0].landmark && <p className="text-xs">Landmark: {customer.addresses[0].landmark}</p>}
-                                  </>
-                                ) : (
-                                  <p>No address added</p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Order Statistics */}
-                            <div>
-                              <h4 className="font-semibold text-gray-800 dark:text-white/90 text-sm mb-2">
-                                Order Statistics
-                              </h4>
-                              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                                <p><span className="font-medium text-gray-700 dark:text-gray-300">Total Orders:</span> {customer.customerData?.totalOrders || 0}</p>
-                                <p><span className="font-medium text-gray-700 dark:text-gray-300">Total Spent:</span> ₹{(customer.customerData?.totalSpent || 0).toFixed(2)}</p>
-                                <p><span className="font-medium text-gray-700 dark:text-gray-300">Loyalty Points:</span> {customer.customerData?.loyaltyPoints || 0}</p>
-                              </div>
+                              <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                                {name.full}
+                              </span>
+                              <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
+                                Joined {new Date(customer.createdAt).toLocaleDateString()}
+                              </span>
                             </div>
                           </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                            <button 
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                          <div className="cursor-pointer" onClick={() => toggleExpand(customer._id)}>
+                            <div className="text-gray-800 dark:text-white/90">{email.address}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{phone.number}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
+                          <div className="cursor-pointer" onClick={() => toggleExpand(customer._id)}>
+                            {customer.customerData?.totalOrders || 0}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
+                          <div className="cursor-pointer" onClick={() => toggleExpand(customer._id)}>
+                            ₹{(customer.customerData?.totalSpent || 0).toFixed(2)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-start">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              customer.isBlocked
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            }`}
+                          >
+                            {customer.isBlocked ? 'Blocked' : 'Active'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
                               onClick={() => handleToggleBlock(customer._id, customer.isBlocked)}
                               disabled={actionLoadingId === customer._id}
-                              className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                                 customer.isBlocked
-                                  ? 'border-green-300 bg-white text-green-600 hover:bg-green-50 dark:border-green-700 dark:bg-gray-800 dark:text-green-400 dark:hover:bg-green-500/10'
-                                  : 'border-orange-300 bg-white text-orange-600 hover:bg-orange-50 dark:border-orange-700 dark:bg-gray-800 dark:text-orange-400 dark:hover:bg-orange-500/10'
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400'
                               } ${actionLoadingId === customer._id ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                               {actionLoadingId === customer._id
                                 ? 'Updating...'
                                 : customer.isBlocked
-                                  ? 'Unblock Customer'
-                                  : 'Block Customer'}
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(customer._id)}
-                              className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-500/10"
-                            >
-                              Delete Customer
+                                  ? 'Unblock'
+                                  : 'Block'}
                             </button>
                           </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              );
-              })
+                        </TableCell>
+                      </TableRow>
+                      {expandedCustomerId === customer._id && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="px-5 py-4 bg-gray-50 dark:bg-white/[0.02]">
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {/* Customer Details */}
+                                <div>
+                                  <h4 className="font-semibold text-gray-800 dark:text-white/90 text-sm mb-2">
+                                    Customer Information
+                                  </h4>
+                                  <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                    <p><span className="font-medium text-gray-700 dark:text-gray-300">Name:</span> {name.full}</p>
+                                    <p><span className="font-medium text-gray-700 dark:text-gray-300">Email:</span> {email.address} {email.isVerified && <span className="text-green-600">✓</span>}</p>
+                                    <p><span className="font-medium text-gray-700 dark:text-gray-300">Phone:</span> {phone.number} {phone.isVerified && <span className="text-green-600">✓</span>}</p>
+                                    <p><span className="font-medium text-gray-700 dark:text-gray-300">Joined:</span> {new Date(customer.createdAt).toLocaleDateString()}</p>
+                                  </div>
+                                </div>
+
+                                {/* Address */}
+                                <div>
+                                  <h4 className="font-semibold text-gray-800 dark:text-white/90 text-sm mb-2">
+                                    Address
+                                  </h4>
+                                  <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                    {customer.addresses && customer.addresses.length > 0 ? (
+                                      <>
+                                        <p>{customer.addresses[0].street}</p>
+                                        {customer.addresses[0].apartment && <p>Apt: {customer.addresses[0].apartment}</p>}
+                                        <p>{customer.addresses[0].city}, {customer.addresses[0].state} {customer.addresses[0].zipCode}</p>
+                                        {customer.addresses[0].landmark && <p className="text-xs">Landmark: {customer.addresses[0].landmark}</p>}
+                                      </>
+                                    ) : (
+                                      <p>No address added</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Order Statistics */}
+                                <div>
+                                  <h4 className="font-semibold text-gray-800 dark:text-white/90 text-sm mb-2">
+                                    Order Statistics
+                                  </h4>
+                                  <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                    <p><span className="font-medium text-gray-700 dark:text-gray-300">Total Orders:</span> {customer.customerData?.totalOrders || 0}</p>
+                                    <p><span className="font-medium text-gray-700 dark:text-gray-300">Total Spent:</span> ₹{(customer.customerData?.totalSpent || 0).toFixed(2)}</p>
+                                    <p><span className="font-medium text-gray-700 dark:text-gray-300">Loyalty Points:</span> {customer.customerData?.loyaltyPoints || 0}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                <button 
+                                  onClick={() => handleToggleBlock(customer._id, customer.isBlocked)}
+                                  disabled={actionLoadingId === customer._id}
+                                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                                    customer.isBlocked
+                                      ? 'border-green-300 bg-white text-green-600 hover:bg-green-50 dark:border-green-700 dark:bg-gray-800 dark:text-green-400 dark:hover:bg-green-500/10'
+                                      : 'border-orange-300 bg-white text-orange-600 hover:bg-orange-50 dark:border-orange-700 dark:bg-gray-800 dark:text-orange-400 dark:hover:bg-orange-500/10'
+                                  } ${actionLoadingId === customer._id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  {actionLoadingId === customer._id
+                                    ? 'Updating...'
+                                    : customer.isBlocked
+                                      ? 'Unblock Customer'
+                                      : 'Block Customer'}
+                                </button>
+                                <button 
+                                  onClick={() => handleDelete(customer._id)}
+                                  className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-500/10"
+                                >
+                                  Delete Customer
+                                </button>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })
               )}
             </TableBody>
           </Table>

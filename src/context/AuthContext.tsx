@@ -6,6 +6,7 @@ import { getCsrfTokenForScope } from '../config/api';
 import { getCurrentUser } from '../services/auth.service';
 import { clearAccessToken, clearAuthUser, getAccessToken, getAuthUser, setAccessToken, setAuthUser } from '../services/auth-session.store';
 import { logger } from '../utils/logger';
+import { useToast } from './ToastContext';
 
 interface User {
   email: string;
@@ -42,6 +43,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToast();
 
   const clearSession = () => {
     clearAccessToken('admin');
@@ -93,14 +95,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         });
         const data = await parseApiResponse(response);
 
+        if (response.status === 403 || response.status === 401) {
+          logger.warn('Admin refresh failed with auth error', { status: response.status });
+          clearSession();
+          return;
+        }
+
         if (response.ok && data.status === 'success' && data.data?.tokens?.accessToken) {
           setAccessToken('admin', data.data.tokens.accessToken);
           if (data.data.user) {
             setAuthUser('admin', data.data.user);
           }
         }
-      } catch (error) {
-        logger.debug('Admin refresh bootstrap failed', { message: (error as Error)?.message });
+      } catch (error: any) {
+        const errMsg = error?.message || 'Failed to refresh session';
+        logger.debug('Admin refresh bootstrap failed', { message: errMsg, error });
+        // Don't show toast during bootstrap, just fail silently for now
       }
 
       try {
@@ -116,8 +126,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } else {
           clearSession();
         }
-      } catch (error) {
+      } catch (error: any) {
+        const errMsg = error?.message || 'Session expired';
+        logger.warn('Admin getCurrentUser failed', { message: errMsg });
+        
+        // Only show toast if user was previously authenticated
+        if (getAccessToken('admin') || getAuthUser('admin')) {
+          showToast('Your session has expired. Please log in again.', 'warning', 5000);
+        }
+        
         clearSession();
+        if (location.pathname.startsWith('/admin') && location.pathname !== '/signin') {
+          navigate('/signin', { replace: true });
+        }
       } finally {
         setIsLoading(false);
       }

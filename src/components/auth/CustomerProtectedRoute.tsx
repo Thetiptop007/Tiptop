@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useCustomerAuth } from '../../context/CustomerAuthContext.tsx';
+import { getAccessToken, getAuthUser } from '../../services/auth-session.store';
 
 interface CustomerProtectedRouteProps {
   children: React.ReactNode;
@@ -8,6 +9,11 @@ interface CustomerProtectedRouteProps {
 export const CustomerProtectedRoute = ({ children }: CustomerProtectedRouteProps) => {
   const { customer, isLoading } = useCustomerAuth();
   const location = useLocation();
+  const hasStoredSession = !!getAccessToken('customer') || !!getAuthUser('customer');
+
+  if (isLoading && !hasStoredSession) {
+    return <Navigate to="/customer/login" replace state={{ from: location.pathname }} />;
+  }
 
   if (isLoading) {
     return (

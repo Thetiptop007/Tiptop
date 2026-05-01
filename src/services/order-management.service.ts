@@ -118,7 +118,7 @@ export interface BulkStatusUpdateResult {
  */
 export const getTodayOrders = async (): Promise<TodayOrdersResponse | null> => {
   try {
-    const response = await apiRequest('admin/orders/today');
+    const response = await apiRequest('admin/orders/today', { timeoutMs: 30000 });
     const data = await parseApiResponse(response);
 
     if (data.status === 'success' && data.data) {
@@ -159,7 +159,7 @@ export const getTodayOrders = async (): Promise<TodayOrdersResponse | null> => {
 export const getAllOrders = async (page: number = 1, limit: number = 10): Promise<AllOrdersResponse | null> => {
   try {
     const url = `admin/orders/all?page=${page}&limit=${limit}`;
-    const response = await apiRequest(url);
+    const response = await apiRequest(url, { timeoutMs: 30000 });
     const data = await parseApiResponse(response);
 
     if (data.status === 'success' && data.data) {
@@ -179,7 +179,7 @@ export const getAllOrders = async (page: number = 1, limit: number = 10): Promis
 export const getOrderDetails = async (orderId: string): Promise<Order | null> => {
   try {
     console.log('📡 Fetching order details for:', orderId);
-    const response = await apiRequest(`admin/orders/${orderId}/details`);
+    const response = await apiRequest(`admin/orders/${orderId}/details`, { timeoutMs: 30000 });
     const data = await parseApiResponse(response);
 
     console.log('📥 RAW API RESPONSE:', JSON.stringify(data, null, 2));
@@ -253,7 +253,8 @@ export const updateOrderStatus = async (
       headers: {
         'Content-Type': 'application/json'
       },
-      ...(requestBody ? { body: JSON.stringify(requestBody) } : {})
+      ...(requestBody ? { body: JSON.stringify(requestBody) } : {}),
+      timeoutMs: 30000,
     });
     
     const data = await parseApiResponse(response);
@@ -287,6 +288,7 @@ export const bulkUpdateOrderStatus = async (
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      timeoutMs: 30000,
     });
 
     const data = await parseApiResponse(response);
@@ -323,7 +325,7 @@ export const getPOSMenuItems = async (
     }
 
     return await dedupeRequest(`admin:pos-menu:${url}`, async () => {
-      const response = await apiRequest(url);
+      const response = await apiRequest(url, { timeoutMs: 30000 });
       const data = await parseApiResponse(response);
 
       if (data.status === 'success' && data.data) {
@@ -377,7 +379,8 @@ export const createAdminOrder = async (orderData: CreateAdminOrderData): Promise
         'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey
       },
-      body: JSON.stringify(orderData)
+      body: JSON.stringify(orderData),
+      timeoutMs: 30000,
     });
     
     console.log('📥 Raw response:', response);
@@ -412,7 +415,8 @@ export const printKitchenBill = async (orderId: string): Promise<void> => {
       body: JSON.stringify({
         isPrinted: false,
         markedAt: new Date().toISOString()
-      })
+      }),
+      timeoutMs: 30000,
     });
     
     const data = await parseApiResponse(response);

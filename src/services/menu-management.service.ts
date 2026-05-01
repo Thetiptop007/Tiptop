@@ -136,7 +136,7 @@ export const getMenuItems = async (
     }
 
     return await dedupeRequest(`admin:menu-items:${params.toString()}`, async () => {
-      const response = await apiRequest(`admin/menu-items?${params.toString()}`);
+      const response = await apiRequest(`admin/menu-items?${params.toString()}`, { timeoutMs: 30000 });
       const data = await parseApiResponse(response);
 
       if (data.status === 'success' && data.data) {
@@ -157,7 +157,7 @@ export const getMenuItems = async (
 export const getCategories = async (): Promise<string[]> => {
   try {
     return await dedupeRequest('admin:menu-categories', async () => {
-      const response = await apiRequest('admin/menu-items/categories');
+      const response = await apiRequest('admin/menu-items/categories', { timeoutMs: 30000 });
       const data = await parseApiResponse(response);
 
       if (data.status === 'success' && data.data) {
@@ -177,7 +177,7 @@ export const getCategories = async (): Promise<string[]> => {
  */
 export const getMenuItem = async (id: string): Promise<MenuItem | null> => {
   try {
-    const response = await apiRequest(`admin/menu-items/${id}`);
+    const response = await apiRequest(`admin/menu-items/${id}`, { timeoutMs: 30000 });
     const data = await parseApiResponse(response);
 
     if (data.status === 'success' && data.data) {
@@ -205,6 +205,7 @@ export const updateAvailability = async (
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ isAvailable }),
+      timeoutMs: 30000,
     });
 
     const data = await parseApiResponse(response);
@@ -222,6 +223,7 @@ export const deleteMenuItem = async (id: string): Promise<boolean> => {
   try {
     const response = await apiRequest(`admin/menu-items/${id}`, {
       method: 'DELETE',
+      timeoutMs: 30000,
     });
 
     const data = await parseApiResponse(response);
@@ -250,6 +252,7 @@ export const createMenuItem = async (itemData: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(itemData),
+      timeoutMs: 30000,
     });
     const data = await parseApiResponse(response);
     
@@ -296,6 +299,7 @@ export const updateMenuItem = async (
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(itemData),
+      timeoutMs: 30000,
     });
     const data = await parseApiResponse(response);
     

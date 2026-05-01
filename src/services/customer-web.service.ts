@@ -470,8 +470,11 @@ export const getMyOrders = async (params?: {
     if (params?.sort) queryParams.append('sort', params.sort);
 
     const url = `/orders/my-orders${queryParams.toString() ? `?${queryParams}` : ''}`;
+    const timeoutMs = 60000; // increase timeout for potentially slow orders endpoint
+    logger.debug('Fetching customer orders', { url, timeoutMs });
     const response = await apiRequest(url, {
       method: 'GET',
+      timeoutMs,
       headers: {
         ...(customerToken && { 'Authorization': `Bearer ${customerToken}` })
       }
@@ -487,7 +490,7 @@ export const getMyOrders = async (params?: {
     
     return { orders: [] };
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    logger.error('Error fetching orders', { error });
     throw error;
   }
 };
