@@ -97,7 +97,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         if (response.status === 403 || response.status === 401) {
           logger.warn('Admin refresh failed with auth error', { status: response.status });
+          if (location.pathname.startsWith('/admin') && location.pathname !== '/signin') {
+            showToast('Your session expired. Please sign in again.', 'warning', 5000);
+            navigate('/signin', { replace: true });
+          }
           clearSession();
+          setIsLoading(false);
           return;
         }
 
@@ -111,6 +116,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const errMsg = error?.message || 'Failed to refresh session';
         logger.debug('Admin refresh bootstrap failed', { message: errMsg, error });
         // Don't show toast during bootstrap, just fail silently for now
+        clearSession();
       }
 
       try {
