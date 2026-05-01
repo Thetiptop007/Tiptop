@@ -18,7 +18,6 @@ interface EditFormData {
   image: string;
   priceVariants: Array<{ quantity: string; price: number }>;
   categories: string[];
-  preparationTime: number;
   isAvailable: boolean;
   isActive: boolean;
 }
@@ -204,9 +203,6 @@ export default function MenuManagement() {
       image: item.image,
       priceVariants: item.priceVariants.map(v => ({ ...v })),
       categories: item.categories.filter(c => c !== 'All'),
-      preparationTime: 15,
-      isVegetarian: false,
-      isSpicy: false,
       isAvailable: item.isAvailable,
       isActive: item.isActive
     });
@@ -316,9 +312,6 @@ export default function MenuManagement() {
         image: editFormData.image,
         priceVariants: editFormData.priceVariants,
         category: editFormData.categories[0], // Send as 'category' (singular) - backend expects single value
-        preparationTime: editFormData.preparationTime,
-        isVegetarian: editFormData.isVegetarian,
-        isSpicy: editFormData.isSpicy,
         isAvailable: editFormData.isAvailable,
         isActive: editFormData.isActive
       };
@@ -1059,34 +1052,6 @@ export default function MenuManagement() {
 
                 {/* Checkboxes */}
                 <div className="space-y-3">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="edit-isVegetarian"
-                      name="isVegetarian"
-                      checked={editFormData.isVegetarian}
-                      onChange={handleEditInputChange}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800"
-                    />
-                    <label htmlFor="edit-isVegetarian" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                      Vegetarian
-                    </label>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="edit-isSpicy"
-                      name="isSpicy"
-                      checked={editFormData.isSpicy}
-                      onChange={handleEditInputChange}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800"
-                    />
-                    <label htmlFor="edit-isSpicy" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                      Spicy
-                    </label>
-                  </div>
-
                   <div className="flex items-center">
                     <input
                       type="checkbox"

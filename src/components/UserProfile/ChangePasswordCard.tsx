@@ -2,7 +2,7 @@ import { useState } from "react";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
-import { getApiUrl } from "../../config/api";
+import { apiRequest, parseApiResponse } from "../../config/api";
 import { useAuth } from "../../context/AuthContext";
 
 export default function ChangePasswordCard() {
@@ -32,7 +32,7 @@ export default function ChangePasswordCard() {
     }
 
     if (newPassword.length < 8) {
-      setError("New password must be at least 6 characters long");
+      setError("New password must be at least 8 characters long");
       return;
     }
 
@@ -44,12 +44,10 @@ export default function ChangePasswordCard() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("adminToken");
-      const response = await fetch(getApiUrl("auth/change-password"), {
+      const response = await apiRequest("auth/admin/change-password", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           currentPassword,
@@ -58,7 +56,7 @@ export default function ChangePasswordCard() {
         }),
       });
 
-      const data = await response.json();
+      const data = await parseApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Failed to change password");

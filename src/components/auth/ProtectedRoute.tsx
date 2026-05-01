@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext.tsx';
 import { logger } from '../../utils/logger';
 
 interface ProtectedRouteProps {

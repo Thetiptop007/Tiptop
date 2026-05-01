@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
+import { apiRequest, parseApiResponse } from "../../config/api";
 
 interface MenuItem {
   _id: string;
@@ -110,14 +111,10 @@ const CreateOffer: React.FC = () => {
 
   const fetchOfferDetails = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/offers/admin/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-        },
-      });
+      const response = await apiRequest(`offers/admin/${id}`);
 
       if (response.ok) {
-        const data = await response.json();
+        const data = await parseApiResponse(response);
         const offer = data.data;
         
         // Format dates for input fields
@@ -191,11 +188,10 @@ const CreateOffer: React.FC = () => {
       
       const method = isEditMode ? 'PATCH' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await apiRequest(url.replace(`${import.meta.env.VITE_API_URL}/`, ''), {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
         },
         body: JSON.stringify(payload),
       });
@@ -203,7 +199,7 @@ const CreateOffer: React.FC = () => {
       if (response.ok) {
         navigate('/admin/offers');
       } else {
-        const error = await response.json();
+        const error = await parseApiResponse(response);
         alert(`Failed to ${isEditMode ? 'update' : 'create'} offer: ${error.message || 'Unknown error'}`);
       }
     } catch (error) {

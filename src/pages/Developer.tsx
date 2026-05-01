@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getAccessToken } from '../services/auth-session.store';
 
 const Developer = () => {
   const [loading, setLoading] = useState(true);
@@ -10,7 +11,7 @@ const Developer = () => {
   const [dbStats, setDbStats] = useState<any>(null);
   const [config, setConfig] = useState<any>(null);
 
-  const token = localStorage.getItem('adminToken');
+  const token = getAccessToken('admin');
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   // MongoDB Atlas Free Tier Limit (512MB)

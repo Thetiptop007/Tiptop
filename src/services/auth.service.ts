@@ -1,4 +1,5 @@
 import { apiRequest, parseApiResponse } from '../config/api';
+import { setCsrfToken } from './auth-session.store';
 
 export interface User {
   _id: string;
@@ -35,7 +36,7 @@ export interface UpdateProfileData {
  * Get current authenticated user's profile
  */
 export const getCurrentUser = async (): Promise<User | null> => {
-  const response = await apiRequest('auth/me');
+  const response = await apiRequest('auth/admin/me');
   const data = await parseApiResponse(response);
 
   if (response.status === 401) {
@@ -47,6 +48,10 @@ export const getCurrentUser = async (): Promise<User | null> => {
   }
 
   if (data.status === 'success' && data.data?.user) {
+    const csrfToken = data.data?.csrfToken || data.data?.tokens?.csrfToken;
+    if (csrfToken) {
+      setCsrfToken('admin', csrfToken);
+    }
     return data.data.user;
   }
 
@@ -59,7 +64,7 @@ export const getCurrentUser = async (): Promise<User | null> => {
 export const updateCurrentUser = async (profileData: UpdateProfileData): Promise<User | null> => {
   try {
     console.log('🔄 [updateCurrentUser] Sending profile update:', profileData);
-    const response = await apiRequest('auth/me', {
+    const response = await apiRequest('auth/admin/me', {
       method: 'PATCH',
       body: JSON.stringify(profileData),
     });
@@ -67,6 +72,10 @@ export const updateCurrentUser = async (profileData: UpdateProfileData): Promise
     const data = await parseApiResponse(response);
 
     if (data.status === 'success' && data.data?.user) {
+      const csrfToken = data.data?.csrfToken || data.data?.tokens?.csrfToken;
+      if (csrfToken) {
+        setCsrfToken('admin', csrfToken);
+      }
       return data.data.user;
     }
 
@@ -82,7 +91,7 @@ export const updateCurrentUser = async (profileData: UpdateProfileData): Promise
  */
 export const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
   try {
-    const response = await apiRequest('auth/change-password', {
+    const response = await apiRequest('auth/admin/change-password', {
       method: 'PATCH',
       body: JSON.stringify({
         currentPassword,
@@ -90,6 +99,11 @@ export const changePassword = async (currentPassword: string, newPassword: strin
       }),
     });
     const data = await parseApiResponse(response);
+
+    const csrfToken = data.data?.csrfToken || data.data?.tokens?.csrfToken;
+    if (csrfToken) {
+      setCsrfToken('admin', csrfToken);
+    }
 
     return data.status === 'success';
   } catch (error) {

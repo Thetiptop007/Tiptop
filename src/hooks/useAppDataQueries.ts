@@ -4,6 +4,7 @@ import { getBusinessInsightsData, type BusinessInsightsData } from '../services/
 import { getDashboardData, type DashboardData } from '../services/dashboard.service';
 import { getShopStatus, toggleShopStatus, type ShopStatus } from '../services/settings.service';
 import { getTodayOrders, type TodayOrdersResponse } from '../services/order-management.service';
+import { getAccessToken } from '../services/auth-session.store';
 
 export const appQueryKeys = {
   currentUser: ['admin', 'current-user'] as const,
@@ -17,7 +18,7 @@ export const useCurrentAdminUserQuery = () =>
   useQuery<User | null>({
     queryKey: appQueryKeys.currentUser,
     queryFn: getCurrentUser,
-    enabled: !!localStorage.getItem('adminToken'),
+    enabled: !!getAccessToken('admin'),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -34,7 +35,17 @@ export const useShopStatusQuery = () =>
 export const useDashboardDataQuery = () =>
   useQuery<DashboardData | null>({
     queryKey: appQueryKeys.dashboard,
-    queryFn: getDashboardData,
+    queryFn: async () => {
+      if (import.meta.env.DEV) {
+        console.debug('Dashboard query invoked', {
+          path: window.location.pathname,
+          hasAdminToken: !!getAccessToken('admin'),
+        });
+      }
+
+      return getDashboardData();
+    },
+    enabled: !!getAccessToken('admin'),
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -43,7 +54,7 @@ export const useBusinessInsightsQuery = () =>
   useQuery<BusinessInsightsData | null>({
     queryKey: appQueryKeys.businessInsights,
     queryFn: getBusinessInsightsData,
-    enabled: !!localStorage.getItem('adminToken'),
+    enabled: !!getAccessToken('admin'),
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: false,

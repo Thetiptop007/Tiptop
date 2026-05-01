@@ -14,7 +14,6 @@ interface MenuFormData {
   category: string;
   description: string;
   ingredients: string;
-  preparationTime: string;
   priceVariants: PriceVariant[];
   isAvailable: boolean;
   image: string;
@@ -30,7 +29,6 @@ export default function AddMenu() {
     category: "",
     description: "",
     ingredients: "",
-    preparationTime: "15",
     priceVariants: [{ quantity: "Full", price: 0 }],
     isAvailable: true,
     image: "",
@@ -121,7 +119,6 @@ export default function AddMenu() {
         image: formData.image || '/images/product/placeholder.jpg',
         priceVariants: formData.priceVariants,
         category: formData.category, // Send as 'category' (singular) not 'categories'
-        preparationTime: parseInt(formData.preparationTime) || 15,
         isAvailable: formData.isAvailable,
       };
       
@@ -190,51 +187,29 @@ export default function AddMenu() {
                   />
                 </div>
 
-                {/* Category and Preparation Time */}
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="category"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-                    >
-                      Category <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="category"
-                      name="category"
-                      required
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                    >
-                      <option value="">Select a category</option>
-                      {categories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="preparationTime"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-                    >
-                      Preparation Time (minutes) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      id="preparationTime"
-                      name="preparationTime"
-                      required
-                      min="1"
-                      value={formData.preparationTime}
-                      onChange={handleInputChange}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      placeholder="e.g., 15"
-                    />
-                  </div>
+                {/* Category */}
+                <div>
+                  <label
+                    htmlFor="category"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="category"
+                    name="category"
+                    required
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Price Variants */}
@@ -446,16 +421,6 @@ export default function AddMenu() {
                         Unavailable
                       </span>
                     )}
-                    {formData.isVegetarian && (
-                      <span className="rounded-full bg-green-500 px-2 py-0.5 text-xs font-medium text-white">
-                        Veg
-                      </span>
-                    )}
-                    {formData.isSpicy && (
-                      <span className="rounded-full bg-orange-500 px-2 py-0.5 text-xs font-medium text-white">
-                        Spicy
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -471,25 +436,8 @@ export default function AddMenu() {
                   {formData.name || "Item Name"}
                 </h3>
 
-                {/* Price Variants and Prep Time */}
+                {/* Price Variants */}
                 <div className="mb-3 space-y-2">
-                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-                    <svg
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    {formData.preparationTime ? `${formData.preparationTime} min` : "-"}
-                  </div>
-                  
                   {/* Price Variants */}
                   {formData.priceVariants.length > 0 && (
                     <div className="space-y-1">

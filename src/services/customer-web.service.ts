@@ -5,6 +5,7 @@
  */
 
 import { apiRequest, parseApiResponse } from '../config/api';
+import { getAccessToken } from './auth-session.store';
 import { logger } from '../utils/logger';
 
 type CacheEntry<T> = {
@@ -413,7 +414,7 @@ export const searchMenu = async (query: string, limit: number = 50): Promise<Men
 export const createOrder = async (orderData: CreateOrderData): Promise<Order> => {
   try {
     // Check if user is authenticated (has customer token)
-    const customerToken = localStorage.getItem('customerToken');
+    const customerToken = getAccessToken('customer');
     const endpoint = customerToken ? '/orders' : '/orders/guest/create';
     logger.debug('Creating order request', {
       isAuthenticated: !!customerToken,
@@ -460,7 +461,7 @@ export const getMyOrders = async (params?: {
   sort?: string;
 }): Promise<{ orders: Order[]; pagination?: any }> => {
   try {
-    const customerToken = localStorage.getItem('customerToken');
+    const customerToken = getAccessToken('customer');
     const queryParams = new URLSearchParams();
     
     if (params?.status) queryParams.append('status', params.status);
@@ -496,7 +497,7 @@ export const getMyOrders = async (params?: {
  */
 export const getOrderById = async (orderId: string): Promise<Order> => {
   try {
-    const customerToken = localStorage.getItem('customerToken');
+    const customerToken = getAccessToken('customer');
     
     const response = await apiRequest(`/orders/${orderId}`, {
       method: 'GET',
@@ -522,7 +523,7 @@ export const getOrderById = async (orderId: string): Promise<Order> => {
  */
 export const cancelOrder = async (orderId: string): Promise<Order> => {
   try {
-    const customerToken = localStorage.getItem('customerToken');
+    const customerToken = getAccessToken('customer');
     
     const response = await apiRequest(`/orders/${orderId}/cancel`, {
       method: 'PATCH',
@@ -555,7 +556,7 @@ export const cancelOrder = async (orderId: string): Promise<Order> => {
  */
 export const getMyAddresses = async (): Promise<Address[]> => {
   try {
-    const token = localStorage.getItem('customerToken');
+    const token = getAccessToken('customer');
     
     const response = await apiRequest('/addresses', {
       method: 'GET',
@@ -581,7 +582,7 @@ export const getMyAddresses = async (): Promise<Address[]> => {
  */
 export const createAddress = async (address: Omit<Address, '_id'>): Promise<Address> => {
   try {
-    const customerToken = localStorage.getItem('customerToken');
+    const customerToken = getAccessToken('customer');
     
     const response = await apiRequest('/addresses', {
       method: 'POST',
@@ -610,7 +611,7 @@ export const createAddress = async (address: Omit<Address, '_id'>): Promise<Addr
  */
 export const updateAddress = async (addressId: string, address: Partial<Address>): Promise<Address> => {
   try {
-    const customerToken = localStorage.getItem('customerToken');
+    const customerToken = getAccessToken('customer');
     
     const response = await apiRequest(`/addresses/${addressId}`, {
       method: 'PATCH',
@@ -639,7 +640,7 @@ export const updateAddress = async (addressId: string, address: Partial<Address>
  */
 export const deleteAddress = async (addressId: string): Promise<void> => {
   try {
-    const customerToken = localStorage.getItem('customerToken');
+    const customerToken = getAccessToken('customer');
     
     await apiRequest(`/addresses/${addressId}`, {
       method: 'DELETE',

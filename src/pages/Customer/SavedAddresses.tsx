@@ -50,24 +50,9 @@ const SavedAddresses: React.FC = () => {
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    console.log('🏠 [SavedAddresses] Auth check:', {
-      authLoading,
-      isAuthenticated,
-      customer: customer ? { id: customer._id, email: customer.email.address } : null,
-      hasCustomerToken: !!localStorage.getItem('customerToken'),
-      hasCustomerUser: !!localStorage.getItem('customerUser')
-    });
-    
     if (!authLoading && !isAuthenticated) {
-      console.log('🏠 [SavedAddresses] User not authenticated, redirecting to login');
       navigate('/customer/login', { state: { from: '/customer/addresses' } });
       return;
-    }
-    
-    // Additional safety check: verify token exists even if isAuthenticated is true
-    if (!authLoading && isAuthenticated && !localStorage.getItem('customerToken')) {
-      console.error('🏠 [SavedAddresses] Auth state mismatch: authenticated but no token!');
-      navigate('/customer/login', { state: { from: '/customer/addresses' } });
     }
   }, [authLoading, isAuthenticated, navigate, customer]);
 
@@ -78,61 +63,25 @@ const SavedAddresses: React.FC = () => {
   }, [isAuthenticated]);
 
   const fetchAddresses = async () => {
-    console.log('🏠 [SavedAddresses] fetchAddresses called');
-    
-    // Verify token exists before making API call
-    const token = localStorage.getItem('customerToken');
-    console.log('🏠 [SavedAddresses] Token check:', {
-      hasToken: !!token,
-      tokenPreview: token ? `${token.substring(0, 20)}...` : 'null'
-    });
-    
-    if (!token) {
-      console.error('🏠 [SavedAddresses] No customer token found, redirecting to login');
-      navigate('/customer/login', { state: { from: '/customer/addresses' } });
-      return;
-    }
-    
     try {
       setLoading(true);
       setError('');
-      console.log('🏠 [SavedAddresses] Calling getAddresses API...');
       const response = await getAddresses();
-      console.log('🏠 [SavedAddresses] getAddresses response:', response);
       if (response.status === 'success') {
-        console.log('🏠 [SavedAddresses] Success! Addresses:', response.data.addresses);
         setAddresses(response.data.addresses);
       } else if (response.message?.includes('Invalid token') || response.message?.includes('log in')) {
-        // Token is invalid, redirect to login
-        console.error('🏠 [SavedAddresses] Invalid token, redirecting to login');
-        localStorage.removeItem('customerToken');
-        localStorage.removeItem('customerRefreshToken');
-        localStorage.removeItem('customerUser');
         navigate('/customer/login', { state: { from: '/customer/addresses' } });
       } else {
-        console.warn('🏠 [SavedAddresses] Unexpected response status:', response.status);
         setError(response.message || 'Unexpected response from server');
       }
     } catch (err: any) {
-      console.error('🏠 [SavedAddresses] Error fetching addresses:', err);
-      console.error('🏠 [SavedAddresses] Error details:', {
-        message: err.message,
-        name: err.name,
-        stack: err.stack
-      });
-      
       // Check if it's an auth error
       if (err.message?.includes('Invalid token') || err.message?.includes('log in')) {
-        console.error('🏠 [SavedAddresses] Authentication error, redirecting to login');
-        localStorage.removeItem('customerToken');
-        localStorage.removeItem('customerRefreshToken');
-        localStorage.removeItem('customerUser');
         navigate('/customer/login', { state: { from: '/customer/addresses' } });
       } else {
         setError(err.message || 'Failed to fetch addresses');
       }
     } finally {
-      console.log('🏠 [SavedAddresses] fetchAddresses completed, setting loading to false');
       setLoading(false);
     }
   };

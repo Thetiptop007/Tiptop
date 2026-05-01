@@ -241,8 +241,6 @@ export const createMenuItem = async (itemData: {
   image: string;
   priceVariants: Array<{ quantity: string; price: number }>;
   category: string; // Changed from categories to category (singular)
-  preparationTime?: number;
-
   isAvailable?: boolean;
 }): Promise<{ success: boolean; item?: MenuItem; message?: string }> => {
   try {
@@ -287,7 +285,6 @@ export const updateMenuItem = async (
     image: string;
     priceVariants: Array<{ quantity: string; price: number }>;
     category: string; // Changed from categories to category (singular)
-    preparationTime: number;
     isAvailable: boolean;
     isActive: boolean;
   }>
@@ -310,9 +307,14 @@ export const updateMenuItem = async (
       };
     }
     
+    // Debug: surface validation errors from backend in browser console
+    if (data.status !== 'success') {
+      console.error('updateMenuItem failed response:', data);
+    }
+
     return {
       success: false,
-      message: data.message || 'Failed to update menu item'
+      message: data.message || (data.errors ? JSON.stringify(data.errors) : 'Failed to update menu item')
     };
   } catch (error: any) {
     console.error('Error updating menu item:', error);

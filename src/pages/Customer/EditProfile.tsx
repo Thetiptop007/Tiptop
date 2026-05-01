@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { useCustomerAuth } from '../../context/CustomerAuthContext';
+import { useCustomerAuth } from '../../context/CustomerAuthContext.tsx';
 import { updateCustomer, changePassword } from '../../services/customer-operations.service';
 
 const EditProfile: React.FC = () => {
@@ -28,14 +28,16 @@ const EditProfile: React.FC = () => {
 
   useEffect(() => {
     if (customer) {
+      const customerName = customer.name as string | { first?: string; last?: string } | null | undefined;
+
       // Handle customer.name as a string ("Naitik Kumar") or nested object
-      if (typeof customer.name === 'string') {
-        const nameParts = customer.name.split(' ');
+      if (typeof customerName === 'string') {
+        const nameParts = customerName.split(' ');
         setFirstName(nameParts[0] || '');
         setLastName(nameParts.slice(1).join(' ') || '');
       } else {
-        setFirstName(customer.name?.first || '');
-        setLastName(customer.name?.last || '');
+        setFirstName(customerName?.first || '');
+        setLastName(customerName?.last || '');
       }
     }
   }, [customer]);

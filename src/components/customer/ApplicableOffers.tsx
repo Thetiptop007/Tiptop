@@ -49,18 +49,6 @@ export default function ApplicableOffers({ cartItems, orderAmount }: ApplicableO
     fetchApplicableOffers();
   }, [cartItems, orderAmount]);
 
-  useEffect(() => {
-    // Store selected offer in localStorage for payment page
-    if (selectedOffer) {
-      const offer = offers.find(o => o._id === selectedOffer);
-      if (offer) {
-        localStorage.setItem('selectedOffer', JSON.stringify(offer));
-      }
-    } else {
-      localStorage.removeItem('selectedOffer');
-    }
-  }, [selectedOffer, offers]);
-
   if (loading || offers.length === 0) {
     return null;
   }

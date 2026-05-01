@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { useCustomerAuth } from '../../context/CustomerAuthContext';
+import { useCustomerAuth } from '../../context/CustomerAuthContext.tsx';
 import Footer from '../../components/common/Footer';
 
 export default function CustomerSignUp() {
@@ -109,7 +109,6 @@ export default function CustomerSignUp() {
       console.log('📥 Signup result:', result);
 
       if (result.success) {
-        // User is auto-logged in after successful registration
         if (result.autoLogin && result.user) {
           console.log('✅ User auto-logged in:', result.user.name);
           
@@ -125,12 +124,6 @@ export default function CustomerSignUp() {
               }
             });
           }, 500);
-        } else {
-          // Fallback: redirect to OTP verification (shouldn't happen with current backend)
-          navigate('/customer/verify-otp', { 
-            state: { email: result.user?.email?.address },
-            replace: true 
-          });
         }
       } else {
         console.error('❌ Signup failed with message:', result.message);

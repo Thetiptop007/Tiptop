@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
-import { useCustomerAuth } from '../../context/CustomerAuthContext';
+import { useCustomerAuth } from '../../context/CustomerAuthContext.tsx';
 import GridShape from '../../components/common/GridShape';
 import ThemeTogglerTwo from '../../components/common/ThemeTogglerTwo';
 import { getSettings, Settings } from '../../services/settings.service';
@@ -72,12 +72,6 @@ export default function CustomerLogin() {
       if (result.success) {
         // Redirect to the page they were trying to visit or to menu
         navigate(from, { replace: true });
-      } else if (result.needsVerification) {
-        // Redirect to OTP verification page
-        navigate('/customer/verify-otp', { 
-          state: { email: result.email },
-          replace: true 
-        });
       } else {
         setErrors({ submit: result.message || 'Login failed. Please check your credentials.' });
       }

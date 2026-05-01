@@ -25,7 +25,6 @@ import UserProfiles from "./pages/UserProfiles";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CustomerLogin from "./pages/Customer/CustomerLogin";
 import CustomerSignUp from "./pages/Customer/CustomerSignUp";
-import VerifyOTP from "./pages/Customer/VerifyOTP";
 import CustomerHome from "./pages/Customer/CustomerHome";
 import CustomerMenu from "./pages/Customer/CustomerMenu";
 import ItemDetails from "./pages/Customer/ItemDetails";
@@ -41,6 +40,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { CustomerAuthProvider, useCustomerAuth } from "./context/CustomerAuthContext";
 import { ShopStatusProvider } from "./context/ShopStatusContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { CustomerProtectedRoute } from "./components/auth/CustomerProtectedRoute";
 import { useEffect } from "react";
 import { logger } from "./utils/logger";
 
@@ -70,7 +70,6 @@ function AppRoutes() {
                 {/* Customer Auth Routes */}
                 <Route path="/customer/login" element={<CustomerLogin />} />
                 <Route path="/customer/signup" element={<CustomerSignUp />} />
-                <Route path="/customer/verify-otp" element={<VerifyOTP />} />
 
                 {/* Customer Web App - All routes under /customer (Public/Protected) */}
                 <Route path="/customer" element={<CustomerLayout />}>
@@ -78,12 +77,54 @@ function AppRoutes() {
                   <Route path="menu" element={<CustomerMenu />} />
                   <Route path="menu/:id" element={<ItemDetails />} />
                   <Route path="cart" element={<Cart />} />
-                  <Route path="payment" element={<Payment />} />
-                  <Route path="orders" element={<CustomerOrders />} />
-                  <Route path="orders/:orderId" element={<CustomerOrders />} />
-                  <Route path="profile" element={<CustomerProfile />} />
-                  <Route path="profile/edit" element={<EditProfile />} />
-                  <Route path="addresses" element={<SavedAddresses />} />
+                  <Route
+                    path="payment"
+                    element={
+                      <CustomerProtectedRoute>
+                        <Payment />
+                      </CustomerProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="orders"
+                    element={
+                      <CustomerProtectedRoute>
+                        <CustomerOrders />
+                      </CustomerProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="orders/:orderId"
+                    element={
+                      <CustomerProtectedRoute>
+                        <CustomerOrders />
+                      </CustomerProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="profile"
+                    element={
+                      <CustomerProtectedRoute>
+                        <CustomerProfile />
+                      </CustomerProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="profile/edit"
+                    element={
+                      <CustomerProtectedRoute>
+                        <EditProfile />
+                      </CustomerProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="addresses"
+                    element={
+                      <CustomerProtectedRoute>
+                        <SavedAddresses />
+                      </CustomerProtectedRoute>
+                    }
+                  />
                   <Route path="help" element={<HelpSupport />} />
                   <Route path="privacy" element={<CustomerPrivacyPolicy />} />
                 </Route>

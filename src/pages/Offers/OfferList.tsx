@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
+import { apiRequest, parseApiResponse } from "../../config/api";
 
 // Types
 interface Offer {
@@ -37,15 +38,8 @@ const OfferList: React.FC = () => {
     try {
       setLoading(true);
       const query = filter !== 'all' ? `?status=${filter}` : '';
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/offers/admin${query}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch offers');
-
-      const data = await response.json();
+      const response = await apiRequest(`offers/admin${query}`);
+      const data = await parseApiResponse(response);
       setOffers(data.data || []);
     } catch (error) {
       console.error('Error fetching offers:', error);
@@ -58,11 +52,8 @@ const OfferList: React.FC = () => {
     if (!confirm('Are you sure you want to delete this offer?')) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/offers/admin/${id}`, {
+      const response = await apiRequest(`offers/admin/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-        },
       });
 
       if (response.ok) {
@@ -76,11 +67,8 @@ const OfferList: React.FC = () => {
 
   const handleDeactivate = async (id: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/offers/admin/${id}/deactivate`, {
+      const response = await apiRequest(`offers/admin/${id}/deactivate`, {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-        },
       });
 
       if (response.ok) {
@@ -94,15 +82,13 @@ const OfferList: React.FC = () => {
 
   const handleDuplicate = async (id: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/offers/admin/${id}/duplicate`, {
+      const response = await apiRequest(`offers/admin/${id}/duplicate`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-        },
       });
 
+      const data = await parseApiResponse(response);
+
       if (response.ok) {
-        const data = await response.json();
         navigate(`/admin/offers/edit/${data.data._id}`);
       }
     } catch (error) {
