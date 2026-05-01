@@ -273,6 +273,40 @@ export const apiRequest = async (
       endpoint,
       status: response.status,
     });
+    // Try to parse JSON body (non-blocking) to detect backend-declared auth failures
+    let bodyJson: any = null;
+    try {
+      bodyJson = await response.clone().json();
+    } catch (err) {
+      bodyJson = null;
+    }
+
+    // Some backend endpoints return 200 but include a body.code indicating 401/403.
+    // Treat those as authorization failures and force logout + redirect.
+    const backendCode = bodyJson?.code ?? bodyJson?.statusCode ?? null;
+    if ((response.status === 200 || response.status === 204) && (backendCode === 401 || backendCode === 403)) {
+      logger.warn('Backend returned auth failure in body despite 200 status', { endpoint, backendCode, bodyJson });
+
+      const currentPath = window.location.pathname;
+      const isAdminRoute = currentPath.startsWith('/admin');
+      const isCustomerRoute = currentPath.startsWith('/customer');
+
+      if (isAdminRoute) {
+        clearAdminSession();
+        redirectToSignIn();
+      } else if (isCustomerRoute) {
+        clearCustomerSession();
+        if (window.location.pathname !== '/customer/login') {
+          window.location.href = '/customer/login';
+        }
+      } else {
+        // Generic fallback
+        clearAllAuthStorage();
+        redirectToSignIn();
+      }
+      // Return response so callers get original shape (they'll see redirected page)
+      return response;
+    }
     
     // Handle 401 Unauthorized - try to refresh token and retry
     if (response.status === 401 && retryCount < 1 && (isAdminAuthRequest || isCustomerAuthRequest)) {
