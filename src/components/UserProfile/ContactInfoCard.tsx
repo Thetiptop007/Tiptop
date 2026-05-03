@@ -79,7 +79,7 @@ export default function ContactInfoCard() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-6">
-              Contact Information
+              Business Information
             </h4>
             <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
               Business contact details that customers will see
@@ -149,7 +149,7 @@ export default function ContactInfoCard() {
         <div className="relative w-full p-4 overflow-y-auto bg-white no-scrollbar rounded-3xl dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-              Edit Contact Information
+              Edit Business Information
             </h4>
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
               Update business contact information that customers will see in the app.

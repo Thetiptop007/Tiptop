@@ -1,10 +1,5 @@
 import { apiRequest, parseApiResponse } from '../config/api';
 
-export interface AdminProfile {
-  firstName: string;
-  lastName: string;
-}
-
 export interface ShopStatus {
   isOpen: boolean;
   lastUpdatedBy: string;
@@ -31,7 +26,6 @@ export interface Settings {
   upiId: string;
   apkDownloadUrl: string;
   indusAppStoreUrl: string;
-  adminProfile: AdminProfile;
   shopStatus?: ShopStatus;
   delivery?: {
     fee: number;

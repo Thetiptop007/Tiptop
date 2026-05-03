@@ -301,45 +301,6 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Admin Profile */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-sm font-semibold text-gray-800 dark:text-white mb-3">Admin Profile</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
-                First Name
-              </label>
-              <input
-                type="text"
-                value={settings.adminProfile.firstName}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  adminProfile: { ...settings.adminProfile, firstName: e.target.value }
-                })}
-                className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="First Name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
-                Last Name
-              </label>
-              <input
-                type="text"
-                value={settings.adminProfile.lastName}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  adminProfile: { ...settings.adminProfile, lastName: e.target.value }
-                })}
-                className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="Last Name"
-              />
-            </div>
-
-          </div>
-        </div>
-
         {/* Notification Settings */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
           <h2 className="text-sm font-semibold text-gray-800 dark:text-white mb-3">Notification Emails</h2>
