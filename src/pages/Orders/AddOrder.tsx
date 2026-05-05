@@ -8,6 +8,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useDebounceSearch } from "../../hooks/useDebounceSearch";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { useShopStatus } from "../../context/ShopStatusContext";
+import { logger } from "../../utils/logger";
 
 // Define the TypeScript interface for menu items
 interface MenuItem {
@@ -97,7 +98,9 @@ export default function AddOrder() {
         // Fetch settings for tax and charges
         const settingsData = await getSettings();
         setSettings(settingsData);
-        console.log('⚙️ Settings loaded:', settingsData);
+        logger.network('POS_SETTINGS_LOADED', 'POS settings loaded', {
+          hasSettings: !!settingsData,
+        });
         
         // Auto-fill city, state, zip from business address
         if (settingsData.businessAddress) {
@@ -132,7 +135,10 @@ export default function AddOrder() {
 
         // Fetch POS menu items - get all available items for admin to select from
         const menuData = await getPOSMenuItems(1, 1000);
-        console.log('📦 POS Menu Data:', menuData);
+        logger.network('POS_MENU_LOADED', 'POS menu data loaded', {
+          hasMenuData: !!menuData,
+          itemCount: menuData?.items?.length || 0,
+        });
         
         if (menuData && menuData.items && Array.isArray(menuData.items)) {
           // Transform API data to match our interface
@@ -149,20 +155,21 @@ export default function AddOrder() {
             isAvailable: item.isAvailable
           }));
           
-          console.log('✅ Total Items Loaded:', transformedItems.length);
-          
           // Group items by category and log counts
           const itemsByCategory = transformedItems.reduce((acc, item) => {
             acc[item.category] = (acc[item.category] || 0) + 1;
             return acc;
           }, {} as Record<string, number>);
           
-          console.log('📊 Items by Category:', itemsByCategory);
+          logger.business('POS_MENU_CATEGORIZED', 'POS menu items categorized', {
+            categoryCount: Object.keys(itemsByCategory).length,
+            itemCount: transformedItems.length,
+          });
           
           setMenuItems(transformedItems);
         }
       } catch (error) {
-        console.error("Error fetching menu data:", error);
+        logger.error('Error fetching menu data', { errorMessage: error instanceof Error ? error.message : String(error) });
       } finally {
         setLoading(false);
       }
@@ -309,7 +316,7 @@ export default function AddOrder() {
 
     // Prevent double submission
     if (submitting) {
-      console.warn("⚠️ Order submission already in progress");
+      logger.warn('Order submission already in progress');
       return;
     }
 
@@ -360,7 +367,7 @@ export default function AddOrder() {
         throw new Error('Order creation failed - no result returned');
       }
     } catch (error: any) {
-      console.error("❌ Error placing order:", error);
+      logger.error('Error placing order', { errorMessage: error?.message || String(error) });
       
       // Handle specific error cases
       if (error.message?.includes('already being processed')) {

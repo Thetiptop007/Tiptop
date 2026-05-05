@@ -1,4 +1,5 @@
 import { apiRequest, parseApiResponse } from '../config/api';
+import { logger } from '../utils/logger';
 
 type CacheEntry<T> = {
   value: T;
@@ -85,6 +86,7 @@ export const getPopularItems = async (limit: number = 3): Promise<MenuItem[]> =>
       const data = await parseApiResponse(response);
 
       if (data.status === 'success' && data.data?.menuItems) {
+        logger.network('POPULAR_ITEMS_LOADED', 'Popular menu items loaded', { count: data.data.menuItems.length });
         return data.data.menuItems.map((item: any) => ({
           id: item._id,
           name: item.name,
@@ -107,7 +109,7 @@ export const getPopularItems = async (limit: number = 3): Promise<MenuItem[]> =>
       return [];
     }, 15000);
   } catch (error) {
-    console.error('Error fetching popular items:', error);
+    logger.error('Error fetching popular items', { errorMessage: error instanceof Error ? error.message : String(error) });
     return [];
   }
 };
@@ -140,13 +142,14 @@ export const getMenuItems = async (
       const data = await parseApiResponse(response);
 
       if (data.status === 'success' && data.data) {
+        logger.network('MENU_ITEMS_LOADED', 'Menu items loaded', { count: data.data.items?.length || 0, page, limit });
         return data.data;
       }
 
       return null;
     }, 1200);
   } catch (error) {
-    console.error('Error fetching menu items:', error);
+    logger.error('Error fetching menu items', { errorMessage: error instanceof Error ? error.message : String(error) });
     return null;
   }
 };
@@ -161,13 +164,14 @@ export const getCategories = async (): Promise<string[]> => {
       const data = await parseApiResponse(response);
 
       if (data.status === 'success' && data.data) {
+        logger.network('MENU_CATEGORIES_LOADED', 'Menu categories loaded', { count: data.data.categories?.length || 0 });
         return data.data.categories;
       }
 
       return [];
     }, 30000);
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    logger.error('Error fetching categories', { errorMessage: error instanceof Error ? error.message : String(error) });
     return [];
   }
 };
@@ -181,12 +185,13 @@ export const getMenuItem = async (id: string): Promise<MenuItem | null> => {
     const data = await parseApiResponse(response);
 
     if (data.status === 'success' && data.data) {
+      logger.network('MENU_ITEM_LOADED', 'Menu item loaded', { id });
       return data.data;
     }
 
     return null;
   } catch (error) {
-    console.error('Error fetching menu item:', error);
+    logger.error('Error fetching menu item', { errorMessage: error instanceof Error ? error.message : String(error) });
     return null;
   }
 };
@@ -211,7 +216,7 @@ export const updateAvailability = async (
     const data = await parseApiResponse(response);
     return data.status === 'success';
   } catch (error) {
-    console.error('Error updating availability:', error);
+    logger.error('Error updating availability', { id, errorMessage: error instanceof Error ? error.message : String(error) });
     return false;
   }
 };
@@ -229,7 +234,7 @@ export const deleteMenuItem = async (id: string): Promise<boolean> => {
     const data = await parseApiResponse(response);
     return data.status === 'success';
   } catch (error) {
-    console.error('Error deleting menu item:', error);
+    logger.error('Error deleting menu item', { id, errorMessage: error instanceof Error ? error.message : String(error) });
     return false;
   }
 };
@@ -257,6 +262,7 @@ export const createMenuItem = async (itemData: {
     const data = await parseApiResponse(response);
     
     if (data.status === 'success') {
+      logger.business('MENU_ITEM_CREATED', 'Menu item created', { hasItem: !!data.data.item });
       return {
         success: true,
         item: data.data.item,
@@ -269,7 +275,7 @@ export const createMenuItem = async (itemData: {
       message: data.message || 'Failed to create menu item'
     };
   } catch (error: any) {
-    console.error('Error creating menu item:', error);
+    logger.error('Error creating menu item', { errorMessage: error?.message || String(error) });
     return {
       success: false,
       message: error.message || 'An error occurred while creating the menu item'
@@ -304,6 +310,7 @@ export const updateMenuItem = async (
     const data = await parseApiResponse(response);
     
     if (data.status === 'success') {
+      logger.business('MENU_ITEM_UPDATED', 'Menu item updated', { id, hasItem: !!data.data.item });
       return {
         success: true,
         item: data.data.item,
@@ -313,7 +320,7 @@ export const updateMenuItem = async (
     
     // Debug: surface validation errors from backend in browser console
     if (data.status !== 'success') {
-      console.error('updateMenuItem failed response:', data);
+      logger.warn('Menu item update failed response', { id, message: data.message });
     }
 
     return {
@@ -321,7 +328,7 @@ export const updateMenuItem = async (
       message: data.message || (data.errors ? JSON.stringify(data.errors) : 'Failed to update menu item')
     };
   } catch (error: any) {
-    console.error('Error updating menu item:', error);
+    logger.error('Error updating menu item', { id, errorMessage: error?.message || String(error) });
     return {
       success: false,
       message: error.message || 'An error occurred while updating the menu item'

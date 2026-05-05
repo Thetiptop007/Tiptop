@@ -22,6 +22,7 @@ import { apiRequest, parseApiResponse } from "../../config/api";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { appQueryKeys, useTodayOrdersQuery } from "../../hooks/useAppDataQueries";
 import { useQueryClient } from "@tanstack/react-query";
+import { logger } from '../../utils/logger';
 
 // Define order data
 type BulkActionMode = 'new' | 'accepted' | 'readyDelivery' | 'readyPickup' | 'outForDelivery';
@@ -422,7 +423,7 @@ const OrderTable = ({
             printFrame.contentWindow?.focus();
             printFrame.contentWindow?.print();
           } catch (error) {
-            console.error('Print error:', error);
+            logger.error('Print error', { errorMessage: error instanceof Error ? error.message : String(error) });
             alert('Print dialog opened. Please select your thermal printer and confirm.');
           }
           
@@ -1732,11 +1733,6 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
                               <tfoot className="bg-gray-100 dark:bg-white/[0.03]">
                                 {/* Items Subtotal */}
                                 {(() => {
-                                  console.log('🎨 RENDERING PRICING SECTION:');
-                                  console.log('expandedOrderDetails exists?', !!expandedOrderDetails);
-                                  console.log('expandedOrderDetails.pricing exists?', !!expandedOrderDetails?.pricing);
-                                  console.log('Full expandedOrderDetails:', expandedOrderDetails);
-                                  console.log('Pricing object:', expandedOrderDetails?.pricing);
                                   return null;
                                 })()}
                                 {expandedOrderDetails.pricing && (
@@ -1874,7 +1870,7 @@ export default function OrderManagement() {
         setDeliveryPartners(data.data.partners || []);
       }
     } catch (error) {
-      console.error('Failed to fetch delivery partners:', error);
+      logger.error('Failed to fetch delivery partners', { errorMessage: error instanceof Error ? error.message : String(error) });
     }
   };
   
@@ -1924,7 +1920,7 @@ export default function OrderManagement() {
         showNotification(errorMsg, 'error');
       }
     } catch (error: any) {
-      console.error('Error assigning delivery partner:', error);
+      logger.error('Error assigning delivery partner', { errorMessage: error?.message || String(error) });
       const errorMsg = error.message || 'Failed to assign delivery partner';
       setAssignError(errorMsg);
       showNotification(errorMsg, 'error');
@@ -2012,7 +2008,7 @@ export default function OrderManagement() {
   };
   
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
-    console.log(`🔄 [handleStatusUpdate] Attempting to update order ${orderId} to ${newStatus}`);
+    logger.business('ORDER_STATUS_UPDATE_CLICKED', 'Attempting to update order status', { orderId, newStatus });
     
     // Check if online
     if (!isOnline) {
@@ -2113,13 +2109,13 @@ export default function OrderManagement() {
     
     // Make API call in background - pass orderType from currentOrder
     const orderType = currentOrder?.orderType || 'DELIVERY';
-    console.log('🔄 [Sending to API] OrderType:', orderType, 'Status:', newStatus);
+    logger.network('ORDER_STATUS_UPDATE_REQUESTED', 'Sending order status update to API', { orderId, orderType, newStatus });
     const success = await updateOrderStatus(orderId, newStatus, orderType as 'DELIVERY' | 'TAKEAWAY');
     
     if (success) {
-      console.log('✅ Status update confirmed by server - UI already updated optimistically');
+      logger.business('ORDER_STATUS_UPDATE_CONFIRMED', 'Status update confirmed by server', { orderId, newStatus });
     } else {
-      console.error('❌ Status update failed - reverting optimistic update');
+      logger.warn('Status update failed; reverting optimistic update', { orderId, newStatus });
       showNotification('Failed to update order status. Refreshing...', 'error');
       
       // Only refresh on failure to revert optimistic update

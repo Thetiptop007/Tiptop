@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { createMenuItem, getCategories } from "../../services/menu-management.service";
+import { logger } from "../../utils/logger";
 
 interface PriceVariant {
   quantity: string;
@@ -101,12 +102,17 @@ export default function AddMenu() {
     e.preventDefault();
     setSubmitting(true);
     
-    console.log('Form data before validation:', formData);
+    logger.business('MENU_FORM_SUBMITTED', 'Menu item creation form submitted', {
+      hasName: !!formData.name.trim(),
+      hasCategory: !!formData.category.trim(),
+      variantCount: formData.priceVariants.length,
+      isAvailable: formData.isAvailable,
+    });
     
     try {
       // Validate category
       if (!formData.category || formData.category === 'All' || formData.category.trim() === '') {
-        console.error('Category validation failed:', formData.category);
+        logger.warn('Menu item category validation failed', { category: formData.category });
         alert('Please select a valid category');
         setSubmitting(false);
         return;
@@ -121,8 +127,11 @@ export default function AddMenu() {
         category: formData.category, // Send as 'category' (singular) not 'categories'
         isAvailable: formData.isAvailable,
       };
-      
-      console.log('Item data being sent to API:', itemData);
+      logger.business('MENU_CREATE_REQUESTED', 'Sending menu item to API', {
+        category: itemData.category,
+        isAvailable: itemData.isAvailable,
+        variantCount: itemData.priceVariants.length,
+      });
 
       const result = await createMenuItem(itemData);
       
@@ -133,7 +142,7 @@ export default function AddMenu() {
         alert(result.message || 'Failed to create menu item');
       }
     } catch (error) {
-      console.error('Error creating menu item:', error);
+      logger.error('Error creating menu item', { errorMessage: error instanceof Error ? error.message : String(error) });
       alert('An error occurred while creating the menu item');
     } finally {
       setSubmitting(false);

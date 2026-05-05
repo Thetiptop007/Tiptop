@@ -1,5 +1,6 @@
 import { apiRequest, parseApiResponse } from '../config/api';
 import { setCsrfToken } from './auth-session.store';
+import { logger } from '../utils/logger';
 
 export interface User {
   _id: string;
@@ -63,12 +64,15 @@ export const getCurrentUser = async (): Promise<User | null> => {
  */
 export const updateCurrentUser = async (profileData: UpdateProfileData): Promise<User | null> => {
   try {
-    console.log('🔄 [updateCurrentUser] Sending profile update:', profileData);
+    logger.auth('PROFILE_UPDATE_REQUESTED', 'Updating admin profile', {
+      hasName: !!profileData.name,
+      hasEmail: !!profileData.email,
+      hasPhone: !!profileData.phone,
+    });
     const response = await apiRequest('auth/admin/me', {
       method: 'PATCH',
       body: JSON.stringify(profileData),
     });
-    console.log('✅ [updateCurrentUser] Update response:', response);
     const data = await parseApiResponse(response);
 
     if (data.status === 'success' && data.data?.user) {
@@ -76,12 +80,13 @@ export const updateCurrentUser = async (profileData: UpdateProfileData): Promise
       if (csrfToken) {
         setCsrfToken('admin', csrfToken);
       }
+      logger.auth('PROFILE_UPDATE_SUCCESS', 'Admin profile updated successfully', { hasCsrfToken: !!csrfToken });
       return data.data.user;
     }
 
     return null;
   } catch (error) {
-    console.error('Error updating user profile:', error);
+    logger.error('Error updating user profile', { errorMessage: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 };
@@ -107,7 +112,7 @@ export const changePassword = async (currentPassword: string, newPassword: strin
 
     return data.status === 'success';
   } catch (error) {
-    console.error('Error changing password:', error);
+    logger.error('Error changing password', { errorMessage: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 };

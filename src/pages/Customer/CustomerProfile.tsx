@@ -1,14 +1,15 @@
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { logger } from '../../utils/logger';
 
 export default function CustomerProfile() {
   const { customer, logout } = useCustomerAuth();
   const navigate = useNavigate();
 
-  // Debug: Log customer data
-  console.log('👤 CustomerProfile - customer data:', customer);
-  console.log('👤 CustomerProfile - customer.name:', customer?.name);
-  console.log('👤 CustomerProfile - customer.email:', customer?.email);
+  logger.ui('CUSTOMER_PROFILE_VIEW', 'Customer profile viewed', {
+    hasCustomer: !!customer,
+    role: customer?.role || 'CUSTOMER',
+  });
 
   const handleLogout = async () => {
     if (!confirm('Are you sure you want to logout?')) return;

@@ -1,4 +1,5 @@
 import { apiRequest, parseApiResponse } from '../config/api';
+import { logger } from '../utils/logger';
 
 type CacheEntry<T> = {
   value: T;
@@ -122,33 +123,21 @@ export const getTodayOrders = async (): Promise<TodayOrdersResponse | null> => {
     const data = await parseApiResponse(response);
 
     if (data.status === 'success' && data.data) {
-      console.log('📥 [getTodayOrders] Backend response:', {
-        totalOrders: {
-          pending: data.data.pending?.length || 0,
-          accepted: data.data.accepted?.length || 0,
-          preparing: data.data.preparing?.length || 0,
-          ready: data.data.ready?.length || 0,
-          ready_for_pickup: data.data.ready_for_pickup?.length || 0,
-          out_for_delivery: data.data.out_for_delivery?.length || 0,
-          delivered: data.data.delivered?.length || 0
-        },
-        sampleReadyOrder: data.data.ready?.[0] ? {
-          orderId: data.data.ready[0].orderId,
-          status: data.data.ready[0].status,
-          orderType: data.data.ready[0].orderType
-        } : 'no ready orders',
-        sampleReadyForPickupOrder: data.data.ready_for_pickup?.[0] ? {
-          orderId: data.data.ready_for_pickup[0].orderId,
-          status: data.data.ready_for_pickup[0].status,
-          orderType: data.data.ready_for_pickup[0].orderType
-        } : 'no ready_for_pickup orders'
+      logger.business('TODAY_ORDERS_LOADED', 'Today orders summary loaded', {
+        pending: data.data.pending?.length || 0,
+        accepted: data.data.accepted?.length || 0,
+        preparing: data.data.preparing?.length || 0,
+        ready: data.data.ready?.length || 0,
+        readyForPickup: data.data.ready_for_pickup?.length || 0,
+        outForDelivery: data.data.out_for_delivery?.length || 0,
+        delivered: data.data.delivered?.length || 0,
       });
       return data.data;
     }
 
     return null;
   } catch (error) {
-    console.error('Error fetching today orders:', error);
+    logger.error('Error fetching today orders', { errorMessage: error instanceof Error ? error.message : String(error) });
     return null;
   }
 };
@@ -168,7 +157,7 @@ export const getAllOrders = async (page: number = 1, limit: number = 10): Promis
 
     return null;
   } catch (error) {
-    console.error('❌ [getAllOrders] Error:', error);
+    logger.error('Error fetching all orders', { errorMessage: error instanceof Error ? error.message : String(error) });
     return null;
   }
 };
@@ -178,22 +167,25 @@ export const getAllOrders = async (page: number = 1, limit: number = 10): Promis
  */
 export const getOrderDetails = async (orderId: string): Promise<Order | null> => {
   try {
-    console.log('📡 Fetching order details for:', orderId);
+    logger.network('ORDER_DETAILS_REQUESTED', 'Fetching order details', { orderId });
     const response = await apiRequest(`admin/orders/${orderId}/details`, { timeoutMs: 30000 });
     const data = await parseApiResponse(response);
 
-    console.log('📥 RAW API RESPONSE:', JSON.stringify(data, null, 2));
-
     if (data.status === 'success' && data.data) {
-      console.log('✅ Order data received:', data.data);
-      console.log('✅ Pricing in received data:', data.data.pricing);
+      logger.network('ORDER_DETAILS_RECEIVED', 'Order details received', {
+        orderId,
+        orderStatus: data.data.status,
+        orderType: data.data.orderType,
+        itemCount: data.data.itemCount,
+        hasPricing: !!data.data.pricing,
+      });
       return data.data;
     }
 
-    console.log('❌ No data in response');
+    logger.warn('No order details returned', { orderId });
     return null;
   } catch (error) {
-    console.error('❌ Error fetching order details:', error);
+    logger.error('Error fetching order details', { orderId, errorMessage: error instanceof Error ? error.message : String(error) });
     return null;
   }
 };
@@ -208,7 +200,11 @@ export const updateOrderStatus = async (
   orderType?: 'DELIVERY' | 'TAKEAWAY'
 ): Promise<boolean> => {
   try {
-    console.log(`📦 Updating order ${orderId} to status: ${newStatus}, type: ${orderType}`);
+    logger.business('ORDER_STATUS_UPDATE_REQUESTED', 'Updating order status', {
+      orderId,
+      newStatus,
+      orderType: orderType || 'DELIVERY',
+    });
     
     let endpoint = '';
     const method = 'PATCH';
@@ -218,33 +214,28 @@ export const updateOrderStatus = async (
     switch (newStatus) {
       case 'ACCEPTED':
         endpoint = `orders/${orderId}/accept`;
-        console.log('✅ Using /accept endpoint (PENDING → ACCEPTED)');
         break;
       case 'READY':
       case 'READY_FOR_PICKUP':
         endpoint = `orders/${orderId}/ready`;
-        console.log(`🟢 Using /ready endpoint (ACCEPTED → ${newStatus})`);
         break;
       case 'DELIVERED':
         // For takeaway orders, use complete-takeaway endpoint
         if (orderType === 'TAKEAWAY') {
           endpoint = `orders/${orderId}/complete-takeaway`;
-          console.log('✅ Using /complete-takeaway endpoint (READY_FOR_PICKUP → DELIVERED)');
         } else {
           endpoint = `admin/orders/${orderId}/status`;
           requestBody = {
             status: 'DELIVERED',
             notes: 'Marked delivered by admin',
           };
-          console.log('✅ Using admin /status endpoint to mark delivery order as DELIVERED');
         }
         break;
       case 'CANCELLED':
         endpoint = `admin/orders/${orderId}/cancel`;
-        console.log('❌ Using admin /cancel endpoint');
         break;
       default:
-        console.error(`⚠️ Unsupported status change: ${newStatus}`);
+        logger.warn('Unsupported status change requested', { orderId, newStatus });
         return false;
     }
     
@@ -260,14 +251,19 @@ export const updateOrderStatus = async (
     const data = await parseApiResponse(response);
     
     if (data.status === 'success') {
-      console.log(`✅ Order ${orderId} status updated successfully to ${newStatus}`);
+      logger.business('ORDER_STATUS_UPDATE_SUCCESS', 'Order status updated successfully', { orderId, newStatus });
       return true;
     }
     
-    console.error('❌ Failed to update order status:', data);
+    logger.warn('Failed to update order status', {
+      orderId,
+      newStatus,
+      responseStatus: response.status,
+      message: data.message,
+    });
     return false;
   } catch (error) {
-    console.error('Error updating order status:', error);
+    logger.error('Error updating order status', { orderId, newStatus, errorMessage: error instanceof Error ? error.message : String(error) });
     return false;
   }
 };
@@ -299,7 +295,7 @@ export const bulkUpdateOrderStatus = async (
 
     return null;
   } catch (error) {
-    console.error('Bulk status update failed:', error);
+    logger.error('Bulk status update failed', { errorMessage: error instanceof Error ? error.message : String(error) });
     return null;
   }
 };
@@ -335,7 +331,7 @@ export const getPOSMenuItems = async (
       return null;
     }, 1200);
   } catch (error) {
-    console.error('Error fetching POS menu items:', error);
+    logger.error('Error fetching POS menu items', { errorMessage: error instanceof Error ? error.message : String(error) });
     return null;
   }
 };
@@ -368,7 +364,12 @@ export interface CreateAdminOrderData {
 
 export const createAdminOrder = async (orderData: CreateAdminOrderData): Promise<any> => {
   try {
-    console.log('📡 Sending order to backend:', orderData);
+    logger.business('ADMIN_ORDER_CREATE_REQUESTED', 'Sending admin order to backend', {
+      orderType: orderData.orderType,
+      itemCount: orderData.items.length,
+      hasCustomer: !!orderData.customer,
+      hasDeliveryAddress: !!orderData.deliveryAddress,
+    });
     
     // Generate idempotency key for this order
     const idempotencyKey = `admin-order-${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -383,19 +384,17 @@ export const createAdminOrder = async (orderData: CreateAdminOrderData): Promise
       timeoutMs: 30000,
     });
     
-    console.log('📥 Raw response:', response);
-    
     const data = await parseApiResponse(response);
-    console.log('📦 Parsed response:', data);
     
     if (data.status === 'success') {
+      logger.business('ADMIN_ORDER_CREATE_SUCCESS', 'Admin order created successfully', { hasOrderData: !!data.data });
       return data.data;
     }
     
     // If not success, throw error with details
     throw new Error(data.message || 'Failed to create order');
   } catch (error) {
-    console.error('❌ Create order error:', error);
+    logger.error('Create order error', { errorMessage: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 };
@@ -403,7 +402,7 @@ export const createAdminOrder = async (orderData: CreateAdminOrderData): Promise
 // Trigger thermal printer for kitchen bill
 export const printKitchenBill = async (orderId: string): Promise<void> => {
   try {
-    console.log('🖨️  Triggering thermal printer for order:', orderId);
+    logger.business('THERMAL_PRINT_REQUESTED', 'Triggering thermal printer for order', { orderId });
     
     // Mark order as ready for thermal printing by setting isPrinted to false
     // The thermal printer app polls for orders with isPrinted: false
@@ -422,13 +421,13 @@ export const printKitchenBill = async (orderId: string): Promise<void> => {
     const data = await parseApiResponse(response);
     
     if (data.status === 'success' || data.success) {
-      console.log('✅ Order marked for thermal printing');
+      logger.business('THERMAL_PRINT_MARKED', 'Order marked for thermal printing', { orderId });
       return;
     }
     
     throw new Error(data.message || 'Failed to mark order for printing');
   } catch (error) {
-    console.error('❌ Thermal print error:', error);
+    logger.error('Thermal print error', { orderId, errorMessage: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 };

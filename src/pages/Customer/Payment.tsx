@@ -6,6 +6,7 @@ import { createAddress, AddressData } from '../../services/customer-operations.s
 import { getSettings } from '../../services/settings.service';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useShopStatus } from '../../context/ShopStatusContext';
+import { logger } from '../../utils/logger';
 
 // Service areas configuration - matches mobile app
 const SERVICE_AREAS = [
@@ -78,14 +79,16 @@ export default function Payment() {
               setShowAddressForm(true);
             }
           } catch (addrError) {
-            console.warn('Could not fetch addresses, user can add new one:', addrError);
+              logger.warn('Could not fetch addresses, user can add new one', {
+                errorMessage: addrError instanceof Error ? addrError.message : String(addrError),
+              });
             setShowAddressForm(true);
           }
         } else {
           setShowAddressForm(true);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+          logger.error('Error fetching payment data', { errorMessage: error instanceof Error ? error.message : String(error) });
       }
     };
 
@@ -96,14 +99,14 @@ export default function Payment() {
   const total = subtotal + (deliveryFee > 0 ? deliveryFee : 0);
 
   const handlePlaceOrder = async () => {
-    console.log('🚀 Place Order clicked');
-    console.log('📊 Current state:', {
-      customer: !!customer,
+    logger.business('CHECKOUT_SUBMITTED', 'Place order clicked', {
+      hasCustomer: !!customer,
       saveAddress,
-      selectedArea,
-      selectedAddress,
-      newAddress,
-      showAddressForm
+      hasSelectedArea: !!selectedArea,
+      hasSelectedAddress: !!selectedAddress,
+      hasNewAddress: !!newAddress.street,
+      showAddressForm,
+      itemCount: cart.length,
     });
     
     // Validation
@@ -149,22 +152,20 @@ export default function Payment() {
       // If the address form is showing, we're definitely using a new address
       if (customer && (showAddressForm || !selectedAddress || selectedAddress._id === 'temp')) {
         useNewAddress = true;
-        console.log('🔍 Using new address for customer');
       }
 
-      console.log('💾 Save address check:', {
-        customer: !!customer,
+      logger.network('ADDRESS_SAVE_EVALUATED', 'Evaluated whether to save address', {
+        hasCustomer: !!customer,
         saveAddress,
         useNewAddress,
-        selectedArea,
+        hasSelectedArea: !!selectedArea,
         hasStreet: !!newAddress.street,
-        willSave: customer && saveAddress && useNewAddress && selectedArea && newAddress.street
+        willSave: !!(customer && saveAddress && useNewAddress && selectedArea && newAddress.street),
       });
 
       // If customer wants to save the new address, create it first
       if (customer && saveAddress && useNewAddress && selectedArea && newAddress.street) {
         try {
-          console.log('💾 Attempting to save address to profile...');
           // Get the selected area details and prepend to street
           const selectedAreaDetails = SERVICE_AREAS.find(area => area.id === selectedArea);
           const streetWithArea = selectedAreaDetails 
@@ -175,9 +176,7 @@ export default function Payment() {
             ...newAddress,
             street: streetWithArea,
           };
-          console.log('📤 Sending address data:', addressData);
           const savedAddr = await createAddress(addressData);
-          console.log('✅ Address saved successfully:', savedAddr);
           // Extract the address from the response (API returns { status, message, data: { address } })
           const addressFromResponse = savedAddr.data?.address || savedAddr.data || savedAddr;
           // Use the saved address for this order
@@ -185,12 +184,19 @@ export default function Payment() {
           useNewAddress = false; // Now using saved address
           setSelectedAddress(addressFromResponse);
         } catch (addrError) {
-          console.error('❌ Failed to save address:', addrError);
+          logger.warn('Address save failed but order will continue', {
+            errorMessage: addrError instanceof Error ? addrError.message : String(addrError),
+          });
           alert('Address could not be saved, but order will continue.');
           // Continue with order even if address save fails
         }
       } else {
-        console.log('⚠️ Skipping address save - conditions not met');
+        logger.debug('Skipping address save - conditions not met', {
+          hasCustomer: !!customer,
+          saveAddress,
+          useNewAddress,
+          hasSelectedArea: !!selectedArea,
+        });
       }
 
       // Prepare delivery address
@@ -243,7 +249,13 @@ export default function Payment() {
         } : {}),
       };
 
-      console.log('📦 [Payment] Order data being sent:', orderData);
+      logger.business('CHECKOUT_ORDER_SUBMITTING', 'Submitting checkout order', {
+        hasCustomer: !!customer,
+        orderType: customer ? 'customer' : 'guest',
+        itemCount: orderData.items.length,
+        totalAmount: orderData.totalAmount,
+        paymentMethod,
+      });
 
       const order = await createOrder(orderData);
       
@@ -259,7 +271,7 @@ export default function Payment() {
         navigate('/customer/menu');
       }
     } catch (error: any) {
-      console.error('Error creating order:', error);
+      logger.error('Error creating order', { errorMessage: error?.message || String(error) });
       
       // Show detailed error message
       const errorMsg = error.message || 'Failed to create order. Please try again.';
@@ -409,7 +421,7 @@ export default function Payment() {
                       key={area.id}
                       type="button"
                       onClick={() => {
-                        console.log('📍 Area selected:', area);
+                          logger.ui('PAYMENT_AREA_SELECTED', 'Delivery area selected', { areaId: area.id, areaName: area.name });
                         setSelectedArea(area.id);
                         setNewAddress({
                           ...newAddress,
@@ -491,7 +503,7 @@ export default function Payment() {
                     checked={saveAddress}
                     onChange={(e) => {
                       const checked = e.target.checked;
-                      console.log('📋 Save address checkbox changed:', checked);
+                      logger.ui('PAYMENT_SAVE_ADDRESS_TOGGLED', 'Save address checkbox changed', { checked });
                       setSaveAddress(checked);
                     }}
                     className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
@@ -507,8 +519,11 @@ export default function Payment() {
                 <button
                   type="button"
                   onClick={() => {
-                    console.log('🔘 Confirm Address clicked');
-                    console.log('Current state:', { selectedArea, saveAddress, newAddress });
+                    logger.business('PAYMENT_CONFIRM_ADDRESS', 'Confirm address clicked', {
+                      hasSelectedArea: !!selectedArea,
+                      saveAddress,
+                      hasStreet: !!newAddress.street,
+                    });
                     // Validate address fields
                     if (!selectedArea) {
                       alert('Please select a delivery area');
@@ -533,7 +548,6 @@ export default function Payment() {
                       landmark: newAddress.landmark,
                       isDefault: false,
                     };
-                    console.log('✅ Temp address created:', tempAddress);
                     setSelectedAddress(tempAddress);
                   }}
                   className="w-full py-3 px-4 bg-indigo-600 dark:bg-indigo-500 text-white rounded-xl font-semibold hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2 text-sm"

@@ -172,15 +172,14 @@ const refreshAccessToken = async (): Promise<string | null> => {
       const scope = window.location.pathname.startsWith('/admin') ? 'admin' : 'customer';
       const csrfToken = getCsrfTokenForScope(scope);
 
-      logger.debug('Refresh bootstrap state', {
+      logger.network('TOKEN_REFRESH_STARTED', 'Token refresh bootstrap state', {
         scope,
         path: window.location.pathname,
         hasCsrfToken: !!csrfToken,
-        csrfTokenPreview: csrfToken ? `${csrfToken.slice(0, 8)}...` : null,
       });
 
       if (!csrfToken) {
-        logger.debug('Skipping token refresh because CSRF token is missing', { scope });
+        logger.network('TOKEN_REFRESH_SKIPPED', 'Skipping token refresh because CSRF token is missing', { scope });
         return null;
       }
 
@@ -206,7 +205,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
           if (csrfToken) {
             setCsrfToken(scope, csrfToken);
           }
-          logger.info('Token refreshed successfully');
+          logger.auth('TOKEN_REFRESH_SUCCESS', 'Token refreshed successfully', { scope });
           return newAccessToken;
         }
       }
@@ -215,7 +214,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
       clearAllAuthStorage();
       return null;
     } catch (error: any) {
-      logger.error('Token refresh failed:', error?.message);
+      logger.error('Token refresh failed', { errorMessage: error?.message, scope: window.location.pathname.startsWith('/admin') ? 'admin' : 'customer' });
       clearAllAuthStorage();
       return null;
     } finally {
@@ -244,10 +243,11 @@ export const apiRequest = async (
   }
   
   const finalUrl = fullUrl;
+  const startedAt = performance.now();
   
-  logger.debug('API request started', {
+  logger.network('API_REQUEST_STARTED', 'API request started', {
     endpoint,
-    method: options.method || 'GET',
+    method,
     retry: retryCount > 0 ? retryCount : undefined,
     timeoutMs,
   });
@@ -269,14 +269,13 @@ export const apiRequest = async (
   }
 
   if (import.meta.env.DEV && authScope && method !== 'GET') {
-    logger.debug('Auth request prepared', {
+    logger.network('AUTH_REQUEST_PREPARED', 'Auth request prepared', {
       endpoint,
       method,
       authScope,
       path: window.location.pathname,
       hasAccessToken: !!token,
       hasCsrfToken: !!csrfToken,
-      csrfTokenPreview: csrfToken ? `${csrfToken.slice(0, 8)}...` : null,
       authHeaderPresent: !!headers['Authorization'],
     });
   }
@@ -309,9 +308,10 @@ export const apiRequest = async (
       signal: AbortSignal.timeout(timeoutMs),
     });
     
-    logger.debug('API response received', {
+    logger.network('API_RESPONSE_RECEIVED', 'API response received', {
       endpoint,
       status: response.status,
+      durationMs: Math.round(performance.now() - startedAt),
     });
     // Try to parse JSON body (non-blocking) to detect backend-declared auth failures
     let bodyJson: any = null;
@@ -325,7 +325,7 @@ export const apiRequest = async (
     // Treat those as authorization failures and force logout + redirect.
     const backendCode = bodyJson?.code ?? bodyJson?.statusCode ?? null;
     if ((response.status === 200 || response.status === 204) && (backendCode === 401 || backendCode === 403)) {
-      logger.warn('Backend returned auth failure in body despite 200 status', { endpoint, backendCode, bodyJson });
+      logger.warn('Backend returned auth failure in body despite 200 status', { endpoint, backendCode });
 
       const currentPath = window.location.pathname;
       const isAdminRoute = currentPath.startsWith('/admin');
@@ -350,7 +350,7 @@ export const apiRequest = async (
     
     // Handle 401 Unauthorized - try to refresh token and retry
     if (response.status === 401 && retryCount < 1 && (isAdminAuthRequest || isCustomerAuthRequest)) {
-      logger.warn('Received 401, attempting token refresh...', { endpoint });
+      logger.warn('Received 401, attempting token refresh', { endpoint });
       
       const newToken = await refreshAccessToken();
       
@@ -434,29 +434,31 @@ export const apiRequest = async (
   } catch (error: any) {
     const errorContext = extractErrorContext(error, endpoint, undefined, timeoutMs);
     
-    logger.error('API request failed', errorContext);
+    logger.network('API_REQUEST_FAILED', 'API request failed', {
+      endpoint,
+      durationMs: Math.round(performance.now() - startedAt),
+      statusCode: errorContext.statusCode,
+      errorType: errorContext.errorType,
+      message: errorContext.message,
+    });
     
     // Handle network errors with user-friendly messages
     if (error.name === 'TimeoutError') {
-      logger.debug('Timeout error details', {
+      logger.network('API_REQUEST_TIMEOUT', 'API request timed out', {
         endpoint,
-        errorType: 'TIMEOUT',
-        suggestion: 'Check backend server status and network connectivity',
+        timeoutMs,
       });
       throw new Error('Request timed out. The server is taking too long to respond. Please try again.');
     }
     if (error.name === 'AbortError') {
-      logger.debug('Abort error details', {
+      logger.network('API_REQUEST_ABORTED', 'API request was aborted', {
         endpoint,
-        errorType: 'ABORTED',
-        suggestion: 'Request was cancelled, possibly due to auth failure or client abort',
       });
       throw new Error('Request was cancelled. Please try again.');
     }
     if (!navigator.onLine) {
-      logger.debug('Offline error', {
+      logger.network('API_REQUEST_OFFLINE', 'API request failed while offline', {
         endpoint,
-        errorType: 'OFFLINE',
       });
       throw new Error('Lost internet connection while processing request. Please check your network.');
     }
@@ -490,7 +492,7 @@ export const parseApiResponse = async <T = any>(
 ): Promise<ApiResponse<T>> => {
   try {
     const data = await response.json();
-    logger.debug('API response parsed', { status: response.status });
+    logger.network('API_RESPONSE_PARSED', 'API response parsed', { status: response.status });
     return data;
   } catch (error) {
     logger.error('Failed to parse API response', { status: response.status });
