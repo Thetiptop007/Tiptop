@@ -1,5 +1,4 @@
 const isDev = import.meta.env.DEV;
-const isProd = import.meta.env.PROD;
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 type LogType = 'ui' | 'network' | 'auth' | 'business' | 'runtime' | 'browser';
@@ -9,6 +8,10 @@ const SESSION_STORAGE_KEY = 'tiptop-frontend-session-id';
 const DEDUPE_WINDOW_MS = 750;
 const recentFingerprints = new Map<string, number>();
 const installedRuntimeLoggerFlag = '__tiptopRuntimeLoggingInstalled';
+const PROD_NETWORK_INFO_ALLOWLIST = new Set([
+  'API_REQUEST_COMPLETE',
+  'SESSION_EXPIRED',
+]);
 
 const SENSITIVE_KEY_PATTERN = /(email|phone|address|token|password|secret|authorization|cookie|csrf|session|refresh|raw|payload|response|request|customer|user|order)/i;
 const SUMMARY_KEY_PATTERN = /(customer|user|order|payment|address|profile|auth|response|request|payload)/i;
@@ -150,6 +153,19 @@ const shouldEmit = (level: LogLevel) => {
   return true;
 };
 
+const shouldEmitByCategory = (level: LogLevel, logType: LogType, event: string) => {
+  if (isDev) {
+    return true;
+  }
+
+  // In production, suppress low-value network info chatter.
+  if (level === 'info' && logType === 'network' && !PROD_NETWORK_INFO_ALLOWLIST.has(event)) {
+    return false;
+  }
+
+  return true;
+};
+
 const shouldDedupe = (level: LogLevel, logType: LogType, event: string, message: string, route: string) => {
   const fingerprint = `${level}|${logType}|${event}|${message}|${route}`;
   const now = Date.now();
@@ -180,6 +196,10 @@ const emit = (
   meta?: LogMeta,
 ) => {
   if (!shouldEmit(level)) {
+    return;
+  }
+
+  if (!shouldEmitByCategory(level, logType, event)) {
     return;
   }
 
@@ -226,21 +246,41 @@ const normalizeLegacyArgs = (message: string, meta?: LogMeta) => ({
 });
 
 export const logger = {
-  debug: (message: string, meta?: LogMeta) => {
-    const { event, message: normalizedMessage, meta: normalizedMeta } = normalizeLegacyArgs(message, meta);
-    emitStructured('debug', 'runtime', event, normalizedMessage, normalizedMeta);
+  debug: (messageOrEvent: string, messageOrMeta?: string | LogMeta, meta?: LogMeta) => {
+    if (typeof messageOrMeta === 'string' && meta !== undefined) {
+      emitStructured('debug', 'runtime', messageOrEvent, messageOrMeta, meta);
+      return;
+    }
+
+    const { event, message, meta: normalizedMeta } = normalizeLegacyArgs(messageOrEvent, messageOrMeta as LogMeta);
+    emitStructured('debug', 'runtime', event, message, normalizedMeta);
   },
-  info: (message: string, meta?: LogMeta) => {
-    const { event, message: normalizedMessage, meta: normalizedMeta } = normalizeLegacyArgs(message, meta);
-    emitStructured('info', 'runtime', event, normalizedMessage, normalizedMeta);
+  info: (messageOrEvent: string, messageOrMeta?: string | LogMeta, meta?: LogMeta) => {
+    if (typeof messageOrMeta === 'string' && meta !== undefined) {
+      emitStructured('info', 'runtime', messageOrEvent, messageOrMeta, meta);
+      return;
+    }
+
+    const { event, message, meta: normalizedMeta } = normalizeLegacyArgs(messageOrEvent, messageOrMeta as LogMeta);
+    emitStructured('info', 'runtime', event, message, normalizedMeta);
   },
-  warn: (message: string, meta?: LogMeta) => {
-    const { event, message: normalizedMessage, meta: normalizedMeta } = normalizeLegacyArgs(message, meta);
-    emitStructured('warn', 'runtime', event, normalizedMessage, normalizedMeta);
+  warn: (messageOrEvent: string, messageOrMeta?: string | LogMeta, meta?: LogMeta) => {
+    if (typeof messageOrMeta === 'string' && meta !== undefined) {
+      emitStructured('warn', 'runtime', messageOrEvent, messageOrMeta, meta);
+      return;
+    }
+
+    const { event, message, meta: normalizedMeta } = normalizeLegacyArgs(messageOrEvent, messageOrMeta as LogMeta);
+    emitStructured('warn', 'runtime', event, message, normalizedMeta);
   },
-  error: (message: string, meta?: LogMeta) => {
-    const { event, message: normalizedMessage, meta: normalizedMeta } = normalizeLegacyArgs(message, meta);
-    emitStructured('error', 'runtime', event, normalizedMessage, normalizedMeta);
+  error: (messageOrEvent: string, messageOrMeta?: string | LogMeta, meta?: LogMeta) => {
+    if (typeof messageOrMeta === 'string' && meta !== undefined) {
+      emitStructured('error', 'runtime', messageOrEvent, messageOrMeta, meta);
+      return;
+    }
+
+    const { event, message, meta: normalizedMeta } = normalizeLegacyArgs(messageOrEvent, messageOrMeta as LogMeta);
+    emitStructured('error', 'runtime', event, message, normalizedMeta);
   },
   ui: (event: string, message: string, meta?: LogMeta) => emitStructured('info', 'ui', event, message, meta),
   network: (event: string, message: string, meta?: LogMeta) => emitStructured('info', 'network', event, message, meta),

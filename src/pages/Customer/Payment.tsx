@@ -7,6 +7,7 @@ import { getSettings } from '../../services/settings.service';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useShopStatus } from '../../context/ShopStatusContext';
 import { logger } from '../../utils/logger';
+import { isCustomerAuthBootReady, waitForCustomerAuthBootReady } from '../../services/customer-auth.service';
 
 // Service areas configuration - matches mobile app
 const SERVICE_AREAS = [
@@ -62,6 +63,11 @@ export default function Payment() {
   useEffect(() => {
     // Fetch addresses and settings
     const fetchData = async () => {
+      // Wait for auth bootstrap to complete before fetching protected data
+      if (!isCustomerAuthBootReady()) {
+        await waitForCustomerAuthBootReady();
+      }
+      
       try {
         const setts = await getSettings();
         if (setts?.delivery?.fee) {

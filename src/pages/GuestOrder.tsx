@@ -8,6 +8,13 @@ import { useShopStatus } from "../context/ShopStatusContext";
 import { requestFcmToken } from "../config/firebase";
 import OfferBanner from "../components/customer/OfferBanner";
 
+const SERVICE_AREAS = [
+  { id: 'law_gate', name: 'Law Gate', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+  { id: 't_point', name: 'T-Point', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+  { id: 'green_valley', name: 'Green Valley', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+  { id: 'bhutani_colony', name: 'Bhutani Colony', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+];
+
 // Define the TypeScript interface for menu items
 interface MenuItem {
   id: string;
@@ -129,6 +136,15 @@ export default function GuestOrder() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const selectedArea = SERVICE_AREAS.find(area => area.name === deliveryArea);
+    if (selectedArea) {
+      setDeliveryCity(selectedArea.city);
+      setDeliveryState(selectedArea.state);
+      setDeliveryZipCode(selectedArea.zipCode);
+    }
+  }, [deliveryArea]);
 
   // Check notification permission status on mount
   useEffect(() => {
@@ -306,15 +322,18 @@ export default function GuestOrder() {
       return;
     }
 
-    if (!deliveryStreet.trim() || !deliveryCity.trim() || !deliveryState.trim() || !deliveryZipCode.trim()) {
-      alert("Please fill in all delivery address fields");
+    if (!deliveryStreet.trim()) {
+      alert("Please enter your street address");
       return;
     }
 
-    // Validate zipcode (6 digits)
-    const zipcodeRegex = /^\d{6}$/;
-    if (!zipcodeRegex.test(deliveryZipCode.trim())) {
-      alert("Please enter a valid 6-digit zip code");
+    const selectedArea = SERVICE_AREAS.find(area => area.name === deliveryArea);
+    const resolvedCity = selectedArea?.city || deliveryCity.trim();
+    const resolvedState = selectedArea?.state || deliveryState.trim();
+    const resolvedZipCode = selectedArea?.zipCode || deliveryZipCode.trim();
+
+    if (!resolvedCity || !resolvedState || !resolvedZipCode) {
+      alert("We could not resolve the delivery area details. Please choose a valid area and try again.");
       return;
     }
 
@@ -354,9 +373,9 @@ export default function GuestOrder() {
         deliveryAddress: {
           street: `${deliveryArea}, ${deliveryStreet.trim()}`,
           apartment: '',
-          city: deliveryCity.trim(),
-          state: deliveryState.trim(),
-          zipCode: deliveryZipCode.trim(),
+          city: resolvedCity,
+          state: resolvedState,
+          zipCode: resolvedZipCode,
           landmark: '',
         },
         paymentMethod: 'COD',

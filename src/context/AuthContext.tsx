@@ -2,9 +2,19 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { useNavigate } from 'react-router';
 import { useLocation } from 'react-router';
 import { apiRequest, parseApiResponse } from '../config/api';
-import { getCsrfTokenForScope } from '../config/api';
 import { getCurrentUser } from '../services/auth.service';
-import { clearAccessToken, clearAuthUser, getAccessToken, getAuthUser, setAccessToken, setAuthUser } from '../services/auth-session.store';
+import {
+  broadcastAuthStateChange,
+  clearAllAuthState,
+  getAccessToken,
+  getAuthUser,
+  getAuthSyncPayload,
+  addAuthSyncListener,
+  validatePersistedAuth,
+  setAccessToken,
+  setCsrfToken,
+  setAuthUser,
+} from '../services/auth-session.store';
 import { logger } from '../utils/logger';
 import { useToast } from './ToastContext';
 
@@ -41,108 +51,148 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authRevision, setAuthRevision] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
 
   const clearSession = () => {
-    clearAccessToken('admin');
-    clearAuthUser('admin');
+    clearAllAuthState('admin');
     setUser(null);
   };
 
   useEffect(() => {
-    const bootstrapAuth = async () => {
-      if (!location.pathname.startsWith('/admin')) {
-        const storedUser = getAuthUser('admin') as { email?: string; name?: string; role?: string } | null;
+    const onStorage = (event: StorageEvent) => {
+      const payload = getAuthSyncPayload(event);
+      if (!payload || payload.scope !== 'admin') {
+        return;
+      }
 
-        if (storedUser && getAccessToken('admin')) {
-          setUser({
-            email: storedUser.email || '',
-            name: storedUser.name || '',
-            role: storedUser.role || 'admin',
-          });
+      if (payload.event === 'logout' || payload.event === 'invalidate') {
+        clearSession();
+        setIsLoading(false);
+        if (location.pathname.startsWith('/admin')) {
+          navigate('/signin', { replace: true });
         }
+        return;
+      }
 
+      setAuthRevision((value) => value + 1);
+    };
+
+    const unsub = addAuthSyncListener((payload: any) => {
+      if (!payload || payload.scope !== 'admin') return;
+      if (payload.event === 'logout' || payload.event === 'invalidate') {
+        clearSession();
+        setIsLoading(false);
+        if (location.pathname.startsWith('/admin')) {
+          navigate('/signin', { replace: true });
+        }
+        return;
+      }
+      setAuthRevision((value) => value + 1);
+    });
+
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      try { unsub(); } catch {}
+    };
+  }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    const bootstrapAuth = async () => {
+      // Validate persisted localStorage state for admin before relying on it
+      try {
+        validatePersistedAuth('admin');
+      } catch (e) {
+        // best effort
+      }
+
+      // Phase 1: Check if we're on admin path
+      const isAdminPath = location.pathname.startsWith('/admin');
+      
+      if (!isAdminPath) {
+        // Not on admin path - don't attempt hydration
         setIsLoading(false);
         return;
       }
 
-      if (getAccessToken('admin') && getAuthUser('admin')) {
-        const storedUser = getAuthUser('admin') as { email?: string; name?: string; role?: string };
-        setUser({
-          email: storedUser.email || '',
-          name: storedUser.name || '',
-          role: storedUser.role || 'admin',
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      const csrfToken = getCsrfTokenForScope('admin');
-
-      logger.debug('Admin auth bootstrap', {
+      // Phase 2: We're on admin path - boot in UNKNOWN state
+      // IMPORTANT: Do NOT trust stale localStorage or in-memory cache
+      // Always validate with backend
+      
+      logger.debug('Admin auth bootstrap started', {
         path: location.pathname,
-        hasAccessToken: !!getAccessToken('admin'),
+        hasStoredToken: !!getAccessToken('admin'),
         hasStoredUser: !!getAuthUser('admin'),
-        hasCsrfToken: !!csrfToken,
-        csrfTokenPreview: csrfToken ? `${csrfToken.slice(0, 8)}...` : null,
       });
 
-      try {
-        const response = await apiRequest('auth/admin/refresh', {
-          method: 'POST',
-        });
-        const data = await parseApiResponse(response);
+      const hasStoredAccessToken = !!getAccessToken('admin');
 
-        if (response.status === 403 || response.status === 401) {
-          logger.warn('Admin refresh failed with auth error', { status: response.status });
-          if (location.pathname.startsWith('/admin') && location.pathname !== '/signin') {
-            showToast('Your session expired. Please sign in again.', 'warning', 5000);
-            navigate('/signin', { replace: true });
-          }
-          clearSession();
-          setIsLoading(false);
-          return;
-        }
+      if (!hasStoredAccessToken) {
+        try {
+          // Phase 3: No access token in memory, attempt refresh bootstrap once
+          const refreshResponse = await apiRequest('auth/admin/refresh', {
+            method: 'POST',
+          });
 
-        if (response.ok && data.status === 'success' && data.data?.tokens?.accessToken) {
-          setAccessToken('admin', data.data.tokens.accessToken);
-          if (data.data.user) {
-            setAuthUser('admin', data.data.user);
+          if (refreshResponse.status === 401 || refreshResponse.status === 403) {
+            logger.warn('Admin refresh failed - session invalid', { status: refreshResponse.status });
+            clearSession();
+            broadcastAuthStateChange('admin', 'invalidate');
+            setIsLoading(false);
+            return;
           }
+
+          if (!refreshResponse.ok) {
+            logger.warn('Admin refresh failed - backend error', { status: refreshResponse.status });
+            clearSession();
+            setIsLoading(false);
+            return;
+          }
+
+          const data = await parseApiResponse(refreshResponse);
+          if (data.status === 'success' && data.data?.tokens?.accessToken) {
+            setAccessToken('admin', data.data.tokens.accessToken);
+            const csrfToken = data.data.csrfToken || data.data.tokens?.csrfToken;
+            if (csrfToken) {
+              setCsrfToken('admin', csrfToken);
+            }
+            if (data.data.user) {
+              setAuthUser('admin', data.data.user);
+            }
+          }
+        } catch (error: any) {
+          logger.debug('Admin refresh bootstrap failed', { message: error?.message });
         }
-      } catch (error: any) {
-        const errMsg = error?.message || 'Failed to refresh session';
-        logger.debug('Admin refresh bootstrap failed', { message: errMsg, error });
-        // Don't show toast during bootstrap, just fail silently for now
-        clearSession();
       }
 
       try {
+        // Phase 4: Fetch current authenticated user from backend
         const currentUser = await getCurrentUser();
 
         if (currentUser && currentUser.role === 'admin') {
           setUser({
-            email: currentUser.email.address,
-            name: `${currentUser.name.first} ${currentUser.name.last}`.trim(),
+            email: typeof currentUser.email === 'string' ? currentUser.email : currentUser.email.address,
+            name: typeof currentUser.name === 'string' ? currentUser.name : `${currentUser.name.first} ${currentUser.name.last}`.trim(),
             role: currentUser.role,
           });
           setAuthUser('admin', currentUser);
         } else {
+          logger.warn('Admin user not found or wrong role');
           clearSession();
+          broadcastAuthStateChange('admin', 'invalidate');
         }
       } catch (error: any) {
-        const errMsg = error?.message || 'Session expired';
+        const errMsg = error?.message || 'Session validation failed';
         logger.warn('Admin getCurrentUser failed', { message: errMsg });
-        
-        // Only show toast if user was previously authenticated
-        if (getAccessToken('admin') || getAuthUser('admin')) {
-          showToast('Your session has expired. Please log in again.', 'warning', 5000);
-        }
-        
         clearSession();
-        if (location.pathname.startsWith('/admin') && location.pathname !== '/signin') {
+        broadcastAuthStateChange('admin', 'invalidate');
+        
+        // Redirect only if on protected admin route
+        if (location.pathname !== '/signin') {
+          showToast('Your session has expired. Please log in again.', 'warning', 5000);
           navigate('/signin', { replace: true });
         }
       } finally {
@@ -151,7 +201,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     bootstrapAuth();
-  }, [location.pathname]);
+  }, [location.pathname, authRevision]);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
@@ -163,6 +213,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const data = await parseApiResponse(response);
 
       if (response.ok && data.status === 'success' && data.data?.user) {
+        clearSession();
         if (data.data.user.role !== 'admin') {
           return {
             success: false,
@@ -171,12 +222,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
 
         const accessToken = data.data.tokens?.accessToken;
-        const userEmail = data.data.user.email?.address || data.data.user.email;
-        const userName = `${data.data.user.name.first} ${data.data.user.name.last}`.trim();
+        const csrfToken = data.data.csrfToken || data.data.tokens?.csrfToken;
+        const userEmail = typeof data.data.user.email === 'string' ? data.data.user.email : data.data.user.email?.address;
+        const userName = typeof data.data.user.name === 'string' ? data.data.user.name : `${data.data.user.name.first} ${data.data.user.name.last}`.trim();
         const userRole = data.data.user.role;
 
         if (accessToken) {
           setAccessToken('admin', accessToken);
+        }
+        if (csrfToken) {
+          setCsrfToken('admin', csrfToken);
         }
         setAuthUser('admin', data.data.user);
         setUser({
@@ -184,6 +239,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           name: userName,
           role: userRole,
         });
+        broadcastAuthStateChange('admin', 'login');
 
         return { success: true };
       }
@@ -202,12 +258,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = () => {
+    // Attempt to notify backend, but don't wait
     apiRequest('auth/admin/logout', {
       method: 'POST',
     }).catch(() => logger.warn('Admin logout request failed'));
 
+    // Clear all local state immediately
     clearSession();
-    navigate('/signin');
+    broadcastAuthStateChange('admin', 'logout');
+    navigate('/signin', { replace: true });
   };
 
   const value = {

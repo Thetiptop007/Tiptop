@@ -5,14 +5,20 @@
 import { logger } from '../utils/logger';
 import {
   clearAllAuthState,
-  clearAccessToken,
-  clearCsrfToken,
+  broadcastAuthStateChange,
   getCsrfToken,
   getAccessToken,
+  getAuthUser,
   getRequestAuthScope,
   setAccessToken,
   setCsrfToken,
 } from '../services/auth-session.store';
+import {
+  clearCustomerSession as clearCustomerAuthSession,
+  refreshCustomerSession,
+  CustomerLogoutReason,
+  performCustomerLogoutWithReason,
+} from '../services/customer-auth.coordinator';
 
 const normalizeApiBaseUrl = (rawBaseUrl: string): string => {
   const trimmed = rawBaseUrl.trim().replace(/\/+$/, '');
@@ -39,32 +45,30 @@ const GET_RESPONSE_TTL_MS = 1500;
 let inFlightRefreshPromise: Promise<string | null> | null = null;
 
 const clearAdminSession = () => {
-  localStorage.removeItem('adminToken');
-  localStorage.removeItem('adminRefreshToken');
-  localStorage.removeItem('adminEmail');
-  localStorage.removeItem('adminName');
-  localStorage.removeItem('adminRole');
   inFlightGetRequests.clear();
   recentGetResponses.clear();
-  clearAccessToken('admin');
-  clearCsrfToken('admin');
+  clearAllAuthState('admin');
 };
 
 export const clearAdminAuthStorage = clearAdminSession;
 
-const clearCustomerSession = () => {
-  localStorage.removeItem('customerToken');
-  localStorage.removeItem('customerRefreshToken');
-  localStorage.removeItem('customerUser');
-  clearAccessToken('customer');
-  clearCsrfToken('customer');
+const clearAndBroadcastSession = (scope: 'admin' | 'customer' | null, event: 'logout' | 'invalidate') => {
+  if (scope === 'admin') {
+    clearAdminSession();
+    broadcastAuthStateChange('admin', event);
+  } else if (scope === 'customer') {
+    clearCustomerAuthSession(event, false);
+    broadcastAuthStateChange('customer', event);
+  } else {
+    clearAllAuthStorage();
+  }
 };
 
-export const clearCustomerAuthStorage = clearCustomerSession;
+export const clearCustomerAuthStorage = () => clearCustomerAuthSession('invalidate', false);
 
 export const clearAllAuthStorage = () => {
   clearAdminSession();
-  clearCustomerSession();
+  clearCustomerAuthSession('invalidate', false);
   clearAllAuthState();
 };
 
@@ -147,6 +151,39 @@ const extractErrorContext = (error: any, endpoint: string, response?: Response, 
   return context;
 };
 
+const shouldLogRequestLifecycle = () => import.meta.env.DEV;
+
+const shouldLogRequestCompletion = (status: number, durationMs: number) => {
+  if (import.meta.env.DEV) {
+    return true;
+  }
+
+  return status >= 400 || durationMs >= 1000;
+};
+
+const createRequestId = () => {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {}
+
+  return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const extractUserId = (scope: 'admin' | 'customer' | null): string | null => {
+  if (!scope) {
+    return null;
+  }
+
+  const user = getAuthUser(scope) as any;
+  if (!user) {
+    return null;
+  }
+
+  return user._id || user.id || null;
+};
+
 export const getApiUrl = (endpoint: string = ''): string => {
   const configuredBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
   const baseUrl = normalizeApiBaseUrl(configuredBaseUrl);
@@ -171,15 +208,30 @@ const refreshAccessToken = async (): Promise<string | null> => {
     try {
       const scope = window.location.pathname.startsWith('/admin') ? 'admin' : 'customer';
       const csrfToken = getCsrfTokenForScope(scope);
+      const refreshRequestId = createRequestId();
+      const refreshUserId = extractUserId(scope);
 
-      logger.network('TOKEN_REFRESH_STARTED', 'Token refresh bootstrap state', {
+      logger.debug('TOKEN_REFRESH_STARTED', 'Token refresh bootstrap state', {
         scope,
         path: window.location.pathname,
         hasCsrfToken: !!csrfToken,
+        requestId: refreshRequestId,
+        userId: refreshUserId,
       });
 
       if (!csrfToken) {
-        logger.network('TOKEN_REFRESH_SKIPPED', 'Skipping token refresh because CSRF token is missing', { scope });
+        logger.warn('AUTH_REFRESH_FAILED', {
+          reason: 'missing_csrf_token',
+          scope,
+          requestId: refreshRequestId,
+          userId: refreshUserId,
+        });
+        logger.warn('SESSION_EXPIRED', {
+          reason: 'refresh_missing_csrf',
+          scope,
+          requestId: refreshRequestId,
+          userId: refreshUserId,
+        });
         return null;
       }
 
@@ -188,6 +240,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Request-Id': refreshRequestId,
           ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         },
         credentials: 'include',
@@ -205,16 +258,39 @@ const refreshAccessToken = async (): Promise<string | null> => {
           if (csrfToken) {
             setCsrfToken(scope, csrfToken);
           }
-          logger.auth('TOKEN_REFRESH_SUCCESS', 'Token refreshed successfully', { scope });
+          logger.auth('TOKEN_REFRESH_SUCCESS', 'Token refreshed successfully', {
+            scope,
+            requestId: refreshRequestId,
+            userId: refreshUserId,
+          });
           return newAccessToken;
         }
       }
 
-      logger.warn('Failed to refresh token', { status: response.status });
+      logger.error('AUTH_REFRESH_FAILED', {
+        scope,
+        statusCode: response.status,
+        requestId: refreshRequestId,
+        userId: refreshUserId,
+      });
+      logger.warn('SESSION_EXPIRED', {
+        reason: 'refresh_denied',
+        scope,
+        statusCode: response.status,
+        requestId: refreshRequestId,
+        userId: refreshUserId,
+      });
       clearAllAuthStorage();
       return null;
     } catch (error: any) {
-      logger.error('Token refresh failed', { errorMessage: error?.message, scope: window.location.pathname.startsWith('/admin') ? 'admin' : 'customer' });
+      logger.error('AUTH_REFRESH_FAILED', {
+        errorMessage: error?.message,
+        scope: window.location.pathname.startsWith('/admin') ? 'admin' : 'customer',
+      });
+      logger.warn('SESSION_EXPIRED', {
+        reason: 'refresh_exception',
+        scope: window.location.pathname.startsWith('/admin') ? 'admin' : 'customer',
+      });
       clearAllAuthStorage();
       return null;
     } finally {
@@ -244,15 +320,10 @@ export const apiRequest = async (
   
   const finalUrl = fullUrl;
   const startedAt = performance.now();
-  
-  logger.network('API_REQUEST_STARTED', 'API request started', {
-    endpoint,
-    method,
-    retry: retryCount > 0 ? retryCount : undefined,
-    timeoutMs,
-  });
+  const requestId = createRequestId();
   
   const authScope = getRequestAuthScope(endpoint);
+  const userId = extractUserId(authScope);
   const isRefreshEndpoint = endpoint.endsWith('/refresh') || endpoint === 'auth/refresh-token';
   
   // Check if Authorization header is explicitly provided in options
@@ -262,14 +333,15 @@ export const apiRequest = async (
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Request-Id': requestId,
     ...(requestOptions.headers as Record<string, string>),
   };
   if (csrfToken && method !== 'GET' && !headers['X-CSRF-Token']) {
     headers['X-CSRF-Token'] = csrfToken;
   }
 
-  if (import.meta.env.DEV && authScope && method !== 'GET') {
-    logger.network('AUTH_REQUEST_PREPARED', 'Auth request prepared', {
+  if (shouldLogRequestLifecycle() && authScope && method !== 'GET') {
+    logger.debug('AUTH_REQUEST_PREPARED', 'Auth request prepared', {
       endpoint,
       method,
       authScope,
@@ -277,6 +349,8 @@ export const apiRequest = async (
       hasAccessToken: !!token,
       hasCsrfToken: !!csrfToken,
       authHeaderPresent: !!headers['Authorization'],
+      requestId,
+      userId,
     });
   }
 
@@ -297,6 +371,8 @@ export const apiRequest = async (
     authHeader === bearerToken &&
     !isRefreshEndpoint &&
     !isAdminAuthRequest;
+
+  let customerRefreshOutcome: { status: 'success' | 'terminal' | 'transient' } | null = null;
   
   const executeRequest = async (): Promise<Response> => {
     const response = await fetch(finalUrl, {
@@ -307,12 +383,8 @@ export const apiRequest = async (
       cache: 'no-store',
       signal: AbortSignal.timeout(timeoutMs),
     });
-    
-    logger.network('API_RESPONSE_RECEIVED', 'API response received', {
-      endpoint,
-      status: response.status,
-      durationMs: Math.round(performance.now() - startedAt),
-    });
+    const durationMs = Math.round(performance.now() - startedAt);
+    const requestSucceeded = response.status < 400;
     // Try to parse JSON body (non-blocking) to detect backend-declared auth failures
     let bodyJson: any = null;
     try {
@@ -332,10 +404,10 @@ export const apiRequest = async (
       const isCustomerRoute = currentPath.startsWith('/customer');
 
       if (isAdminRoute) {
-        clearAdminSession();
+        clearAndBroadcastSession('admin', 'invalidate');
         redirectToSignIn();
       } else if (isCustomerRoute) {
-        clearCustomerSession();
+        performCustomerLogoutWithReason(CustomerLogoutReason.TokenExpired);
         if (window.location.pathname !== '/customer/login') {
           window.location.href = '/customer/login';
         }
@@ -344,6 +416,19 @@ export const apiRequest = async (
         clearAllAuthStorage();
         redirectToSignIn();
       }
+      if (shouldLogRequestCompletion(response.status, durationMs)) {
+        logger.network('API_REQUEST_COMPLETE', 'API request completed', {
+          endpoint,
+          method,
+          status: response.status,
+          durationMs,
+          success: false,
+          authScope,
+          requestId,
+          userId,
+          retry: retryCount > 0 ? retryCount : undefined,
+        });
+      }
       // Return response so callers get original shape (they'll see redirected page)
       return response;
     }
@@ -351,12 +436,26 @@ export const apiRequest = async (
     // Handle 401 Unauthorized - try to refresh token and retry
     if (response.status === 401 && retryCount < 1 && (isAdminAuthRequest || isCustomerAuthRequest)) {
       logger.warn('Received 401, attempting token refresh', { endpoint });
+         if (import.meta.env.DEV && isCustomerAuthRequest) {
+         logger.debug('CUSTOMER_AUTH_REQUEST_401', 'Customer auth request failed with 401', { endpoint, retry: retryCount });
+       }
       
-      const newToken = await refreshAccessToken();
+      const newToken = isCustomerAuthRequest
+        ? await refreshCustomerSession().then((outcome) => {
+            customerRefreshOutcome = outcome;
+             if (shouldLogRequestLifecycle()) {
+               logger.debug('CUSTOMER_AUTH_REFRESH_OUTCOME', 'Refresh outcome received', { outcome: outcome.status });
+             }
+            return outcome.status === 'success' ? outcome.accessToken : null;
+          })
+        : await refreshAccessToken();
       
       if (newToken && method === 'GET') {
         // Only auto-retry GET requests (safe to retry)
-        logger.info('Retrying request with refreshed token', { endpoint });
+        logger.debug('RETRYING_REQUEST_WITH_REFRESHED_TOKEN', { endpoint, requestId, userId });
+         if (shouldLogRequestLifecycle()) {
+           logger.debug('CUSTOMER_AUTH_REQUEST_RETRY', 'Retrying customer request with new token', { endpoint });
+         }
         return apiRequest(endpoint, options, retryCount + 1);
       }
     }
@@ -378,16 +477,32 @@ export const apiRequest = async (
       // Clear and redirect admin sessions as soon as auth is invalid.
       // This handles legacy sessions that still have access token but no refresh token.
       if (isAdminRoute && isAdminAuthRequest) {
-        clearAdminSession();
+        clearAndBroadcastSession('admin', 'invalidate');
         redirectToSignIn();
       } else if (isCustomerRoute && isCustomerAuthRequest) {
-        clearCustomerSession();
-        if (window.location.pathname !== '/customer/login') {
-          window.location.href = '/customer/login';
+        if (customerRefreshOutcome?.status !== 'transient') {
+          performCustomerLogoutWithReason(CustomerLogoutReason.TokenExpired);
+          if (window.location.pathname !== '/customer/login') {
+            window.location.href = '/customer/login';
+          }
         }
       }
       // For customer routes, don't auto-clear tokens
       // Components/contexts will handle token clearing when appropriate
+    }
+
+    if (shouldLogRequestCompletion(response.status, durationMs)) {
+      logger.network('API_REQUEST_COMPLETE', 'API request completed', {
+        endpoint,
+        method,
+        status: response.status,
+        durationMs,
+        success: requestSucceeded,
+        authScope,
+        requestId,
+        userId,
+        retry: retryCount > 0 ? retryCount : undefined,
+      });
     }
     
     return response;
@@ -434,8 +549,10 @@ export const apiRequest = async (
   } catch (error: any) {
     const errorContext = extractErrorContext(error, endpoint, undefined, timeoutMs);
     
-    logger.network('API_REQUEST_FAILED', 'API request failed', {
+    logger.error('API_REQUEST_FAILED', {
       endpoint,
+      requestId,
+      userId,
       durationMs: Math.round(performance.now() - startedAt),
       statusCode: errorContext.statusCode,
       errorType: errorContext.errorType,
@@ -444,21 +561,27 @@ export const apiRequest = async (
     
     // Handle network errors with user-friendly messages
     if (error.name === 'TimeoutError') {
-      logger.network('API_REQUEST_TIMEOUT', 'API request timed out', {
+      logger.error('API_REQUEST_TIMEOUT', {
         endpoint,
+        requestId,
+        userId,
         timeoutMs,
       });
       throw new Error('Request timed out. The server is taking too long to respond. Please try again.');
     }
     if (error.name === 'AbortError') {
-      logger.network('API_REQUEST_ABORTED', 'API request was aborted', {
+      logger.warn('API_REQUEST_ABORTED', {
         endpoint,
+        requestId,
+        userId,
       });
       throw new Error('Request was cancelled. Please try again.');
     }
     if (!navigator.onLine) {
-      logger.network('API_REQUEST_OFFLINE', 'API request failed while offline', {
+      logger.warn('API_REQUEST_OFFLINE', {
         endpoint,
+        requestId,
+        userId,
       });
       throw new Error('Lost internet connection while processing request. Please check your network.');
     }
@@ -491,9 +614,7 @@ export const parseApiResponse = async <T = any>(
   response: Response
 ): Promise<ApiResponse<T>> => {
   try {
-    const data = await response.json();
-    logger.network('API_RESPONSE_PARSED', 'API response parsed', { status: response.status });
-    return data;
+    return await response.json();
   } catch (error) {
     logger.error('Failed to parse API response', { status: response.status });
     return {

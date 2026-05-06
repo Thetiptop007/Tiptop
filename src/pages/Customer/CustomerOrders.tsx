@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyOrders, Order } from '../../services/customer-web.service';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
+import { isCustomerAuthBootReady, waitForCustomerAuthBootReady } from '../../services/customer-auth.service';
 
 // Status info helper function - matches mobile app
 const getStatusInfo = (status: string) => {
@@ -33,7 +34,15 @@ export default function CustomerOrders() {
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
 
   useEffect(() => {
-    fetchOrders();
+    const initializeFetch = async () => {
+      // Wait for auth bootstrap to complete before fetching protected data
+      if (!isCustomerAuthBootReady()) {
+        await waitForCustomerAuthBootReady();
+      }
+      fetchOrders();
+    };
+    
+    void initializeFetch();
   }, []);
 
   const fetchOrders = async () => {

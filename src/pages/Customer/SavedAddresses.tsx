@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { getAddresses, setDefaultAddress, deleteAddress, createAddress, updateAddress, AddressData } from '../../services/customer-operations.service';
+import { isCustomerAuthBootReady, waitForCustomerAuthBootReady } from '../../services/customer-auth.service';
 
 export interface Address {
   _id?: string;
@@ -58,7 +59,15 @@ const SavedAddresses: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchAddresses();
+      const initializeFetch = async () => {
+        // Wait for auth bootstrap to complete before fetching protected data
+        if (!isCustomerAuthBootReady()) {
+          await waitForCustomerAuthBootReady();
+        }
+        fetchAddresses();
+      };
+      
+      void initializeFetch();
     }
   }, [isAuthenticated]);
 

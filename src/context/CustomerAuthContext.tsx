@@ -1,19 +1,26 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useEffect, ReactNode, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router';
 import { useLocation } from 'react-router';
-import { getCsrfTokenForScope } from '../config/api';
 import {
   customerLogin,
   customerSignUp,
   customerLogout,
-  getCustomerProfile,
-  refreshAccessToken,
   CustomerUser,
   SignUpRequest,
 } from '../services/customer-auth.service';
 import { requestFcmToken } from '../config/firebase';
 import { apiRequest } from '../config/api';
-import { clearAccessToken, clearAuthUser, getAccessToken, getAuthUser, setAuthUser } from '../services/auth-session.store';
+import {
+  getAccessToken,
+  broadcastAuthStateChange,
+  getAuthSyncPayload,
+} from '../services/auth-session.store';
+import {
+  bootstrapCustomerAuth,
+  clearCustomerSession,
+  getCustomerAuthSnapshot,
+  subscribeCustomerAuth,
+} from '../services/customer-auth.coordinator';
 import { logger } from '../utils/logger';
 import { useToast } from './ToastContext';
 
@@ -57,17 +64,10 @@ interface CustomerAuthProviderProps {
 }
 
 export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) => {
-  const [customer, setCustomer] = useState<CustomerUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const snapshot = useSyncExternalStore(subscribeCustomerAuth, getCustomerAuthSnapshot, getCustomerAuthSnapshot);
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
-
-  const clearCustomerSession = () => {
-    clearAccessToken('customer');
-    clearAuthUser('customer');
-    setCustomer(null);
-  };
 
   const registerFcmToken = async () => {
     try {
@@ -87,82 +87,59 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
       logger.warn('Failed to register FCM token');
     }
   };
-// i have made some changes in this file, please check the changes and let me know if you have any questions.
   useEffect(() => {
-    const checkAuth = async () => {
-      logger.debug('Checking customer authentication');
-
-      if (!location.pathname.startsWith('/customer')) {
-        if (customer && getAccessToken('customer')) {
-          setCustomer(customer);
-        }
-        setIsLoading(false);
+    const onStorage = (event: StorageEvent) => {
+      const payload = getAuthSyncPayload(event);
+      if (!payload || payload.scope !== 'customer') {
         return;
       }
 
-      if (getAccessToken('customer') && customer) {
-        setIsLoading(false);
-        return;
-      }
-
-      const csrfToken = getCsrfTokenForScope('customer');
-
-      logger.debug('Customer auth bootstrap', {
-        path: location.pathname,
-        hasAccessToken: !!getAccessToken('customer'),
-        hasCustomer: !!customer,
-        hasCsrfToken: !!csrfToken,
-        csrfTokenPreview: csrfToken ? `${csrfToken.slice(0, 8)}...` : null,
-      });
-
-      if (!csrfToken) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        // Only attempt to refresh if we don't already have a valid access token.
-        // Unnecessary refresh attempts can return 401 if refresh cookie is missing
-        // (e.g., immediately after login when token is present), causing unwanted
-        // session clearing and redirects.
-        if (!getAccessToken('customer')) {
-          const newToken = await refreshAccessToken();
-          if (!newToken) {
-            throw new Error('Token refresh failed');
-          }
-        }
-
-        const updatedProfile = await getCustomerProfile();
-        setCustomer(updatedProfile);
-        setAuthUser('customer', updatedProfile);
-      } catch (error: any) {
-        const errMsg = error?.message || 'Session expired';
-        logger.warn('Customer auth refresh failed', { message: errMsg, pathname: location.pathname });
-        
-        // Only show toast if user was previously authenticated and on a protected route
-        if ((getAccessToken('customer') || getAuthUser('customer')) && location.pathname.startsWith('/customer')) {
-          showToast('Your session has expired. Please log in again.', 'warning', 5000);
-        }
-        
-        clearCustomerSession();
-        if (location.pathname.startsWith('/customer') && !location.pathname.includes('/login') && !location.pathname.includes('/signup')) {
+      if (payload.event === 'logout' || payload.event === 'invalidate') {
+        clearCustomerSession('invalidate', false);
+        if (location.pathname.startsWith('/customer') && !location.pathname.includes('/login')) {
           navigate('/customer/login', { replace: true });
         }
-      } finally {
-        setIsLoading(false);
+        return;
+      }
+
+      void bootstrapCustomerAuth(location.pathname);
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const isCustomerPath = location.pathname.startsWith('/customer');
+
+      logger.debug('Checking customer authentication', {
+        isCustomerPath,
+        path: location.pathname,
+      });
+
+      if (!isCustomerPath) {
+        return;
+      }
+
+      const outcome = await bootstrapCustomerAuth(location.pathname);
+
+      if (outcome.status === 'terminal' && location.pathname.startsWith('/customer') && !location.pathname.includes('/login') && !location.pathname.includes('/signup')) {
+        showToast('Your session has expired. Please log in again.', 'warning', 5000);
+        navigate('/customer/login', { replace: true });
       }
     };
 
-    checkAuth();
-  }, [location.pathname]);
+    void checkAuth();
+  }, [location.pathname, navigate, showToast]);
 
   const login = async (phone: string, password: string) => {
     try {
       const response = await customerLogin(phone, password);
 
       if (response.status === 'success' && response.data.user) {
-        setCustomer(response.data.user);
         registerFcmToken().catch(() => logger.warn('FCM registration failed after login'));
+        broadcastAuthStateChange('customer', 'login');
         return { success: true, message: 'Login successful' };
       }
 
@@ -180,12 +157,8 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
       const response = await customerSignUp(data);
 
       if (response.status === 'success' && response.data) {
-        if (response.data.user) {
-          setCustomer(response.data.user);
-          setAuthUser('customer', response.data.user);
-        }
-
         registerFcmToken().catch(() => logger.warn('FCM registration failed after signup'));
+        broadcastAuthStateChange('customer', 'login');
 
         return {
           success: true,
@@ -207,22 +180,21 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   const logout = async () => {
     try {
       await customerLogout();
+    } catch (error: any) {
+      logger.warn('Customer logout request failed', { message: error?.message });
     } finally {
-      clearCustomerSession();
-      navigate('/customer/login');
+      broadcastAuthStateChange('customer', 'logout');
+      navigate('/customer/login', { replace: true });
     }
   };
 
   const refreshProfile = async () => {
-    try {
-      const updatedProfile = await getCustomerProfile();
-      setCustomer(updatedProfile);
-    } catch (error: any) {
-      const errMsg = error?.message || 'Failed to refresh profile';
-      logger.error('Customer refreshProfile failed', { message: errMsg });
-      
+    const outcome = await bootstrapCustomerAuth(location.pathname);
+
+    if (outcome.status === 'terminal') {
+      logger.error('Customer refreshProfile failed', { message: outcome.message });
       showToast('Your session has expired. Please log in again.', 'warning', 5000);
-      clearCustomerSession();
+      clearCustomerSession('invalidate', true);
       if (!location.pathname.startsWith('/customer/login')) {
         navigate('/customer/login', { replace: true });
       }
@@ -230,9 +202,9 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   };
 
   const value: CustomerAuthContextType = {
-    customer,
-    isAuthenticated: !!customer && !!getAccessToken('customer'),
-    isLoading,
+    customer: snapshot.customer,
+    isAuthenticated: snapshot.status === 'authenticated' && !!snapshot.customer,
+    isLoading: snapshot.isLoading,
     login,
     signUp,
     logout,

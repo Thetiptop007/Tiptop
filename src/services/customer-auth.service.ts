@@ -1,38 +1,22 @@
 import { apiRequest, parseApiResponse } from '../config/api';
 import {
-  clearAccessToken,
-  clearAuthUser,
-  clearCsrfToken,
-  getAccessToken,
-  getAuthUser,
-  setAccessToken,
-  setCsrfToken,
-  setAuthUser,
-} from './auth-session.store';
+  CustomerUser,
+  SignUpRequest,
+  isCustomerAuthenticated as isCustomerAuthenticatedSnapshot,
+  markCustomerAuthenticated,
+  getCustomerAuthSnapshot,
+  refreshCustomerProfile,
+  refreshCustomerSession,
+  resetCustomerAuthForLogin,
+  isCustomerAuthBootComplete,
+  waitForCustomerAuthBoot,
+  CustomerLogoutReason,
+  performCustomerLogoutWithReason,
+} from './customer-auth.coordinator';
 import { logger } from '../utils/logger';
 
-export interface CustomerUser {
-  _id: string;
-  email: {
-    address: string;
-    isVerified: boolean;
-  };
-  phone: {
-    number: string;
-    isVerified: boolean;
-  };
-  name: {
-    first: string;
-    last: string;
-  };
-  role: string;
-  isActive: boolean;
-  customerData?: {
-    totalOrders: number;
-    totalSpent: number;
-    favoriteItems: string[];
-  };
-}
+export type { CustomerUser, SignUpRequest } from './customer-auth.coordinator';
+export { CustomerLogoutReason } from './customer-auth.coordinator';
 
 export interface LoginRequest {
   phone: string;
@@ -51,14 +35,6 @@ export interface LoginResponse {
       csrfToken?: string;
     };
   };
-}
-
-export interface SignUpRequest {
-  name: string;
-  phone: string;
-  email: string;
-  password: string;
-  role: 'customer';
 }
 
 export interface SignUpResponse {
@@ -90,6 +66,8 @@ const normalizeResponseError = (responseData: any, fallbackMessage: string) => {
 };
 
 export const customerLogin = async (phone: string, password: string): Promise<LoginResponse> => {
+  resetCustomerAuthForLogin();
+
   const response = await apiRequest('auth/customer/login', {
     method: 'POST',
     body: JSON.stringify({
@@ -105,21 +83,18 @@ export const customerLogin = async (phone: string, password: string): Promise<Lo
     throw new Error(message);
   }
 
-  const accessToken = data.data.tokens?.accessToken;
-  if (accessToken) {
-    setAccessToken('customer', accessToken);
-  }
-  const csrfToken = data.data.tokens?.csrfToken || data.data.csrfToken;
-  if (csrfToken) {
-    setCsrfToken('customer', csrfToken);
-  }
-  setAuthUser('customer', data.data.user);
+  markCustomerAuthenticated(data.data.user, {
+    accessToken: data.data.tokens?.accessToken,
+    csrfToken: data.data.tokens?.csrfToken || data.data.csrfToken,
+  });
 
   logger.debug('Customer login completed');
   return data as LoginResponse;
 };
 
 export const customerSignUp = async (data: SignUpRequest): Promise<SignUpResponse> => {
+  resetCustomerAuthForLogin();
+
   const response = await apiRequest('auth/customer/register', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -131,81 +106,58 @@ export const customerSignUp = async (data: SignUpRequest): Promise<SignUpRespons
     throw new Error(normalizeResponseError(result, 'Registration failed'));
   }
 
-  if (result.data.tokens?.accessToken) {
-    setAccessToken('customer', result.data.tokens.accessToken);
-    setAuthUser('customer', result.data.user);
-  }
-  const csrfToken = result.data.tokens?.csrfToken || result.data.csrfToken;
-  if (csrfToken) {
-    setCsrfToken('customer', csrfToken);
-  }
+  markCustomerAuthenticated(result.data.user, {
+    accessToken: result.data.tokens?.accessToken,
+    csrfToken: result.data.tokens?.csrfToken || result.data.csrfToken,
+  });
 
   return result as SignUpResponse;
 };
 
 export const customerLogout = async (): Promise<void> => {
-  const response = await apiRequest('auth/customer/logout', {
-    method: 'POST',
-  });
+  try {
+    const response = await apiRequest('auth/customer/logout', {
+      method: 'POST',
+    });
 
-  const data = await parseApiResponse(response);
-  if (response.status >= 400) {
-    throw new Error(normalizeResponseError(data, 'Logout failed'));
+    const data = await parseApiResponse(response);
+    if (response.status >= 400) {
+      throw new Error(normalizeResponseError(data, 'Logout failed'));
+    }
+  } finally {
+    // Always clear all state with reason tracking, even if backend request fails
+    performCustomerLogoutWithReason(CustomerLogoutReason.ManualLogout);
   }
-
-  clearAccessToken('customer');
-  clearAuthUser('customer');
-  clearCsrfToken('customer');
 };
 
 export const getCustomerProfile = async (): Promise<CustomerUser> => {
-  const response = await apiRequest('auth/customer/me');
-  const data = await parseApiResponse(response);
+  const outcome = await refreshCustomerProfile();
 
-  if (response.status === 401) {
-    throw new Error(data.message || 'Invalid token. Please log in again.');
+  if (outcome.status === 'success') {
+    return outcome.customer;
   }
 
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch profile');
-  }
-
-  if (data.status === 'success' && data.data?.user) {
-    setAuthUser('customer', data.data.user);
-    return data.data.user;
-  }
-
-  throw new Error(data.message || 'Failed to fetch profile');
+  throw new Error(outcome.message);
 };
 
 export const isCustomerAuthenticated = (): boolean => {
-  return !!getAccessToken('customer') && !!getAuthUser('customer');
+  return isCustomerAuthenticatedSnapshot();
 };
 
 export const getStoredCustomer = (): CustomerUser | null => {
-  return (getAuthUser('customer') as CustomerUser | null) || null;
+  return getCustomerAuthSnapshot().customer;
 };
 
 export const refreshAccessToken = async (): Promise<string> => {
-  const response = await apiRequest('auth/customer/refresh', {
-    method: 'POST',
-  });
+  const outcome = await refreshCustomerSession();
 
-  const data = await parseApiResponse(response);
-
-  if (data.status === 'success' && data.data?.tokens?.accessToken) {
-    setAccessToken('customer', data.data.tokens.accessToken);
-    const csrfToken = data.data?.csrfToken || data.data?.tokens?.csrfToken;
-    if (csrfToken) {
-      setCsrfToken('customer', csrfToken);
-    }
-    if (data.data.user) {
-      setAuthUser('customer', data.data.user);
-    }
-    return data.data.tokens.accessToken;
+  if (outcome.status === 'success') {
+    return outcome.accessToken;
   }
 
-  clearAccessToken('customer');
-  clearAuthUser('customer');
-  throw new Error(normalizeResponseError(data, 'Token refresh failed'));
+  throw new Error(outcome.message);
 };
+
+export const isCustomerAuthBootReady = (): boolean => isCustomerAuthBootComplete();
+
+export const waitForCustomerAuthBootReady = (): Promise<boolean> => waitForCustomerAuthBoot();
