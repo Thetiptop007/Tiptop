@@ -27,6 +27,64 @@ import { logger } from '../../utils/logger';
 // Define order data
 type BulkActionMode = 'new' | 'accepted' | 'readyDelivery' | 'readyPickup' | 'outForDelivery';
 
+const formatCustomerName = (customer: unknown): string => {
+  if (!customer) {
+    return 'N/A';
+  }
+
+  if (typeof customer === 'string') {
+    return customer.trim() || 'N/A';
+  }
+
+  const typedCustomer = customer as {
+    name?: string | { first?: string; last?: string; firstName?: string; lastName?: string };
+    firstName?: string;
+    lastName?: string;
+    first?: string;
+    last?: string;
+  };
+
+  if (typeof typedCustomer.name === 'string') {
+    return typedCustomer.name.trim() || 'N/A';
+  }
+
+  if (typedCustomer.name && typeof typedCustomer.name === 'object') {
+    const firstName = typedCustomer.name.first || typedCustomer.name.firstName || '';
+    const lastName = typedCustomer.name.last || typedCustomer.name.lastName || '';
+    return `${firstName} ${lastName}`.trim() || 'N/A';
+  }
+
+  const firstName = typedCustomer.firstName || typedCustomer.first || '';
+  const lastName = typedCustomer.lastName || typedCustomer.last || '';
+  return `${firstName} ${lastName}`.trim() || 'N/A';
+};
+
+const formatCustomerPhone = (customer: unknown, phone: unknown): string => {
+  if (typeof phone === 'string' && phone.trim()) {
+    return phone;
+  }
+
+  if (!customer || typeof customer === 'string') {
+    return 'N/A';
+  }
+
+  const typedCustomer = customer as {
+    phone?: string | { number?: string; phoneNumber?: string };
+    mobile?: string;
+    contactNumber?: string;
+  };
+
+  if (typeof typedCustomer.phone === 'string') {
+    return typedCustomer.phone.trim() || 'N/A';
+  }
+
+  if (typedCustomer.phone && typeof typedCustomer.phone === 'object') {
+    return typedCustomer.phone.number || typedCustomer.phone.phoneNumber || 'N/A';
+  }
+
+  return typedCustomer.mobile || typedCustomer.contactNumber || 'N/A';
+};
+
 const OrderTable = ({
   orders,
   title,
@@ -342,10 +400,10 @@ const OrderTable = ({
             <span><span class="label">Address:</span> ${order.address.street}</span>
           </div>` : ''}
           <div class="row">
-            <span><span class="label">Phone:</span> ${order.phone}</span>
+            <span><span class="label">Phone:</span> ${formatCustomerPhone(order.customer, order.phone)}</span>
           </div>
           <div class="row">
-            <span><span class="label">Customer:</span> ${order.customer}</span>
+            <span><span class="label">Customer:</span> ${formatCustomerName(order.customer)}</span>
           </div>
           
           <div class="divider-solid"></div>
@@ -1559,12 +1617,12 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     <div className="cursor-pointer" onClick={() => toggleExpand(order.id)}>
-                      {typeof order.customer === 'string' ? order.customer : (order.customer as any)?.name || 'N/A'}
+                      {formatCustomerName(order.customer)}
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     <div className="cursor-pointer" onClick={() => toggleExpand(order.id)}>
-                      {typeof order.phone === 'string' ? order.phone : (order.customer as any)?.phone || 'N/A'}
+                      {formatCustomerPhone(order.customer, order.phone)}
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
@@ -1666,8 +1724,8 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
                                   Customer Information
                                 </h4>
                                 <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                                  <p><span className="font-medium text-gray-700 dark:text-gray-300">Name:</span> {typeof expandedOrderDetails.customer === 'string' ? expandedOrderDetails.customer : (expandedOrderDetails.customer as any)?.name || 'N/A'}</p>
-                                  <p><span className="font-medium text-gray-700 dark:text-gray-300">Phone:</span> {typeof expandedOrderDetails.phone === 'string' ? expandedOrderDetails.phone : (expandedOrderDetails.customer as any)?.phone || 'N/A'}</p>
+                                  <p><span className="font-medium text-gray-700 dark:text-gray-300">Name:</span> {formatCustomerName(expandedOrderDetails.customer)}</p>
+                                  <p><span className="font-medium text-gray-700 dark:text-gray-300">Phone:</span> {formatCustomerPhone(expandedOrderDetails.customer, expandedOrderDetails.phone)}</p>
                                 </div>
                               </div>
                             </div>

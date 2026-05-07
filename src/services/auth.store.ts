@@ -28,13 +28,7 @@ let state: AuthState = {
   isAuthResolved: false,
 };
 
-const log = (label: string, data?: any) => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [AUTH-STORE] ${label}`, data || '');
-};
-
 const emit = () => {
-  log('emit() - notifying listeners', { listenerCount: listeners.size });
   listeners.forEach((listener) => listener());
 };
 
@@ -43,20 +37,13 @@ export const authStore = {
     return state;
   },
   setState(next: Partial<AuthState>) {
-    const oldState = { ...state };
     state = {
       ...state,
       ...next,
     };
-    log('setState() called', { 
-      oldState, 
-      newState: state,
-      changes: next 
-    });
     emit();
   },
   reset() {
-    log('reset() called');
     state = {
       user: null,
       role: null,
@@ -65,11 +52,9 @@ export const authStore = {
     emit();
   },
   subscribe(listener: AuthStoreListener) {
-    log('subscribe() called', { currentListeners: listeners.size });
     listeners.add(listener);
     return () => {
       listeners.delete(listener);
-      log('unsubscribe() called', { remainingListeners: listeners.size });
     };
   },
 };

@@ -72,6 +72,8 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   const location = useLocation();
   const { showToast } = useToast();
 
+  // Snapshot change tracking handled internally by coordinator
+
   const registerFcmToken = async () => {
     try {
       const fcmToken = await requestFcmToken();
@@ -201,7 +203,9 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
     customer: snapshot.customer,
     isAuthenticated: snapshot.status === 'authenticated' && !!snapshot.customer,
     isLoading: snapshot.isLoading,
-    authReady: snapshot.bootstrapAttempted === true,
+    // authReady should become true as soon as the session is restored, even if
+    // the profile bootstrap is still finishing its final bookkeeping.
+    authReady: snapshot.status === 'authenticated' && !!snapshot.customer,
     login,
     signUp,
     logout,

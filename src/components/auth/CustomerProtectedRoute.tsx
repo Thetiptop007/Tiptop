@@ -16,9 +16,8 @@ export const CustomerProtectedRoute = ({ children }: CustomerProtectedRouteProps
   // Trigger customer auth bootstrap on mount if not already resolved
   useEffect(() => {
     if (!authStore.isAuthResolved) {
-      console.log('[CustomerProtectedRoute] Auth not resolved, triggering bootstrapCustomerAuth');
-      bootstrapCustomerAuth(location.pathname).catch((err) => {
-        console.log('[CustomerProtectedRoute] bootstrapCustomerAuth error:', err);
+      bootstrapCustomerAuth(location.pathname).catch(() => {
+        // Bootstrap error handled by coordinator
       });
     }
   }, [authStore.isAuthResolved, location.pathname]);

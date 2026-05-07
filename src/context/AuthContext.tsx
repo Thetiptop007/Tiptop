@@ -69,12 +69,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Sync coordinator state to local state (SINGLE SOURCE OF TRUTH)
   useEffect(() => {
-    console.log('[📍 AUTH-CONTEXT] SYNC EFFECT FIRING', {
-      hasCoordinatorUser: !!coordinatorSnapshot.user,
-      coordinatorIsLoading: coordinatorSnapshot.isLoading,
-      coordinatorUser: coordinatorSnapshot.user ? { _id: coordinatorSnapshot.user._id, name: coordinatorSnapshot.user.name } : null,
-      timestamp: new Date().toISOString(),
-    });
     
     if (coordinatorSnapshot.user) {
       // Normalize admin user shape so UI (react-query + components) can consume a consistent structure
@@ -99,7 +93,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       // Always set canonical user into the auth store and session store
-      console.log('[📍 AUTH-CONTEXT] SETTING AUTHENTICATED STATE to authStore (normalized)');
       setAuthUser('admin', normalized);
       authStore.setState({
         user: normalized,
@@ -116,11 +109,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } else {
       setUser(null);
 
-      // Always set full state on logout/empty
-      console.log('[📍 AUTH-CONTEXT] SETTING UNAUTHENTICATED STATE to authStore', {
-        coordinatorIsLoading: coordinatorSnapshot.isLoading,
-        shouldResolveNow: !coordinatorSnapshot.isLoading,
-      });
       authStore.setState({
         user: null,
         role: null,

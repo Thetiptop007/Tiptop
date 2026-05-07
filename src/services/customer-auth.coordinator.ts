@@ -153,31 +153,6 @@ const isTransientError = (error: any): boolean => {
   return error?.name === 'AbortError' || error?.name === 'TimeoutError' || !navigator.onLine;
 };
 
-const parseJwtExpiryMs = (token: string): number | null => {
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) {
-      return null;
-    }
-
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-    const payload = JSON.parse(atob(padded));
-    return typeof payload?.exp === 'number' ? payload.exp * 1000 : null;
-  } catch {
-    return null;
-  }
-};
-
-const isAccessTokenFreshEnough = (token: string, minRemainingMs = 60 * 1000): boolean => {
-  const expiresAt = parseJwtExpiryMs(token);
-  if (!expiresAt) {
-    return false;
-  }
-
-  return expiresAt - Date.now() > minRemainingMs;
-};
-
 const extractCustomer = (data: any): CustomerUser | null => data?.data?.user || null;
 
 const extractTokens = (data: any): { accessToken?: string; csrfToken?: string; sessionId?: string } => ({
@@ -235,7 +210,6 @@ const performRefresh = async (): Promise<CustomerRefreshOutcome> => {
 
   const currentRevision = ++refreshRevision;
   setSessionState(snapshot.customer, 'refreshing');
-  console.log('🔥 REFRESH START', Date.now());
 
   if (import.meta.env.DEV) {
     logger.debug('CUSTOMER_AUTH_REFRESH_STARTED', 'Customer token refresh started', {});
@@ -264,9 +238,6 @@ const performRefresh = async (): Promise<CustomerRefreshOutcome> => {
       });
 
       const data = await normalizeApiResponse(response);
-      console.log('🔥 REFRESH END', Date.now(), {
-        status: response.status,
-      });
       
       // Check for mixed sessions detected by backend
       const code = data?.code ?? data?.statusCode ?? null;
@@ -362,7 +333,6 @@ const loadProfile = async (): Promise<CustomerHydrationOutcome> => {
     status: snapshot.customer ? 'authenticated' : 'hydrating',
     isLoading: true,
   });
-  console.log('🚀 ME START', Date.now());
 
   if (import.meta.env.DEV) {
     logger.debug('CUSTOMER_AUTH_PROFILE_STARTED', 'Customer profile fetch started', {});
@@ -405,10 +375,6 @@ const loadProfile = async (): Promise<CustomerHydrationOutcome> => {
         });
 
         const data = await normalizeApiResponse(response);
-        console.log('🚀 ME END', Date.now(), {
-          status: response.status,
-          hasUser: !!data?.data?.user,
-        });
         return { response, data, message: null };
       };
 

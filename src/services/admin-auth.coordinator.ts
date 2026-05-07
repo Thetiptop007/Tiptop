@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FRONTEND AUTH OPTIMIZATION COORDINATOR
  * 
  * Purpose:
@@ -132,18 +132,9 @@ export const getAdminAuthSnapshot = (): AdminAuthSnapshot => {
  * Subscribe to auth state changes
  */
 export const subscribeAdminAuth = (listener: (snapshot: AdminAuthSnapshot) => void): (() => void) => {
-  console.log('[COORDINATOR-SUBSCRIBE] Auth listener registered', {
-    totalSubscribers: authSubscribers.size + 1,
-    currentSnapshot: currentAuthSnapshot,
-    timestamp: new Date().toISOString(),
-  });
   authSubscribers.add(listener);
   
   return () => {
-    console.log('[COORDINATOR-UNSUBSCRIBE] Auth listener removed', {
-      remainingSubscribers: authSubscribers.size - 1,
-      timestamp: new Date().toISOString(),
-    });
     authSubscribers.delete(listener);
   };
 };
@@ -152,13 +143,7 @@ export const subscribeAdminAuth = (listener: (snapshot: AdminAuthSnapshot) => vo
  * Broadcast auth state change to all subscribers
  */
 const broadcastAdminAuthChange = (snapshot: AdminAuthSnapshot) => {
-  console.log('[📐 COORDINATOR-BROADCAST] Broadcasting auth state to subscribers', {
-    user: snapshot.user ? { _id: snapshot.user._id, name: snapshot.user.name } : null,
-    isLoading: snapshot.isLoading,
-    isAuthenticated: snapshot.isAuthenticated,
-    subscriberCount: authSubscribers.size,
-    timestamp: new Date().toISOString(),
-  });
+
   currentAuthSnapshot = { ...snapshot };
   authSubscribers.forEach((listener) => {
     try {
@@ -199,7 +184,6 @@ export const fetchAdminUser = async (): Promise<AdminUser | null> => {
   // Make the actual request
   inFlightGetCurrentUserPromise = (async () => {
     try {
-      console.log('🚀 ME START', Date.now());
       logger.debug('ADMIN_AUTH_REQUEST_START', 'Fetching current admin user from /auth/admin/me');
       
       const response = await apiRequest('auth/admin/me');
@@ -252,18 +236,8 @@ export const fetchAdminUser = async (): Promise<AdminUser | null> => {
           role: user.role,
         });
 
-        console.log('🚀 ME END', Date.now(), {
-          status: response.status,
-          hasUser: true,
-        });
-
         return user;
       }
-
-      console.log('🚀 ME END', Date.now(), {
-        status: response.status,
-        hasUser: false,
-      });
 
       return null;
     } catch (error) {
@@ -287,35 +261,14 @@ export const fetchAdminUser = async (): Promise<AdminUser | null> => {
  * Subsequent auth checks should use the cached user
  */
 export const bootstrapAdminAuth = async (): Promise<void> => {
-  const bootstrapStartTime = Date.now();
-  console.log(`[🔵 ADMIN-BOOTSTRAP] START at ${new Date(bootstrapStartTime).toISOString()}`);
-  console.log('[🔵 ADMIN-BOOTSTRAP] BROADCASTING isLoading=true to coordinator subscribers');
   logger.debug('BOOTSTRAP_ADMIN_AUTH_START', 'Starting admin auth bootstrap');
-  
-  const initialSnapshot = {
-    user: null,
-    isAuthenticated: false,
-    isLoading: true,
-  };
-  console.log('[🔵 ADMIN-BOOTSTRAP] Initial snapshot:', initialSnapshot);
-  broadcastAdminAuthChange(initialSnapshot);
 
   try {
-    console.log('[🔵 ADMIN-BOOTSTRAP] Ensuring admin session is refreshed before /me');
     const refreshed = await refreshAdminSession();
-    console.log('[🔵 ADMIN-BOOTSTRAP] refreshAdminSession result', { refreshed });
-
-    if (!refreshed && !getAccessToken('admin')) {
-      console.log('[🔵 ADMIN-BOOTSTRAP] No access token available after refresh attempt');
-    }
-
-    console.log('[🔵 ADMIN-BOOTSTRAP] Calling fetchAdminUser()...');
     const user = await fetchAdminUser();
-    const fetchDuration = Date.now() - bootstrapStartTime;
-    console.log(`[🔵 ADMIN-BOOTSTRAP] fetchAdminUser returned after ${fetchDuration}ms`, { hasUser: !!user });
     
     if (user) {
-      console.log('[🔵 ADMIN-BOOTSTRAP] Setting authenticated state', { userId: user._id || user.id });
+
       broadcastAdminAuthChange({
         user,
         isAuthenticated: true,
@@ -324,20 +277,16 @@ export const bootstrapAdminAuth = async (): Promise<void> => {
       logger.debug('BOOTSTRAP_ADMIN_AUTH_SUCCESS', 'Admin auth bootstrap completed', {
         userId: user._id || user.id,
       });
-      console.log(`[✅ ADMIN-BOOTSTRAP] SUCCESS after ${fetchDuration}ms`);
     } else {
-      console.log('[🔵 ADMIN-BOOTSTRAP] No user found, setting unauthenticated state');
+
       broadcastAdminAuthChange({
         user: null,
         isAuthenticated: false,
         isLoading: false,
       });
       logger.debug('BOOTSTRAP_ADMIN_AUTH_NO_USER', 'No user found during auth bootstrap');
-      console.log(`[⚠️ ADMIN-BOOTSTRAP] NO_USER after ${fetchDuration}ms`);
     }
   } catch (error) {
-    const errorDuration = Date.now() - bootstrapStartTime;
-    console.log(`[❌ ADMIN-BOOTSTRAP] ERROR after ${errorDuration}ms`, error);
     broadcastAdminAuthChange({
       user: null,
       isAuthenticated: false,
