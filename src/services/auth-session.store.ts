@@ -13,14 +13,19 @@ const csrfTokens: Record<AuthScope, string | null> = {
   customer: null,
 };
 
+const sessionIds: Record<AuthScope, string | null> = {
+  admin: null,
+  customer: null,
+};
+
 const users: Record<AuthScope, unknown | null> = {
   admin: null,
   customer: null,
 };
 
 const scopeLocalStorageKeys: Record<AuthScope, string[]> = {
-  admin: ['adminToken', 'adminRefreshToken', 'adminEmail', 'adminName', 'adminRole', 'adminUser'],
-  customer: ['customerToken', 'customerRefreshToken', 'customerUser'],
+  admin: ['adminToken', 'adminSessionId', 'adminRefreshToken', 'adminEmail', 'adminName', 'adminRole', 'adminUser'],
+  customer: ['customerToken', 'customerSessionId', 'customerRefreshToken', 'customerUser'],
 };
 
 const clearPersistedScopeState = (scope?: AuthScope) => {
@@ -201,6 +206,21 @@ export const clearAllCsrfTokens = () => {
   csrfTokens.customer = null;
 };
 
+export const setSessionId = (scope: AuthScope, sessionId: string | null) => {
+  sessionIds[scope] = sessionId;
+};
+
+export const getSessionId = (scope: AuthScope): string | null => sessionIds[scope];
+
+export const clearSessionId = (scope: AuthScope) => {
+  sessionIds[scope] = null;
+};
+
+export const clearAllSessionIds = () => {
+  sessionIds.admin = null;
+  sessionIds.customer = null;
+};
+
 export const setAuthUser = (scope: AuthScope, user: unknown | null) => {
   users[scope] = user;
 };
@@ -226,12 +246,14 @@ export const clearAllAuthState = (scope?: AuthScope) => {
     // Clear specific scope only
     clearAccessToken(scope);
     clearCsrfToken(scope);
+    clearSessionId(scope);
     clearAuthUser(scope);
     clearPersistedScopeState(scope);
   } else {
     // Clear everything
     clearAllAccessTokens();
     clearAllCsrfTokens();
+    clearAllSessionIds();
     clearAllAuthUsers();
     clearPersistedScopeState();
   }

@@ -1,10 +1,12 @@
 import { BrowserRouter as Router, Navigate, Routes, Route, useLocation } from "react-router";
+import { useEffect } from "react";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
 import AppLayout from "./layout/AppLayout";
 import CustomerLayout from "./layout/CustomerLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
+import { AppRouteGate } from "./components/auth/AppRouteGate";
 import Home from "./pages/Dashboard/Home";
 import BusinessInsights from "./pages/BusinessInsights";
 import LandingPage from "./pages/LandingPage";
@@ -43,7 +45,6 @@ import { ToastProvider } from "./context/ToastContext";
 import { ToastContainer } from "./components/Toast";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { CustomerProtectedRoute } from "./components/auth/CustomerProtectedRoute";
-import { useEffect } from "react";
 import { logger } from "./utils/logger";
 
 function AppRoutes() {
@@ -172,7 +173,11 @@ function AppRoutes() {
 }
 
 function AppContent() {
-  return <AppRoutes />;
+  return (
+    <AppRouteGate>
+      <AppRoutes />
+    </AppRouteGate>
+  );
 }
 
 function LocationLogger() {

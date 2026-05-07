@@ -21,6 +21,7 @@ import {
   getCustomerAuthSnapshot,
   subscribeCustomerAuth,
 } from '../services/customer-auth.coordinator';
+import { authStore } from '../services/auth.store';
 import { logger } from '../utils/logger';
 import { useToast } from './ToastContext';
 
@@ -28,6 +29,7 @@ interface CustomerAuthContextType {
   customer: CustomerUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  authReady: boolean;
   login: (phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
   signUp: (data: SignUpRequest) => Promise<{ success: boolean; message?: string; user?: CustomerUser; autoLogin?: boolean }>;
   logout: () => Promise<void>;
@@ -46,6 +48,7 @@ export const useCustomerAuth = () => {
         customer: null,
         isAuthenticated: false,
         isLoading: false,
+        authReady: true,
         login: async () => ({ success: false, message: 'Customer auth is initializing' }),
         signUp: async () => ({ success: false, message: 'Customer auth is initializing' }),
         logout: async () => undefined,
@@ -110,28 +113,21 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
   }, [location.pathname, navigate]);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const isCustomerPath = location.pathname.startsWith('/customer');
-
-      logger.debug('Checking customer authentication', {
-        isCustomerPath,
-        path: location.pathname,
+    // Always set full state, never skip (SINGLE SOURCE OF TRUTH)
+    if (snapshot.customer) {
+      authStore.setState({
+        user: snapshot.customer,
+        role: 'customer',
+        isAuthResolved: true,
       });
-
-      if (!isCustomerPath) {
-        return;
-      }
-
-      const outcome = await bootstrapCustomerAuth(location.pathname);
-
-      if (outcome.status === 'terminal' && location.pathname.startsWith('/customer') && !location.pathname.includes('/login') && !location.pathname.includes('/signup')) {
-        showToast('Your session has expired. Please log in again.', 'warning', 5000);
-        navigate('/customer/login', { replace: true });
-      }
-    };
-
-    void checkAuth();
-  }, [location.pathname, navigate, showToast]);
+    } else {
+      authStore.setState({
+        user: null,
+        role: null,
+        isAuthResolved: true,
+      });
+    }
+  }, [snapshot.customer, snapshot.bootstrapAttempted]);
 
   const login = async (phone: string, password: string) => {
     try {
@@ -205,6 +201,7 @@ export const CustomerAuthProvider = ({ children }: CustomerAuthProviderProps) =>
     customer: snapshot.customer,
     isAuthenticated: snapshot.status === 'authenticated' && !!snapshot.customer,
     isLoading: snapshot.isLoading,
+    authReady: snapshot.bootstrapAttempted === true,
     login,
     signUp,
     logout,

@@ -1,22 +1,28 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router';
 import { useLocation } from 'react-router';
 import { apiRequest, parseApiResponse } from '../config/api';
-import { getCurrentUser } from '../services/auth.service';
 import {
   broadcastAuthStateChange,
   clearAllAuthState,
-  getAccessToken,
-  getAuthUser,
   getAuthSyncPayload,
   addAuthSyncListener,
-  validatePersistedAuth,
   setAccessToken,
   setCsrfToken,
+  setSessionId,
   setAuthUser,
 } from '../services/auth-session.store';
+import {
+  bootstrapAdminAuth,
+  getAdminAuthSnapshot,
+  subscribeAdminAuth,
+  clearAdminAuthCache,
+} from '../services/admin-auth.coordinator';
+import { appQueryClient } from '../config/queryClient';
+import { appQueryKeys } from '../hooks/useAppDataQueries';
+import { authStore } from '../services/auth.store';
+import { validateScopeSwitch, setAuthScope, forceLogout } from '../services/auth-scope';
 import { logger } from '../utils/logger';
-import { useToast } from './ToastContext';
 
 interface User {
   email: string;
@@ -49,18 +55,81 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
+  // Use external store (coordinator) for auth state - prevents duplicate /auth/me calls
+  const coordinatorSnapshot = useSyncExternalStore(subscribeAdminAuth, getAdminAuthSnapshot, getAdminAuthSnapshot);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [authRevision, setAuthRevision] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
-  const { showToast } = useToast();
 
   const clearSession = () => {
     clearAllAuthState('admin');
+    clearAdminAuthCache();
     setUser(null);
   };
 
+  // Sync coordinator state to local state (SINGLE SOURCE OF TRUTH)
+  useEffect(() => {
+    console.log('[📍 AUTH-CONTEXT] SYNC EFFECT FIRING', {
+      hasCoordinatorUser: !!coordinatorSnapshot.user,
+      coordinatorIsLoading: coordinatorSnapshot.isLoading,
+      coordinatorUser: coordinatorSnapshot.user ? { _id: coordinatorSnapshot.user._id, name: coordinatorSnapshot.user.name } : null,
+      timestamp: new Date().toISOString(),
+    });
+    
+    if (coordinatorSnapshot.user) {
+      // Normalize admin user shape so UI (react-query + components) can consume a consistent structure
+      const raw = coordinatorSnapshot.user as any;
+      const normalized = {
+        _id: raw._id || raw.id,
+        name: typeof raw.name === 'string'
+          ? { first: raw.name.split(' ')[0] || '', last: raw.name.split(' ').slice(1).join(' ') || '' }
+          : raw.name || { first: '', last: '' },
+        email: typeof raw.email === 'string' ? { address: raw.email, isVerified: false } : raw.email || { address: '', isVerified: false },
+        phone: typeof raw.phone === 'string' ? { number: raw.phone, isVerified: false } : raw.phone || undefined,
+        role: raw.role,
+        isActive: raw.isActive,
+      } as any;
+
+      // Keep local simplified AuthContext user (string name) for consumers of useAuth()
+      setUser({
+        email: typeof raw.email === 'string' ? raw.email : raw.email?.address,
+        name: typeof raw.name === 'string' ? raw.name : `${raw.name?.first || ''} ${raw.name?.last || ''}`.trim(),
+        role: raw.role,
+        phone: typeof raw.phone === 'string' ? raw.phone : raw.phone?.number,
+      });
+
+      // Always set canonical user into the auth store and session store
+      console.log('[📍 AUTH-CONTEXT] SETTING AUTHENTICATED STATE to authStore (normalized)');
+      setAuthUser('admin', normalized);
+      authStore.setState({
+        user: normalized,
+        role: 'admin',
+        isAuthResolved: true,
+      });
+
+      // Update react-query cache for current-user so UI components that rely on queries see data immediately
+      try {
+        appQueryClient.setQueryData(appQueryKeys.currentUser, normalized);
+      } catch (e) {
+        // Swallow - optional optimization
+      }
+    } else {
+      setUser(null);
+
+      // Always set full state on logout/empty
+      console.log('[📍 AUTH-CONTEXT] SETTING UNAUTHENTICATED STATE to authStore', {
+        coordinatorIsLoading: coordinatorSnapshot.isLoading,
+        shouldResolveNow: !coordinatorSnapshot.isLoading,
+      });
+      authStore.setState({
+        user: null,
+        role: null,
+        isAuthResolved: !coordinatorSnapshot.isLoading, // ONLY resolve when loading is done
+      });
+    }
+  }, [coordinatorSnapshot.user, coordinatorSnapshot.isLoading]);
+
+  // Listen for storage events (cross-tab sync)
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       const payload = getAuthSyncPayload(event);
@@ -70,27 +139,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (payload.event === 'logout' || payload.event === 'invalidate') {
         clearSession();
-        setIsLoading(false);
         if (location.pathname.startsWith('/admin')) {
           navigate('/signin', { replace: true });
         }
         return;
       }
-
-      setAuthRevision((value) => value + 1);
     };
 
     const unsub = addAuthSyncListener((payload: any) => {
       if (!payload || payload.scope !== 'admin') return;
       if (payload.event === 'logout' || payload.event === 'invalidate') {
         clearSession();
-        setIsLoading(false);
         if (location.pathname.startsWith('/admin')) {
           navigate('/signin', { replace: true });
         }
         return;
       }
-      setAuthRevision((value) => value + 1);
     });
 
     window.addEventListener('storage', onStorage);
@@ -100,117 +164,44 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, [location.pathname, navigate]);
 
-  useEffect(() => {
-    const bootstrapAuth = async () => {
-      // Validate persisted localStorage state for admin before relying on it
-      try {
-        validatePersistedAuth('admin');
-      } catch (e) {
-        // best effort
-      }
-
-      // Phase 1: Check if we're on admin path
-      const isAdminPath = location.pathname.startsWith('/admin');
-      
-      if (!isAdminPath) {
-        // Not on admin path - don't attempt hydration
-        setIsLoading(false);
-        return;
-      }
-
-      // Phase 2: We're on admin path - boot in UNKNOWN state
-      // IMPORTANT: Do NOT trust stale localStorage or in-memory cache
-      // Always validate with backend
-      
-      logger.debug('Admin auth bootstrap started', {
-        path: location.pathname,
-        hasStoredToken: !!getAccessToken('admin'),
-        hasStoredUser: !!getAuthUser('admin'),
-      });
-
-      const hasStoredAccessToken = !!getAccessToken('admin');
-
-      if (!hasStoredAccessToken) {
-        try {
-          // Phase 3: No access token in memory, attempt refresh bootstrap once
-          const refreshResponse = await apiRequest('auth/admin/refresh', {
-            method: 'POST',
-          });
-
-          if (refreshResponse.status === 401 || refreshResponse.status === 403) {
-            logger.warn('Admin refresh failed - session invalid', { status: refreshResponse.status });
-            clearSession();
-            broadcastAuthStateChange('admin', 'invalidate');
-            setIsLoading(false);
-            return;
-          }
-
-          if (!refreshResponse.ok) {
-            logger.warn('Admin refresh failed - backend error', { status: refreshResponse.status });
-            clearSession();
-            setIsLoading(false);
-            return;
-          }
-
-          const data = await parseApiResponse(refreshResponse);
-          if (data.status === 'success' && data.data?.tokens?.accessToken) {
-            setAccessToken('admin', data.data.tokens.accessToken);
-            const csrfToken = data.data.csrfToken || data.data.tokens?.csrfToken;
-            if (csrfToken) {
-              setCsrfToken('admin', csrfToken);
-            }
-            if (data.data.user) {
-              setAuthUser('admin', data.data.user);
-            }
-          }
-        } catch (error: any) {
-          logger.debug('Admin refresh bootstrap failed', { message: error?.message });
-        }
-      }
-
-      try {
-        // Phase 4: Fetch current authenticated user from backend
-        const currentUser = await getCurrentUser();
-
-        if (currentUser && currentUser.role === 'admin') {
-          setUser({
-            email: typeof currentUser.email === 'string' ? currentUser.email : currentUser.email.address,
-            name: typeof currentUser.name === 'string' ? currentUser.name : `${currentUser.name.first} ${currentUser.name.last}`.trim(),
-            role: currentUser.role,
-          });
-          setAuthUser('admin', currentUser);
-        } else {
-          logger.warn('Admin user not found or wrong role');
-          clearSession();
-          broadcastAuthStateChange('admin', 'invalidate');
-        }
-      } catch (error: any) {
-        const errMsg = error?.message || 'Session validation failed';
-        logger.warn('Admin getCurrentUser failed', { message: errMsg });
-        clearSession();
-        broadcastAuthStateChange('admin', 'invalidate');
-        
-        // Redirect only if on protected admin route
-        if (location.pathname !== '/signin') {
-          showToast('Your session has expired. Please log in again.', 'warning', 5000);
-          navigate('/signin', { replace: true });
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    bootstrapAuth();
-  }, [location.pathname, authRevision]);
-
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
+      // CRITICAL: Validate scope before attempting login
+      if (!validateScopeSwitch('admin')) {
+        logger.error('Scope violation detected: attempting to login as admin while customer logged in', {
+          currentScope: 'customer',
+          requestedScope: 'admin',
+        });
+
+        // Force logout to clean state
+        await forceLogout('scope_violation_admin_login');
+        return {
+          success: false,
+          message: 'You are logged in as customer. Please log out first before switching to admin.',
+        };
+      }
+
       const response = await apiRequest('auth/admin/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
 
       const data = await parseApiResponse(response);
+
+      // Check for mixed session error from backend
+      if (data?.code === 'MIXED_SESSIONS' || data?.code === 'SCOPE_VIOLATION') {
+        logger.error('Backend mixed session detected during login', {
+          code: data.code,
+          message: data.message,
+        });
+
+        // Force cleanup
+        await forceLogout('backend_mixed_session_admin_login');
+        return {
+          success: false,
+          message: 'Mixed session detected. Please refresh and try again.',
+        };
+      }
 
       if (response.ok && data.status === 'success' && data.data?.user) {
         clearSession();
@@ -233,6 +224,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (csrfToken) {
           setCsrfToken('admin', csrfToken);
         }
+        if (data.data.tokens?.sessionId) {
+          setSessionId('admin', data.data.tokens.sessionId);
+        }
+
+        // CRITICAL: Set auth scope on successful login
+        setAuthScope('admin');
+
         setAuthUser('admin', data.data.user);
         setUser({
           email: userEmail,
@@ -240,6 +238,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           role: userRole,
         });
         broadcastAuthStateChange('admin', 'login');
+        
+        // Refresh coordinator state after login
+        await bootstrapAdminAuth();
 
         return { success: true };
       }
@@ -265,14 +266,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Clear all local state immediately
     clearSession();
+    
+    // CRITICAL: Clear auth scope on logout
+    setAuthScope(null);
+    
     broadcastAuthStateChange('admin', 'logout');
     navigate('/signin', { replace: true });
   };
 
   const value = {
     user,
-    isAuthenticated: !!user && !!getAccessToken('admin'),
-    isLoading,
+    isAuthenticated: coordinatorSnapshot.isAuthenticated,
+    isLoading: coordinatorSnapshot.isLoading,
     login,
     logout,
   };

@@ -56,6 +56,7 @@ const Developer = () => {
   const fetchHealth = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/developer/health`, {
+        credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();
@@ -71,6 +72,7 @@ const Developer = () => {
   const fetchPerformance = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/developer/performance`, {
+        credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();
@@ -86,6 +88,7 @@ const Developer = () => {
   const fetchErrors = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/developer/errors?limit=20`, {
+        credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();
@@ -101,6 +104,7 @@ const Developer = () => {
   const fetchLogs = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/developer/logs?limit=50`, {
+        credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();
@@ -116,6 +120,7 @@ const Developer = () => {
   const fetchDatabaseStats = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/developer/database-stats`, {
+        credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();
@@ -131,6 +136,7 @@ const Developer = () => {
   const fetchConfig = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/developer/config`, {
+        credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();
@@ -147,6 +153,7 @@ const Developer = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/developer/test-error-email`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -171,6 +178,7 @@ const Developer = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/developer/logs?type=${type}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();

@@ -25,7 +25,9 @@ const fetchOfferMenuItemsOnce = async (): Promise<MenuItem[]> => {
   }
 
   offerMenuInFlight = (async () => {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/menu?limit=100`);
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/menu?limit=100`, {
+      credentials: 'include',
+    });
     if (!response.ok) {
       throw new Error(`Menu API failed with status ${response.status}`);
     }
@@ -47,7 +49,9 @@ const fetchOfferCategoriesOnce = async (): Promise<Category[]> => {
   }
 
   offerCategoryInFlight = (async () => {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/categories`);
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/categories`, {
+      credentials: 'include',
+    });
     if (!response.ok) {
       throw new Error(`Categories API failed with status ${response.status}`);
     }

@@ -48,6 +48,59 @@ export default function CustomerLayout() {
     { path: '/customer/profile', label: 'Profile' },
   ];
 
+  const normalizeCustomerName = (value: unknown) => {
+    if (!value) {
+      return 'Account';
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed || 'Account';
+    }
+
+    if (typeof value === 'object') {
+      const candidate = value as { first?: unknown; last?: unknown };
+      const first = typeof candidate.first === 'string' ? candidate.first.trim() : '';
+      const last = typeof candidate.last === 'string' ? candidate.last.trim() : '';
+      const fullName = `${first} ${last}`.trim();
+      return fullName || 'Account';
+    }
+
+    return 'Account';
+  };
+
+  const normalizeCustomerEmail = (value: unknown) => {
+    if (!value) {
+      return '';
+    }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'object') {
+      const candidate = value as { address?: unknown };
+      return typeof candidate.address === 'string' ? candidate.address : '';
+    }
+
+    return '';
+  };
+
+  const customerName = normalizeCustomerName(customer?.name as unknown);
+  const customerEmail = normalizeCustomerEmail(customer?.email as unknown);
+
+  const customerInitial = (() => {
+    if (customerName !== 'Account') {
+      return customerName[0].toUpperCase();
+    }
+
+    if (customerEmail) {
+      return customerEmail[0].toUpperCase();
+    }
+
+    return 'U';
+  })();
+
   const isActivePath = (path: string, exact = false) => {
     if (exact) {
       return location.pathname === path;
@@ -137,11 +190,11 @@ export default function CustomerLayout() {
                   >
                     <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-500/20 rounded-full flex items-center justify-center">
                       <span className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm">
-                        {customer.name ? customer.name[0].toUpperCase() : customer.email.address[0].toUpperCase()}
+                        {customerInitial}
                       </span>
                     </div>
                     <span className="hidden lg:block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {customer.name || 'Account'}
+                      {customerName}
                     </span>
                     <svg
                       className="w-4 h-4 text-gray-500 dark:text-gray-400 hidden md:block"
@@ -162,10 +215,10 @@ export default function CustomerLayout() {
                       <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-20">
                         <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                           <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                            {customer.name || 'Customer'}
+                            {customerName === 'Account' ? 'Customer' : customerName}
                           </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-0.5">
-                            {customer.email.address}
+                            {customerEmail || 'No email'}
                           </p>
                         </div>
                         <div className="py-1">
@@ -243,15 +296,15 @@ export default function CustomerLayout() {
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-full flex items-center justify-center">
                         <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
-                          {customer.name ? customer.name[0].toUpperCase() : customer.email.address[0].toUpperCase()}
+                          {customerInitial}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                          {customer.name || 'Customer'}
+                          {customerName === 'Account' ? 'Customer' : customerName}
                         </p>
                         <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                          {customer.email.address}
+                          {customerEmail || 'No email'}
                         </p>
                       </div>
                     </div>

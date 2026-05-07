@@ -8,6 +8,7 @@ import {
   broadcastAuthStateChange,
   getCsrfToken,
   getAccessToken,
+  setSessionId,
   getAuthUser,
   getRequestAuthScope,
   setAccessToken,
@@ -93,6 +94,10 @@ const extractCsrfToken = (data: any): string | null => {
   return data?.data?.csrfToken || data?.data?.tokens?.csrfToken || null;
 };
 
+const extractSessionId = (data: any): string | null => {
+  return data?.data?.sessionId || data?.data?.tokens?.sessionId || null;
+};
+
 const redirectToSignIn = () => {
   if (window.location.pathname !== '/signin') {
     window.location.href = '/signin';
@@ -161,6 +166,7 @@ const shouldLogRequestCompletion = (status: number, durationMs: number) => {
   return status >= 400 || durationMs >= 1000;
 };
 
+
 const createRequestId = () => {
   try {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -206,6 +212,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
   inFlightRefreshPromise = (async () => {
     try {
+      console.log('🔥 REFRESH START', Date.now());
       const scope = window.location.pathname.startsWith('/admin') ? 'admin' : 'customer';
       const csrfToken = getCsrfTokenForScope(scope);
       const refreshRequestId = createRequestId();
@@ -254,6 +261,10 @@ const refreshAccessToken = async (): Promise<string | null> => {
         if (data.status === 'success' && data.data?.tokens?.accessToken) {
           const newAccessToken = data.data.tokens.accessToken;
           setAccessToken(scope, newAccessToken);
+          const sessionId = extractSessionId(data);
+          if (sessionId) {
+            setSessionId(scope, sessionId);
+          }
           const csrfToken = extractCsrfToken(data);
           if (csrfToken) {
             setCsrfToken(scope, csrfToken);
@@ -262,6 +273,10 @@ const refreshAccessToken = async (): Promise<string | null> => {
             scope,
             requestId: refreshRequestId,
             userId: refreshUserId,
+          });
+          console.log('🔥 REFRESH END', Date.now(), {
+            scope,
+            status: response.status,
           });
           return newAccessToken;
         }
@@ -281,6 +296,10 @@ const refreshAccessToken = async (): Promise<string | null> => {
         userId: refreshUserId,
       });
       clearAllAuthStorage();
+      console.log('🔥 REFRESH END', Date.now(), {
+        scope,
+        status: response.status,
+      });
       return null;
     } catch (error: any) {
       logger.error('AUTH_REFRESH_FAILED', {
@@ -292,6 +311,10 @@ const refreshAccessToken = async (): Promise<string | null> => {
         scope: window.location.pathname.startsWith('/admin') ? 'admin' : 'customer',
       });
       clearAllAuthStorage();
+      console.log('🔥 REFRESH END', Date.now(), {
+        scope: window.location.pathname.startsWith('/admin') ? 'admin' : 'customer',
+        status: 'error',
+      });
       return null;
     } finally {
       inFlightRefreshPromise = null;
@@ -325,6 +348,8 @@ export const apiRequest = async (
   const authScope = getRequestAuthScope(endpoint);
   const userId = extractUserId(authScope);
   const isRefreshEndpoint = endpoint.endsWith('/refresh') || endpoint === 'auth/refresh-token';
+
+  // Auth is handled by coordinators - no need to wait
   
   // Check if Authorization header is explicitly provided in options
   const hasExplicitAuth = requestOptions.headers && 'Authorization' in requestOptions.headers;
@@ -450,8 +475,8 @@ export const apiRequest = async (
           })
         : await refreshAccessToken();
       
-      if (newToken && method === 'GET') {
-        // Only auto-retry GET requests (safe to retry)
+      if (newToken) {
+        // Retry once with the refreshed token from the shared auth store.
         logger.debug('RETRYING_REQUEST_WITH_REFRESHED_TOKEN', { endpoint, requestId, userId });
          if (shouldLogRequestLifecycle()) {
            logger.debug('CUSTOMER_AUTH_REQUEST_RETRY', 'Retrying customer request with new token', { endpoint });
@@ -596,6 +621,7 @@ export const apiRequest = async (
 export interface ApiResponse<T = any> {
   status: 'success' | 'error' | 'fail';
   message?: string;
+  code?: string;
   data?: T;
   error?: any;
   errors?: Array<{ message?: string; msg?: string; field?: string }>;

@@ -1,4 +1,5 @@
 import { apiRequest, parseApiResponse } from '../config/api';
+import { authStore } from './auth.store';
 import { setCsrfToken } from './auth-session.store';
 import { logger } from '../utils/logger';
 
@@ -37,26 +38,14 @@ export interface UpdateProfileData {
  * Get current authenticated user's profile
  */
 export const getCurrentUser = async (): Promise<User | null> => {
-  const response = await apiRequest('auth/admin/me');
-  const data = await parseApiResponse(response);
+  // Auth is handled by coordinators, just return current state
+  const currentUser = authStore.getState().user as User | null;
 
-  if (response.status === 401) {
-    throw new Error(data.message || 'Invalid token. Please log in again.');
+  if (!currentUser) {
+    return null;
   }
 
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch current user.');
-  }
-
-  if (data.status === 'success' && data.data?.user) {
-    const csrfToken = data.data?.csrfToken || data.data?.tokens?.csrfToken;
-    if (csrfToken) {
-      setCsrfToken('admin', csrfToken);
-    }
-    return data.data.user;
-  }
-
-  return null;
+  return currentUser;
 };
 
 /**

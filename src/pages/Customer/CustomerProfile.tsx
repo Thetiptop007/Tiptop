@@ -1,14 +1,17 @@
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { logger } from '../../utils/logger';
+import { useAuthStore } from '../../services/auth.store';
 
 export default function CustomerProfile() {
   const { customer, logout } = useCustomerAuth();
+  const { user, role, isAuthResolved } = useAuthStore();
   const navigate = useNavigate();
+  const profileUser = role === 'customer' && user ? (user as typeof customer) : customer;
 
   logger.ui('CUSTOMER_PROFILE_VIEW', 'Customer profile viewed', {
-    hasCustomer: !!customer,
-    role: customer?.role || 'CUSTOMER',
+    hasCustomer: !!profileUser,
+    role: profileUser?.role || 'CUSTOMER',
   });
 
   const handleLogout = async () => {
@@ -18,7 +21,15 @@ export default function CustomerProfile() {
     navigate('/');
   };
 
-  if (!customer) {
+  if (!isAuthResolved) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-sm text-gray-600 dark:text-gray-400">Loading profile...</div>
+      </div>
+    );
+  }
+
+  if (!profileUser) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -53,20 +64,20 @@ export default function CustomerProfile() {
             </div>
             <div className="bg-gray-900 dark:bg-gray-700 px-4 py-1.5 rounded-full mb-4">
               <span className="text-xs font-semibold text-white uppercase tracking-wide">
-                {customer.role || 'CUSTOMER'}
+                {profileUser.role || 'CUSTOMER'}
               </span>
             </div>
           </div>
           
           <div className="text-center">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-              {customer.name || 'Customer'}
+              {profileUser.name || 'Customer'}
             </h2>
             <div className="inline-flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 px-4 py-2 rounded-full">
               <svg className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{customer.email}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{profileUser.email}</span>
             </div>
           </div>
         </div>

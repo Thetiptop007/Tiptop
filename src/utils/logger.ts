@@ -1,4 +1,5 @@
 const isDev = import.meta.env.DEV;
+const isProduction = import.meta.env.PROD;
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 type LogType = 'ui' | 'network' | 'auth' | 'business' | 'runtime' | 'browser';
@@ -8,9 +9,13 @@ const SESSION_STORAGE_KEY = 'tiptop-frontend-session-id';
 const DEDUPE_WINDOW_MS = 750;
 const recentFingerprints = new Map<string, number>();
 const installedRuntimeLoggerFlag = '__tiptopRuntimeLoggingInstalled';
+
+// Production network logs: only log critical events
 const PROD_NETWORK_INFO_ALLOWLIST = new Set([
   'API_REQUEST_COMPLETE',
   'SESSION_EXPIRED',
+  'AUTH_REFRESH_FAILED',
+  'AUTH_TOKEN_EXPIRED',
 ]);
 
 const SENSITIVE_KEY_PATTERN = /(email|phone|address|token|password|secret|authorization|cookie|csrf|session|refresh|raw|payload|response|request|customer|user|order)/i;
@@ -146,11 +151,17 @@ const sanitizeMeta = (meta?: LogMeta) => {
 };
 
 const shouldEmit = (level: LogLevel) => {
-  if (level === 'debug') {
-    return isDev;
+  // In production, only emit warn and error
+  if (isProduction && level === 'debug') {
+    return false;
   }
 
-  return true;
+  if (isDev) {
+    return true;
+  }
+
+  // In production, only emit error/warn
+  return level === 'error' || level === 'warn';
 };
 
 const shouldEmitByCategory = (level: LogLevel, logType: LogType, event: string) => {
@@ -158,9 +169,27 @@ const shouldEmitByCategory = (level: LogLevel, logType: LogType, event: string) 
     return true;
   }
 
-  // In production, suppress low-value network info chatter.
-  if (level === 'info' && logType === 'network' && !PROD_NETWORK_INFO_ALLOWLIST.has(event)) {
-    return false;
+  // Production: suppress non-critical logs
+  if (isProduction) {
+    // Always emit errors and critical auth events
+    if (level === 'error') return true;
+    if (logType === 'auth' && level === 'warn') return true;
+    if (logType === 'business' && level === 'error') return true;
+
+    // Suppress non-critical network logs - only allowlisted events
+    if (logType === 'network' && level === 'info') {
+      return PROD_NETWORK_INFO_ALLOWLIST.has(event);
+    }
+
+    // Suppress debug and info from other categories
+    if (level === 'debug' || level === 'info') {
+      return false;
+    }
+  } else {
+    // Non-production: suppress low-value network info chatter
+    if (level === 'info' && logType === 'network' && !PROD_NETWORK_INFO_ALLOWLIST.has(event)) {
+      return false;
+    }
   }
 
   return true;

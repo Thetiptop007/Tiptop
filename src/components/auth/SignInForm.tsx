@@ -4,7 +4,6 @@ import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
-import Button from "../ui/button/Button";
 import { useAuth } from "../../context/AuthContext";
 
 export default function SignInForm() {
@@ -81,7 +80,6 @@ export default function SignInForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
-                    required
                   />
                 </div>
                 <div>
@@ -95,7 +93,6 @@ export default function SignInForm() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={isLoading}
-                      required
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
@@ -118,14 +115,13 @@ export default function SignInForm() {
                   </div>
                 </div>
                 <div>
-                  <Button
+                  <button
                     type="submit"
-                    className="w-full"
-                    size="sm"
+                    className="w-full px-4 py-3 text-sm font-medium text-white bg-brand-500 rounded-lg shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300 disabled:cursor-not-allowed transition"
                     disabled={isLoading}
                   >
                     {isLoading ? "Signing in..." : "Sign in"}
-                  </Button>
+                  </button>
                 </div>
               </div>
             </form>

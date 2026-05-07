@@ -6,8 +6,10 @@ import {
   getCsrfToken,
   setAccessToken,
   setAuthUser,
+  setSessionId,
   setCsrfToken,
 } from './auth-session.store';
+import { clearAuthScope } from './auth-scope';
 import { logger } from '../utils/logger';
 
 export interface CustomerUser {
@@ -138,6 +140,12 @@ const isTerminalAuthResponse = (response: Response, data: any): boolean => {
   }
 
   const code = data?.code ?? data?.statusCode ?? null;
+  
+  // Check for mixed sessions error (backend detected violation)
+  if (code === 'MIXED_SESSIONS' || code === 'SCOPE_VIOLATION') {
+    return true;
+  }
+  
   return code === 401 || code === 403;
 };
 
@@ -145,20 +153,50 @@ const isTransientError = (error: any): boolean => {
   return error?.name === 'AbortError' || error?.name === 'TimeoutError' || !navigator.onLine;
 };
 
+const parseJwtExpiryMs = (token: string): number | null => {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(padded));
+    return typeof payload?.exp === 'number' ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+const isAccessTokenFreshEnough = (token: string, minRemainingMs = 60 * 1000): boolean => {
+  const expiresAt = parseJwtExpiryMs(token);
+  if (!expiresAt) {
+    return false;
+  }
+
+  return expiresAt - Date.now() > minRemainingMs;
+};
+
 const extractCustomer = (data: any): CustomerUser | null => data?.data?.user || null;
 
-const extractTokens = (data: any): { accessToken?: string; csrfToken?: string } => ({
+const extractTokens = (data: any): { accessToken?: string; csrfToken?: string; sessionId?: string } => ({
   accessToken: data?.data?.tokens?.accessToken,
   csrfToken: data?.data?.csrfToken || data?.data?.tokens?.csrfToken,
+  sessionId: data?.data?.sessionId || data?.data?.tokens?.sessionId,
 });
 
-const setSessionState = (customer: CustomerUser | null, status: CustomerAuthStatus, tokens?: { accessToken?: string; csrfToken?: string }) => {
+const setSessionState = (customer: CustomerUser | null, status: CustomerAuthStatus, tokens?: { accessToken?: string; csrfToken?: string; sessionId?: string }) => {
   if (tokens?.accessToken) {
     setAccessToken('customer', tokens.accessToken);
   }
 
   if (tokens?.csrfToken) {
     setCsrfToken('customer', tokens.csrfToken);
+  }
+
+  if (tokens?.sessionId) {
+    setSessionId('customer', tokens.sessionId);
   }
 
   if (customer) {
@@ -174,6 +212,12 @@ const setSessionState = (customer: CustomerUser | null, status: CustomerAuthStat
 
 const clearCustomerState = (event: CustomerAuthEvent, broadcast = false) => {
   clearAllAuthState('customer');
+  
+  // CRITICAL: Clear auth scope when logging out
+  if (event === 'logout') {
+    clearAuthScope();
+  }
+  
   updateSnapshot({ customer: null, status: 'unauthenticated', isLoading: false });
 
   if (broadcast) {
@@ -191,6 +235,7 @@ const performRefresh = async (): Promise<CustomerRefreshOutcome> => {
 
   const currentRevision = ++refreshRevision;
   setSessionState(snapshot.customer, 'refreshing');
+  console.log('🔥 REFRESH START', Date.now());
 
   if (import.meta.env.DEV) {
     logger.debug('CUSTOMER_AUTH_REFRESH_STARTED', 'Customer token refresh started', {});
@@ -219,6 +264,34 @@ const performRefresh = async (): Promise<CustomerRefreshOutcome> => {
       });
 
       const data = await normalizeApiResponse(response);
+      console.log('🔥 REFRESH END', Date.now(), {
+        status: response.status,
+      });
+      
+      // Check for mixed sessions detected by backend
+      const code = data?.code ?? data?.statusCode ?? null;
+      if (code && (code === 'MIXED_SESSIONS' || code === 'SCOPE_VIOLATION')) {
+        if (import.meta.env.DEV) {
+          logger.debug('CUSTOMER_AUTH_REFRESH_MIXED_SESSION', 'Mixed session detected during refresh', {
+            code,
+            message: data?.message,
+          });
+        }
+        
+        // Force logout to clean state when backend detects mixed session
+        try {
+          const { forceLogout } = await import('./auth-scope');
+          await forceLogout('backend_mixed_session_refresh');
+        } catch (error) {
+          logger.error('Error calling force logout for mixed session', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          performCustomerLogout(CustomerLogoutReason.SessionInvalidated);
+        }
+        
+        return { status: 'terminal', message: data?.message || 'Mixed session detected. Please log in again.' } as const;
+      }
+      
       if (isTerminalAuthResponse(response, data)) {
        if (import.meta.env.DEV) {
          logger.debug('CUSTOMER_AUTH_REFRESH_TERMINAL', 'Terminal refresh failure', { status: response.status });
@@ -289,6 +362,7 @@ const loadProfile = async (): Promise<CustomerHydrationOutcome> => {
     status: snapshot.customer ? 'authenticated' : 'hydrating',
     isLoading: true,
   });
+  console.log('🚀 ME START', Date.now());
 
   if (import.meta.env.DEV) {
     logger.debug('CUSTOMER_AUTH_PROFILE_STARTED', 'Customer profile fetch started', {});
@@ -309,32 +383,89 @@ const loadProfile = async (): Promise<CustomerHydrationOutcome> => {
         }
       }
 
-      const accessToken = getAccessToken('customer');
-      if (!accessToken) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_PROFILE_FAILED', 'No access token available', {});
-       }
-        return { status: 'terminal', message: 'Missing customer access token' } as const;
+      const requestProfile = async () => {
+        const accessToken = getAccessToken('customer');
+        if (!accessToken) {
+          return {
+            response: null,
+            data: null,
+            message: 'Missing customer access token',
+          };
+        }
+
+        const response = await fetch(CUSTOMER_PROFILE_URL, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/json',
+          },
+          credentials: 'include',
+          cache: 'no-store',
+          signal: AbortSignal.timeout(5000),
+        });
+
+        const data = await normalizeApiResponse(response);
+        console.log('🚀 ME END', Date.now(), {
+          status: response.status,
+          hasUser: !!data?.data?.user,
+        });
+        return { response, data, message: null };
+      };
+
+      let profileAttempt = await requestProfile();
+      if (!profileAttempt.response) {
+        if (import.meta.env.DEV) {
+          logger.debug('CUSTOMER_AUTH_PROFILE_FAILED', 'No access token available', {});
+        }
+        return { status: 'terminal', message: profileAttempt.message || 'Missing customer access token' } as const;
       }
 
-      const response = await fetch(CUSTOMER_PROFILE_URL, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-        cache: 'no-store',
-        signal: AbortSignal.timeout(5000),
-      });
-
-      const data = await normalizeApiResponse(response);
+      let response = profileAttempt.response;
+      let data = profileAttempt.data;
+      
+      // Check for mixed sessions detected by backend
+      const code = data?.code ?? data?.statusCode ?? null;
+      if (code === 'MIXED_SESSIONS' || code === 'SCOPE_VIOLATION') {
+        if (import.meta.env.DEV) {
+          logger.debug('CUSTOMER_AUTH_PROFILE_MIXED_SESSION', 'Mixed session detected during profile load', {
+            code,
+            message: data?.message,
+          });
+        }
+        
+        // Force logout to clean state when backend detects mixed session
+        try {
+          const { forceLogout } = await import('./auth-scope');
+          await forceLogout('backend_mixed_session_profile');
+        } catch (error) {
+          logger.error('Error calling force logout for mixed session', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          performCustomerLogout(CustomerLogoutReason.SessionInvalidated);
+        }
+        
+        return { status: 'terminal', message: data?.message || 'Mixed session detected. Please log in again.' } as const;
+      }
+      
       if (isTerminalAuthResponse(response, data)) {
+       if (response.status === 401) {
+         const refreshOutcome = await performRefresh();
+         if (refreshOutcome.status === 'success') {
+           profileAttempt = await requestProfile();
+           if (profileAttempt.response) {
+             response = profileAttempt.response;
+             data = profileAttempt.data;
+           }
+         }
+       }
+
+       if (isTerminalAuthResponse(response, data)) {
        if (import.meta.env.DEV) {
          logger.debug('CUSTOMER_AUTH_PROFILE_TERMINAL', 'Terminal profile failure', { status: response.status });
        }
         performCustomerLogout(CustomerLogoutReason.ProfileLoadFailed);
         return { status: 'terminal', message: data?.message || 'Customer session expired' } as const;
+       }
       }
 
       if (!response.ok) {

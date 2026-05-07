@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { getAddresses, setDefaultAddress, deleteAddress, createAddress, updateAddress, AddressData } from '../../services/customer-operations.service';
-import { isCustomerAuthBootReady, waitForCustomerAuthBootReady } from '../../services/customer-auth.service';
 
 export interface Address {
   _id?: string;
@@ -29,7 +28,7 @@ const SERVICE_AREAS = [
 
 const SavedAddresses: React.FC = () => {
   const navigate = useNavigate();
-  const { customer, isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const { customer, authReady } = useCustomerAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -49,27 +48,16 @@ const SavedAddresses: React.FC = () => {
     isDefault: false,
   });
 
-  // Redirect to login if not authenticated
+  // Only fetch addresses when auth is ready
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/customer/login', { state: { from: '/customer/addresses' } });
+    if (!authReady || !customer) {
+      setLoading(false);
+      setAddresses([]);
       return;
     }
-  }, [authLoading, isAuthenticated, navigate, customer]);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      const initializeFetch = async () => {
-        // Wait for auth bootstrap to complete before fetching protected data
-        if (!isCustomerAuthBootReady()) {
-          await waitForCustomerAuthBootReady();
-        }
-        fetchAddresses();
-      };
-      
-      void initializeFetch();
-    }
-  }, [isAuthenticated]);
+    fetchAddresses();
+  }, [authReady, customer]);
 
   const fetchAddresses = async () => {
     try {
