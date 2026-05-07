@@ -20,7 +20,7 @@ const SERVICE_AREAS = [
 
 export default function Payment() {
   const navigate = useNavigate();
-  const { customer } = useCustomerAuth();
+  const { customer, isLoading } = useCustomerAuth();
   const { shopStatus } = useShopStatus();
   const isShopOpen = shopStatus?.isOpen ?? true;
   
@@ -61,13 +61,10 @@ export default function Payment() {
   }, [navigate]);
 
   useEffect(() => {
+    if (isLoading) return; // Wait for auth to settle before fetching
+
     // Fetch addresses and settings
     const fetchData = async () => {
-      // Wait for auth bootstrap to complete before fetching protected data
-      if (!isCustomerAuthBootReady()) {
-        await waitForCustomerAuthBootReady();
-      }
-      
       try {
         const setts = await getSettings();
         if (setts?.delivery?.fee) {
@@ -81,6 +78,7 @@ export default function Payment() {
             if (addrs.length > 0) {
               const defaultAddr = addrs.find(a => a.isDefault) || addrs[0];
               setSelectedAddress(defaultAddr);
+              setShowAddressForm(false); // Reset form visibility when addresses are loaded
             } else {
               setShowAddressForm(true);
             }
@@ -99,7 +97,7 @@ export default function Payment() {
     };
 
     fetchData();
-  }, [customer]);
+  }, [customer, isLoading]);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal + (deliveryFee > 0 ? deliveryFee : 0);
