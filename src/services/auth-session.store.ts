@@ -191,11 +191,31 @@ export const clearAllAccessTokens = () => {
   accessTokens.customer = null;
 };
 
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+};
+
 export const setCsrfToken = (scope: AuthScope, token: string | null) => {
   csrfTokens[scope] = token;
 };
 
-export const getCsrfToken = (scope: AuthScope): string | null => csrfTokens[scope];
+export const getCsrfToken = (scope: AuthScope): string | null => {
+  if (csrfTokens[scope]) return csrfTokens[scope];
+  
+  // Fallback to cookie if memory is empty (e.g. after refresh)
+  const cookieName = `${scope}CsrfToken`;
+  const cookieValue = getCookie(cookieName);
+  if (cookieValue) {
+    csrfTokens[scope] = cookieValue;
+    return cookieValue;
+  }
+  
+  return null;
+};
 
 export const clearCsrfToken = (scope: AuthScope) => {
   csrfTokens[scope] = null;

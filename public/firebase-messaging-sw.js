@@ -1,31 +1,23 @@
-// Simple service worker for FCM
-console.log('[SW] Service worker loading...');
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Service worker installed');
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Service worker activated');
   event.waitUntil(self.clients.claim());
 });
 
 // Handle push notifications
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push event received:', event);
   
   if (!event.data) {
-    console.log('[SW] No data in push event');
     return;
   }
 
   let payload;
   try {
     payload = event.data.json();
-    console.log('[SW] Push payload:', payload);
   } catch (e) {
-    console.error('[SW] Error parsing push data:', e);
     payload = { notification: { title: 'Order Update', body: event.data.text() } };
   }
 
@@ -47,7 +39,6 @@ self.addEventListener('push', (event) => {
 
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event.notification);
   event.notification.close();
 
   const urlToOpen = event.notification.data?.url || '/';
@@ -68,5 +59,3 @@ self.addEventListener('notificationclick', (event) => {
       })
   );
 });
-
-console.log('[SW] Service worker ready');

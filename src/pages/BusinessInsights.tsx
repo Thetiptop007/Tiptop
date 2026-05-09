@@ -1,11 +1,12 @@
-import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
-import Chart from "react-apexcharts";
-import type { ApexOptions } from "apexcharts";
+import { memo, useCallback, useMemo, useState, type ReactNode, Suspense, lazy } from "react";
 import PageMeta from "../components/common/PageMeta";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import { ArrowUpIcon, BoxIconLine, DollarLineIcon, PieChartIcon, TaskIcon } from "../icons";
 import { type TrendPoint } from "../services/business-insights.service";
 import { useBusinessInsightsQuery } from "../hooks/useAppDataQueries";
+import Skeleton from "../components/ui/Skeleton";
+
+const Chart = lazy(() => import("react-apexcharts"));
 
 type SummaryMetric = {
   title: string;
@@ -307,8 +308,17 @@ export default function BusinessInsights() {
               ? [1, 2, 3, 4].map((id) => (
                   <div
                     key={id}
-                    className="h-[132px] animate-pulse rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
-                  />
+                    className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <Skeleton variant="rect" width={48} height={48} className="rounded-xl" />
+                      <Skeleton variant="rect" width={60} height={24} className="rounded-full" />
+                    </div>
+                    <div className="mt-5 space-y-2">
+                      <Skeleton variant="text" width="60%" height={16} />
+                      <Skeleton variant="text" width="80%" height={28} />
+                    </div>
+                  </div>
                 ))
               : summaryMetrics.map((metric) => <MetricCard key={metric.title} metric={metric} />)}
           </div>
@@ -320,13 +330,15 @@ export default function BusinessInsights() {
               {errorMessage}
             </div>
           ) : (
-            <RevenueTrendCard
-              yearlyTrend={yearlyTrend}
-              monthlyByYear={monthlyByYear}
-              selectedYear={selectedYear}
-              onSelectYear={handleSelectYear}
-              onBackToAllYears={handleBackToAllYears}
-            />
+            <Suspense fallback={<Skeleton height={400} className="rounded-2xl" />}>
+              <RevenueTrendCard
+                yearlyTrend={yearlyTrend}
+                monthlyByYear={monthlyByYear}
+                selectedYear={selectedYear}
+                onSelectYear={handleSelectYear}
+                onBackToAllYears={handleBackToAllYears}
+              />
+            </Suspense>
           )}
         </div>
       </div>

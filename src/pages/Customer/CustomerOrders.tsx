@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getMyOrders, Order } from '../../services/customer-web.service';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
+import { useCustomerOrderSocket } from '../../hooks/useCustomerOrderSocket';
+import { useToast } from '../../context/ToastContext';
+import { useSocket } from '../../context/SocketContext';
 
 // Status info helper function - matches mobile app
 const getStatusInfo = (status: string) => {
@@ -31,31 +35,11 @@ export default function CustomerOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    // Only fetch orders when auth is ready and customer is authenticated
-    if (!authReady || !customer) {
-      setLoading(false);
-      return;
-    }
+  const { joinRoom, leaveRoom, on, off } = useSocket();
 
-    fetchOrders();
-  }, [authReady, customer]);
 
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const { orders: fetchedOrders } = await getMyOrders({
-        sort: '-createdAt',
-        limit: 50,
-      });
-      setOrders(fetchedOrders);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const currentOrders = orders.filter(order => 
     !['DELIVERED', 'CANCELLED', 'delivered', 'cancelled'].includes(order.status)
@@ -66,6 +50,75 @@ export default function CustomerOrders() {
   );
 
   const displayedOrders = activeTab === 'current' ? currentOrders : historyOrders;
+
+  // Real-time status update handler
+  useCustomerOrderSocket((data) => {
+
+    setOrders((prevOrders) => 
+      prevOrders.map((order) => 
+        order._id === data.orderId 
+          ? { ...order, status: data.status } 
+          : order
+      )
+    );
+  });
+
+  const fetchOrders = async () => {
+    try {
+
+      setLoading(true);
+      const { orders: fetchedOrders } = await getMyOrders({
+        sort: '-createdAt',
+        limit: 50,
+      });
+
+      setOrders(fetchedOrders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Manage room subscriptions for current orders
+  useEffect(() => {
+    if (!customer) return;
+
+    const currentOrderIds = currentOrders.map(o => o._id);
+
+    
+    currentOrderIds.forEach(id => {
+      joinRoom(id);
+    });
+
+    // Listen for updates to any of the joined rooms
+    const handleOrderUpdate = () => {
+
+      // Invalidate queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CUSTOMER.ORDERS.ALL] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CUSTOMER.ORDERS.ACTIVE] });
+    };
+
+    on('order:update', handleOrderUpdate);
+
+    return () => {
+      currentOrderIds.forEach(id => {
+        leaveRoom(id);
+      });
+      off('order:update', handleOrderUpdate);
+    };
+  }, [currentOrders.length, joinRoom, leaveRoom, customer, on, off, queryClient]); 
+
+  useEffect(() => {
+    // Only fetch orders when auth is ready and customer is authenticated
+    if (!authReady || !customer) {
+
+      setLoading(false);
+      return;
+    }
+
+    fetchOrders();
+  }, [authReady, customer]);
 
   if (!customer) {
     return (

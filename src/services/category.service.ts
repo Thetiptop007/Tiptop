@@ -53,8 +53,6 @@ export const getCategories = async (params?: {
   });
 
   const parsedResponse = await parseApiResponse(response) as any;
-  console.log('Category API Response:', parsedResponse);
-  console.log('Categories in response:', parsedResponse?.data?.categories?.length);
   
   return {
     status: parsedResponse.status,

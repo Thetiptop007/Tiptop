@@ -278,7 +278,6 @@ export const getMenuItems = async (params: {
       },
     };
   } catch (error) {
-    console.error('Error fetching menu items:', error);
     throw error;
   }
 };
@@ -297,7 +296,6 @@ export const getMenuItem = async (id: string): Promise<MenuItem> => {
     
     throw new Error('Menu item not found');
   } catch (error) {
-    console.error('Error fetching menu item:', error);
     throw error;
   }
 };
@@ -316,7 +314,6 @@ export const getMenuItemBySlug = async (slug: string): Promise<MenuItem> => {
     
     throw new Error('Menu item not found');
   } catch (error) {
-    console.error('Error fetching menu item by slug:', error);
     throw error;
   }
 };
@@ -337,7 +334,7 @@ export const getCategories = async (): Promise<string[]> => {
       return [];
     }, 30000);
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    return [];
     return [];
   }
 };
@@ -356,7 +353,7 @@ export const getPopularItems = async (limit: number = 10): Promise<MenuItem[]> =
     
     return [];
   } catch (error) {
-    console.error('Error fetching popular items:', error);
+    return [];
     return [];
   }
 };
@@ -374,7 +371,7 @@ export const getMenuItemsByCategory = async (category: string, limit: number = 2
     });
     return response.data?.menuItems || [];
   } catch (error) {
-    console.error('Error fetching menu items by category:', error);
+    return [];
     return [];
   }
 };
@@ -397,7 +394,7 @@ export const searchMenu = async (query: string, limit: number = 50): Promise<Men
 
     return response.data?.menuItems || [];
   } catch (error) {
-    console.error('Error searching menu:', error);
+    return [];
     return [];
   }
 };
@@ -416,11 +413,7 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
     // Check if user is authenticated (has customer token)
     const customerToken = getAccessToken('customer');
     const endpoint = customerToken ? '/orders' : '/orders/guest/create';
-    logger.debug('Creating order request', {
-      isAuthenticated: !!customerToken,
-      endpoint,
-      itemCount: orderData.items.length,
-    });
+
     
     const response = await apiRequest(endpoint, {
       method: 'POST',
@@ -471,7 +464,7 @@ export const getMyOrders = async (params?: {
 
     const url = `/orders/my-orders${queryParams.toString() ? `?${queryParams}` : ''}`;
     const timeoutMs = 60000; // increase timeout for potentially slow orders endpoint
-    logger.debug('Fetching customer orders', { url, timeoutMs });
+
     const response = await apiRequest(url, {
       method: 'GET',
       timeoutMs,
@@ -516,7 +509,6 @@ export const getOrderById = async (orderId: string): Promise<Order> => {
     
     throw new Error('Order not found');
   } catch (error) {
-    console.error('Error fetching order:', error);
     throw error;
   }
 };
@@ -543,7 +535,6 @@ export const cancelOrder = async (orderId: string): Promise<Order> => {
     
     throw new Error('Failed to cancel order');
   } catch (error) {
-    console.error('Error cancelling order:', error);
     throw error;
   }
 };
@@ -575,7 +566,7 @@ export const getMyAddresses = async (): Promise<Address[]> => {
     
     return [];
   } catch (error) {
-    console.error('Error fetching addresses:', error);
+    return [];
     return [];
   }
 };
@@ -604,7 +595,6 @@ export const createAddress = async (address: Omit<Address, '_id'>): Promise<Addr
     
     throw new Error('Failed to create address');
   } catch (error) {
-    console.error('Error creating address:', error);
     throw error;
   }
 };
@@ -633,7 +623,6 @@ export const updateAddress = async (addressId: string, address: Partial<Address>
     
     throw new Error('Failed to update address');
   } catch (error) {
-    console.error('Error updating address:', error);
     throw error;
   }
 };
@@ -652,7 +641,6 @@ export const deleteAddress = async (addressId: string): Promise<void> => {
       }
     });
   } catch (error) {
-    console.error('Error deleting address:', error);
     throw error;
   }
 };

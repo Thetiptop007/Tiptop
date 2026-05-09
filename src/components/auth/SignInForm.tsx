@@ -4,32 +4,30 @@ import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
-import { useAuth } from "../../context/AuthContext";
+import { useAdminAuthActions } from "../../hooks/useAdminAuthActions";
 
 export default function SignInForm() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isLoading } = useAdminAuthActions();
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
 
     // Simple validation
     if (!email || !password) {
       setError("Please enter both email and password");
-      setIsLoading(false);
+      // setIsLoading(false);
       return;
     }
 
     const result = await login(email, password);
-    setIsLoading(false);
 
     if (result.success) {
       navigate("/admin");

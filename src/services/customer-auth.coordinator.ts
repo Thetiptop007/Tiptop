@@ -40,7 +40,7 @@ export interface SignUpRequest {
   phone: string;
   email: string;
   password: string;
-  role: 'customer';
+  role?: 'customer';
 }
 
 export type CustomerAuthStatus = 'unauthenticated' | 'hydrating' | 'refreshing' | 'authenticated' | 'recovering';
@@ -202,27 +202,18 @@ const clearCustomerState = (event: CustomerAuthEvent, broadcast = false) => {
 
 const performRefresh = async (): Promise<CustomerRefreshOutcome> => {
   if (refreshPromise) {
-   if (import.meta.env.DEV) {
-     logger.debug('CUSTOMER_AUTH_REFRESH_REUSED', 'Using existing refresh promise', {});
-   }
-   return refreshPromise;
+    return refreshPromise;
   }
 
   const currentRevision = ++refreshRevision;
   setSessionState(snapshot.customer, 'refreshing');
 
-  if (import.meta.env.DEV) {
-    logger.debug('CUSTOMER_AUTH_REFRESH_STARTED', 'Customer token refresh started', {});
-  }
-
   refreshPromise = (async () => {
     try {
-      const csrfToken = getCustomerCsrfToken();
+      const csrfToken = getCsrfToken('customer');
+
       if (!csrfToken) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_REFRESH_FAILED', 'Missing CSRF token', { reason: 'no_csrf' });
-       }
-       return { status: 'terminal', message: 'Missing CSRF token' } as const;
+        return { status: 'terminal', message: 'Missing CSRF token' } as const;
       }
 
       const response = await fetch(CUSTOMER_REFRESH_URL, {
@@ -242,13 +233,6 @@ const performRefresh = async (): Promise<CustomerRefreshOutcome> => {
       // Check for mixed sessions detected by backend
       const code = data?.code ?? data?.statusCode ?? null;
       if (code && (code === 'MIXED_SESSIONS' || code === 'SCOPE_VIOLATION')) {
-        if (import.meta.env.DEV) {
-          logger.debug('CUSTOMER_AUTH_REFRESH_MIXED_SESSION', 'Mixed session detected during refresh', {
-            code,
-            message: data?.message,
-          });
-        }
-        
         // Force logout to clean state when backend detects mixed session
         try {
           const { forceLogout } = await import('./auth-scope');
@@ -264,47 +248,29 @@ const performRefresh = async (): Promise<CustomerRefreshOutcome> => {
       }
       
       if (isTerminalAuthResponse(response, data)) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_REFRESH_TERMINAL', 'Terminal refresh failure', { status: response.status });
-       }
         return { status: 'terminal', message: data?.message || 'Customer session is no longer valid' } as const;
       }
 
       if (!response.ok) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_REFRESH_TRANSIENT', 'Transient refresh failure', { status: response.status });
-       }
         return { status: 'transient', message: data?.message || 'Customer refresh failed' } as const;
       }
 
       const tokens = extractTokens(data);
       if (!tokens.accessToken) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_REFRESH_FAILED', 'No access token in response', {});
-       }
         return { status: 'terminal', message: data?.message || 'Refresh response did not include an access token' } as const;
       }
 
       const customer = extractCustomer(data);
       if (currentRevision === refreshRevision) {
         setSessionState(customer, 'authenticated', tokens);
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_REFRESH_SUCCESS', 'Token refresh successful', { hasCustomer: !!customer });
-       }
       }
 
       return { status: 'success', accessToken: tokens.accessToken, customer } as const;
     } catch (error: any) {
       if (isTransientError(error)) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_REFRESH_TRANSIENT', 'Transient refresh error', { errorName: error?.name });
-       }
         return { status: 'transient', message: error?.message || 'Customer refresh temporarily failed' } as const;
       }
 
-     if (import.meta.env.DEV) {
-       logger.debug('CUSTOMER_AUTH_REFRESH_ERROR', 'Refresh error', { errorName: error?.name, message: error?.message });
-     }
       return { status: 'terminal', message: error?.message || 'Customer refresh failed' } as const;
     } finally {
       if (refreshRevision === currentRevision) {
@@ -322,9 +288,6 @@ const performRefresh = async (): Promise<CustomerRefreshOutcome> => {
 
 const loadProfile = async (): Promise<CustomerHydrationOutcome> => {
   if (profilePromise) {
-   if (import.meta.env.DEV) {
-     logger.debug('CUSTOMER_AUTH_PROFILE_REUSED', 'Using existing profile promise', {});
-   }
    return profilePromise;
   }
 
@@ -334,21 +297,11 @@ const loadProfile = async (): Promise<CustomerHydrationOutcome> => {
     isLoading: true,
   });
 
-  if (import.meta.env.DEV) {
-    logger.debug('CUSTOMER_AUTH_PROFILE_STARTED', 'Customer profile fetch started', {});
-  }
-
   profilePromise = (async () => {
     try {
       if (refreshPromise) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_PROFILE_WAITING_REFRESH', 'Profile waiting for refresh to complete', {});
-       }
         const refreshOutcome = await refreshPromise;
         if (refreshOutcome.status === 'terminal') {
-         if (import.meta.env.DEV) {
-           logger.debug('CUSTOMER_AUTH_PROFILE_FAILED', 'Profile load failed due to terminal refresh', {});
-         }
           return refreshOutcome;
         }
       }
@@ -380,9 +333,6 @@ const loadProfile = async (): Promise<CustomerHydrationOutcome> => {
 
       let profileAttempt = await requestProfile();
       if (!profileAttempt.response) {
-        if (import.meta.env.DEV) {
-          logger.debug('CUSTOMER_AUTH_PROFILE_FAILED', 'No access token available', {});
-        }
         return { status: 'terminal', message: profileAttempt.message || 'Missing customer access token' } as const;
       }
 
@@ -392,13 +342,6 @@ const loadProfile = async (): Promise<CustomerHydrationOutcome> => {
       // Check for mixed sessions detected by backend
       const code = data?.code ?? data?.statusCode ?? null;
       if (code === 'MIXED_SESSIONS' || code === 'SCOPE_VIOLATION') {
-        if (import.meta.env.DEV) {
-          logger.debug('CUSTOMER_AUTH_PROFILE_MIXED_SESSION', 'Mixed session detected during profile load', {
-            code,
-            message: data?.message,
-          });
-        }
-        
         // Force logout to clean state when backend detects mixed session
         try {
           const { forceLogout } = await import('./auth-scope');
@@ -426,48 +369,30 @@ const loadProfile = async (): Promise<CustomerHydrationOutcome> => {
        }
 
        if (isTerminalAuthResponse(response, data)) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_PROFILE_TERMINAL', 'Terminal profile failure', { status: response.status });
-       }
         performCustomerLogout(CustomerLogoutReason.ProfileLoadFailed);
         return { status: 'terminal', message: data?.message || 'Customer session expired' } as const;
        }
       }
 
       if (!response.ok) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_PROFILE_TRANSIENT', 'Transient profile failure', { status: response.status });
-       }
         return { status: 'transient', message: data?.message || 'Failed to load customer profile' } as const;
       }
 
       const customer = extractCustomer(data);
       if (!customer) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_PROFILE_FAILED', 'No customer data in response', {});
-       }
         return { status: 'terminal', message: data?.message || 'Customer profile missing from response' } as const;
       }
 
       if (currentRevision === profileRevision) {
         setSessionState(customer, 'authenticated');
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_PROFILE_SUCCESS', 'Customer profile fetched successfully', { customerId: customer._id });
-       }
       }
 
       return { status: 'success', customer } as const;
     } catch (error: any) {
       if (isTransientError(error)) {
-       if (import.meta.env.DEV) {
-         logger.debug('CUSTOMER_AUTH_PROFILE_TRANSIENT', 'Transient profile error', { errorName: error?.name });
-       }
         return { status: 'transient', message: error?.message || 'Customer profile lookup temporarily failed' } as const;
       }
 
-     if (import.meta.env.DEV) {
-       logger.debug('CUSTOMER_AUTH_PROFILE_ERROR', 'Profile fetch error', { errorName: error?.name, message: error?.message });
-     }
       return { status: 'terminal', message: error?.message || 'Failed to load customer profile' } as const;
     } finally {
       if (profileRevision === currentRevision) {
@@ -488,18 +413,11 @@ const performCustomerLogout = (reason: CustomerLogoutReason): void => {
   
   // Dedupe logouts within the window to prevent duplicate broadcasts and redirects
   if (lastLogoutReason === reason && (now - lastLogoutTime) < LOGOUT_DEDUPE_WINDOW_MS) {
-     if (import.meta.env.DEV) {
-       logger.debug('CUSTOMER_AUTH_LOGOUT_DEDUPED', 'Logout deduped (same reason within window)', { reason });
-     }
     return;
   }
 
   lastLogoutReason = reason;
   lastLogoutTime = now;
-
-    if (import.meta.env.DEV) {
-      logger.debug('CUSTOMER_AUTH_LOGOUT_STARTED', 'Customer logout initiated', { reason });
-    }
 
   // Clear coordinator state
   refreshPromise = null;
@@ -517,55 +435,28 @@ export const subscribeCustomerAuth = (listener: SnapshotListener) => {
 
 export const getCustomerAuthSnapshot = (): CustomerAuthSnapshot => snapshot;
 
-export const bootstrapCustomerAuth = async (pathname: string): Promise<CustomerHydrationOutcome> => {
-  if (!pathname.startsWith('/customer')) {
-    if (lastBootstrapPathname !== pathname) {
-      lastBootstrapPathname = pathname;
-     if (import.meta.env.DEV) {
-       logger.debug('CUSTOMER_AUTH_BOOT_SKIPPED', 'Auth bootstrap skipped (non-customer route)', { pathname });
-     }
-      updateSnapshot({
-        customer: snapshot.customer,
-        status: snapshot.customer ? 'authenticated' : 'unauthenticated',
-        isLoading: false,
-        bootstrapAttempted: true,
-      });
-    }
-
-    return snapshot.customer
-      ? { status: 'success', customer: snapshot.customer }
-      : { status: 'transient', message: 'Customer auth not required on this route' };
-  }
-
+export const bootstrapCustomerAuth = async (pathname: string): Promise<CustomerHydrationOutcome | CustomerRefreshOutcome> => {
   if (hydrationPromise) {
-   if (import.meta.env.DEV) {
-     logger.debug('CUSTOMER_AUTH_BOOT_REUSED', 'Using existing bootstrap promise', {});
-   }
     return hydrationPromise;
   }
 
   const currentRevision = ++hydrationRevision;
   updateSnapshot({ status: 'hydrating', isLoading: true });
 
-  if (import.meta.env.DEV) {
-    logger.debug('CUSTOMER_AUTH_BOOT_STARTED', 'Customer auth bootstrap started', { pathname });
-  }
-
   hydrationPromise = (async () => {
-    const refreshOutcome = await performRefresh();
+    const hasAccessToken = !!getAccessToken('customer');
+    let refreshOutcome: CustomerRefreshOutcome | null = null;
 
-    if (refreshOutcome.status === 'terminal') {
-     if (import.meta.env.DEV) {
-       logger.debug('CUSTOMER_AUTH_BOOT_TERMINAL', 'Auth bootstrap terminal (refresh failed)', {});
-     }
-       performCustomerLogout(CustomerLogoutReason.RefreshFailed);
-      return { status: 'terminal', message: refreshOutcome.message } as const;
+    if (!hasAccessToken) {
+      refreshOutcome = await performRefresh();
+      
+      if (refreshOutcome.status === 'terminal') {
+        performCustomerLogout(CustomerLogoutReason.RefreshFailed);
+        return { status: 'terminal', message: refreshOutcome.message } as const;
+      }
     }
 
-    if (refreshOutcome.status === 'transient') {
-     if (import.meta.env.DEV) {
-       logger.debug('CUSTOMER_AUTH_BOOT_TRANSIENT', 'Auth bootstrap transient (refresh failed, will retry)', {});
-     }
+    if (refreshOutcome?.status === 'transient') {
       if (currentRevision === hydrationRevision) {
         updateSnapshot({
           status: snapshot.customer ? 'authenticated' : 'recovering',
@@ -578,16 +469,10 @@ export const bootstrapCustomerAuth = async (pathname: string): Promise<CustomerH
 
     const profileOutcome = await loadProfile();
     if (profileOutcome.status === 'success') {
-     if (import.meta.env.DEV) {
-       logger.debug('CUSTOMER_AUTH_BOOT_SUCCESS', 'Auth bootstrap successful', { customerId: profileOutcome.customer._id });
-     }
       return profileOutcome;
     }
 
     if (profileOutcome.status === 'terminal') {
-     if (import.meta.env.DEV) {
-       logger.debug('CUSTOMER_AUTH_BOOT_TERMINAL', 'Auth bootstrap terminal (profile load failed)', {});
-     }
        performCustomerLogout(CustomerLogoutReason.SessionInvalidated);
       return profileOutcome;
     }
@@ -599,9 +484,6 @@ export const bootstrapCustomerAuth = async (pathname: string): Promise<CustomerH
       });
     }
 
-   if (import.meta.env.DEV) {
-     logger.debug('CUSTOMER_AUTH_BOOT_TRANSIENT', 'Auth bootstrap transient (profile load failed, will retry)', {});
-   }
     return profileOutcome;
   })().finally(() => {
     if (hydrationRevision === currentRevision) {
@@ -612,12 +494,6 @@ export const bootstrapCustomerAuth = async (pathname: string): Promise<CustomerH
         isLoading: snapshot.customer ? false : snapshot.status === 'recovering',
         bootstrapAttempted: true,
       });
-     if (import.meta.env.DEV) {
-       logger.debug('CUSTOMER_AUTH_BOOT_COMPLETE', 'Auth bootstrap completed', {
-         status: snapshot.status,
-         hasCustomer: !!snapshot.customer,
-       });
-     }
     }
   });
 

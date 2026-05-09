@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
-import { useCustomerAuth } from '../../context/CustomerAuthContext.tsx';
+import { useCustomerAuthActions } from '../../hooks/useCustomerAuthActions';
 import GridShape from '../../components/common/GridShape';
 import ThemeTogglerTwo from '../../components/common/ThemeTogglerTwo';
 import { getSettings, Settings } from '../../services/settings.service';
@@ -8,7 +8,7 @@ import { getSettings, Settings } from '../../services/settings.service';
 export default function CustomerLogin() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoading: authLoading } = useCustomerAuth();
+  const { login, isLoading: authLoading } = useCustomerAuthActions();
   
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');

@@ -80,9 +80,6 @@ const refreshAdminSession = async (): Promise<boolean> => {
 
   const csrfToken = getAdminCsrfToken();
   if (!csrfToken) {
-    logger.warn('ADMIN_AUTH_REFRESH_SKIPPED', {
-      reason: 'missing_csrf_token',
-    });
     return false;
   }
 
@@ -111,7 +108,7 @@ const refreshAdminSession = async (): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    logger.warn('ADMIN_AUTH_REFRESH_FAILED', {
+    logger.error('ADMIN_AUTH_REFRESH_FAILED', {
       errorMessage: error instanceof Error ? error.message : String(error),
     });
     return false;
@@ -166,37 +163,24 @@ const broadcastAdminAuthChange = (snapshot: AdminAuthSnapshot) => {
 export const fetchAdminUser = async (): Promise<AdminUser | null> => {
   // If request is already in flight, return the same promise
   if (inFlightGetCurrentUserPromise) {
-    logger.debug('DEDUPED_AUTH_REQUEST', 'Reusing in-flight /auth/admin/me request', {
-      reason: 'request_already_in_progress',
-    });
     return inFlightGetCurrentUserPromise;
   }
 
   // If user is cached and not expired, return cached user
   const now = Date.now();
   if (cachedAdminUser && cachedAdminUserExpiresAt > now) {
-    logger.debug('CACHED_AUTH_RESPONSE', 'Returning cached admin user', {
-      cacheAgeMs: now - (cachedAdminUserExpiresAt - 60000),
-    });
     return cachedAdminUser;
   }
 
   // Make the actual request
   inFlightGetCurrentUserPromise = (async () => {
     try {
-      logger.debug('ADMIN_AUTH_REQUEST_START', 'Fetching current admin user from /auth/admin/me');
-      
       const response = await apiRequest('auth/admin/me');
       const data = await parseApiResponse(response);
 
       // Check for mixed sessions detected by backend
       const code = data?.code ?? null;
       if (code === 'MIXED_SESSIONS' || code === 'SCOPE_VIOLATION') {
-        logger.debug('ADMIN_AUTH_MIXED_SESSION', 'Mixed session detected during admin auth bootstrap', {
-          code,
-          message: data?.message,
-        });
-        
         // Force logout to clean state when backend detects mixed session
         try {
           const { forceLogout } = await import('./auth-scope');
@@ -231,11 +215,6 @@ export const fetchAdminUser = async (): Promise<AdminUser | null> => {
         cachedAdminUser = user;
         cachedAdminUserExpiresAt = Date.now() + 60000;
 
-        logger.debug('ADMIN_AUTH_REQUEST_SUCCESS', 'Admin user fetched successfully', {
-          userId: user._id || user.id,
-          role: user.role,
-        });
-
         return user;
       }
 
@@ -261,30 +240,33 @@ export const fetchAdminUser = async (): Promise<AdminUser | null> => {
  * Subsequent auth checks should use the cached user
  */
 export const bootstrapAdminAuth = async (): Promise<void> => {
-  logger.debug('BOOTSTRAP_ADMIN_AUTH_START', 'Starting admin auth bootstrap');
-
   try {
     const refreshed = await refreshAdminSession();
-    const user = await fetchAdminUser();
     
-    if (user) {
-
-      broadcastAdminAuthChange({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-      logger.debug('BOOTSTRAP_ADMIN_AUTH_SUCCESS', 'Admin auth bootstrap completed', {
-        userId: user._id || user.id,
-      });
-    } else {
-
+    // ONLY fetch user if refresh worked, otherwise we know we aren't an admin
+    if (!refreshed) {
       broadcastAdminAuthChange({
         user: null,
         isAuthenticated: false,
         isLoading: false,
       });
-      logger.debug('BOOTSTRAP_ADMIN_AUTH_NO_USER', 'No user found during auth bootstrap');
+      return;
+    }
+
+    const user = await fetchAdminUser();
+    
+    if (user) {
+      broadcastAdminAuthChange({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } else {
+      broadcastAdminAuthChange({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
     }
   } catch (error) {
     broadcastAdminAuthChange({
@@ -292,7 +274,7 @@ export const bootstrapAdminAuth = async (): Promise<void> => {
       isAuthenticated: false,
       isLoading: false,
     });
-    logger.warn('BOOTSTRAP_ADMIN_AUTH_FAILED', {
+    logger.error('BOOTSTRAP_ADMIN_AUTH_FAILED', {
       errorMessage: error instanceof Error ? error.message : String(error),
     });
   }
@@ -312,7 +294,19 @@ export const clearAdminAuthCache = (): void => {
     isAuthenticated: false,
     isLoading: false,
   });
-  
-  logger.debug('ADMIN_AUTH_CACHE_CLEARED', 'Admin auth cache cleared');
 };
 
+/**
+ * Manually set the admin user state
+ * Used after successful login to update state immediately without waiting for /me call
+ */
+export const setAdminUserManually = (user: AdminUser): void => {
+  cachedAdminUser = user;
+  cachedAdminUserExpiresAt = Date.now() + 60000;
+  
+  broadcastAdminAuthChange({
+    user,
+    isAuthenticated: true,
+    isLoading: false,
+  });
+};

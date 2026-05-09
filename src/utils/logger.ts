@@ -150,9 +150,15 @@ const sanitizeMeta = (meta?: LogMeta) => {
   );
 };
 
-const shouldEmit = (level: LogLevel) => {
-  // In production, only emit warn and error
-  if (isProduction && level === 'debug') {
+
+const shouldEmitByCategory = (level: LogLevel, logType: LogType, event: string) => {
+  // Suppress debug and info logs globally as requested
+  if (level === 'debug' || level === 'info') {
+    // Exception: Allow specific allowlisted network info logs in production if needed,
+    // but the user asked to remove unnecessary logs, so we'll be strict.
+    if (isProduction && logType === 'network' && level === 'info') {
+      return PROD_NETWORK_INFO_ALLOWLIST.has(event);
+    }
     return false;
   }
 
@@ -160,36 +166,16 @@ const shouldEmit = (level: LogLevel) => {
     return true;
   }
 
-  // In production, only emit error/warn
-  return level === 'error' || level === 'warn';
-};
-
-const shouldEmitByCategory = (level: LogLevel, logType: LogType, event: string) => {
-  if (isDev) {
-    return true;
-  }
-
   // Production: suppress non-critical logs
   if (isProduction) {
-    // Always emit errors and critical auth events
+    // Always emit errors
     if (level === 'error') return true;
+    
+    // Critical auth warnings
     if (logType === 'auth' && level === 'warn') return true;
-    if (logType === 'business' && level === 'error') return true;
 
-    // Suppress non-critical network logs - only allowlisted events
-    if (logType === 'network' && level === 'info') {
-      return PROD_NETWORK_INFO_ALLOWLIST.has(event);
-    }
-
-    // Suppress debug and info from other categories
-    if (level === 'debug' || level === 'info') {
-      return false;
-    }
-  } else {
-    // Non-production: suppress low-value network info chatter
-    if (level === 'info' && logType === 'network' && !PROD_NETWORK_INFO_ALLOWLIST.has(event)) {
-      return false;
-    }
+    // Suppress other warnings in production to reduce noise
+    return false;
   }
 
   return true;
@@ -224,10 +210,6 @@ const emit = (
   message: string,
   meta?: LogMeta,
 ) => {
-  if (!shouldEmit(level)) {
-    return;
-  }
-
   if (!shouldEmitByCategory(level, logType, event)) {
     return;
   }

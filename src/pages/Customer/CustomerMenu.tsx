@@ -36,10 +36,8 @@ export default function CustomerMenu() {
         const [offerCategory] = cats.splice(offerIndex, 1);
         // Add it right after "All"
         setCategories(['All', offerCategory, ...cats]);
-        console.log('✅ Reordered categories - Offer is now 2nd:', ['All', offerCategory, ...cats]);
       } else {
         setCategories(['All', ...cats]);
-        console.log('⚠️ Offer category not found in:', cats);
       }
     };
     fetchCategories();
@@ -50,7 +48,6 @@ export default function CustomerMenu() {
     const fetchMenuItems = async () => {
       try {
         setLoading(true);
-        console.log('🔍 Fetching menu with search:', debouncedSearchTerm);
         const response = await getMenuItems({
           page: currentPage,
           limit: 12,
@@ -60,7 +57,6 @@ export default function CustomerMenu() {
           isAvailable: true,
         });
         
-        console.log('📦 Menu items response:', response);
         setMenuItems(response.data.menuItems);
         if (response.pagination) {
           setTotalPages(response.pagination.totalPages);

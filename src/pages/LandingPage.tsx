@@ -3,17 +3,21 @@ import { useState, useEffect } from "react";
 import { getSettings, Settings } from "../services/settings.service";
 import { getPopularItems, MenuItem } from "../services/menu-management.service";
 import Footer from "../components/common/Footer";
-import { useAuth } from "../context/AuthContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function LandingPage() {
-  const { user } = useAuth(); // Admin auth
-  const { customer, isAuthenticated } = useCustomerAuth(); // Customer auth
+  const { isAuthenticated: isCustomer, customer, authReady: customerAuthReady } = useCustomerAuth();
+  const { isAuthenticated: isAdmin, user: admin, authReady: adminAuthReady } = useAuth();
+  
   const [settings, setSettings] = useState<Settings | null>(null);
   const [popularDishes, setPopularDishes] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  console.log('🏠 LandingPage: Component rendering', { isAuthenticated, customer });
+  const isAuthenticated = isCustomer || isAdmin;
+  const headerAuthReady = isCustomer ? customerAuthReady : isAdmin ? adminAuthReady : (customerAuthReady && adminAuthReady);
+
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -25,7 +29,7 @@ export default function LandingPage() {
         
         setSettings(settingsData);
         setPopularDishes(popularItems);
-        console.log('✅ LandingPage: Fetched popular items', popularItems);
+
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -46,25 +50,55 @@ export default function LandingPage() {
             </Link>
             
             {/* Show different buttons based on authentication status */}
-            {isAuthenticated ? (
-              <div className="flex items-center gap-4">
+            {/* Show different buttons based on authentication status */}
+            {!headerAuthReady ? (
+              <div className="h-10 w-24 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+            ) : isAdmin ? (
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/admin/dashboard"
+                  className="inline-block rounded-lg bg-[#e36057] px-4 py-2 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors shadow-sm"
+                >
+                  Admin Panel
+                </Link>
+                <Link
+                  to="/admin/profile"
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-[#e36057] hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  title="Admin Profile"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </Link>
+              </div>
+            ) : isCustomer ? (
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/customer/orders"
+                  className="inline-block rounded-lg bg-[#e36057] px-4 py-2 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors shadow-sm"
+                >
+                  My Orders
+                </Link>
                 <Link
                   to="/customer/menu"
-                  className="inline-block rounded-lg bg-[#e36057] px-4 py-2 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors"
+                  className="hidden sm:inline-block rounded-lg border-2 border-[#e36057] px-4 py-2 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10"
                 >
-                  Order Now
+                  Menu
                 </Link>
                 <Link
                   to="/customer/profile"
-                  className="inline-block rounded-lg border-2 border-[#e36057] px-4 py-2 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10"
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-[#e36057] hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  title="Profile"
                 >
-                  My Account
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
                 </Link>
               </div>
             ) : (
               <Link
                 to="/customer/login"
-                className="inline-block rounded-lg border-2 border-[#e36057] px-4 py-2 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10"
+                className="inline-block rounded-lg border-2 border-[#e36057] px-6 py-2 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10"
               >
                 Sign In
               </Link>
@@ -92,10 +126,10 @@ export default function LandingPage() {
           </p>
           <div className="mt-6 md:mt-8 flex flex-col sm:flex-row gap-3">
             <Link
-              to={isAuthenticated ? "/customer/menu" : "/order"}
+              to={isAdmin ? "/admin/dashboard" : isCustomer ? "/customer/menu" : "/order"}
               className="inline-block rounded-lg bg-[#e36057] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors dark:hover:bg-[#e36057] text-center"
             >
-              Order Now
+              {isAdmin ? "Admin Panel" : "Order Now"}
             </Link>
             <a
               href="#"
@@ -222,7 +256,7 @@ export default function LandingPage() {
         )}
         <div className="mt-8 md:mt-12 flex justify-center">
           <Link
-            to="/order"
+            to={isAuthenticated ? "/customer/menu" : "/order"}
             className="rounded-lg bg-[#e36057] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors dark:hover:bg-[#e36057]"
           >
             See All Dishes

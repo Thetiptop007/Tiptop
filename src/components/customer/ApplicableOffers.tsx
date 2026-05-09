@@ -31,7 +31,7 @@ export default function ApplicableOffers({ cartItems, orderAmount }: ApplicableO
             quantity: item.quantity,
             price: item.price
           })),
-          subtotal: orderAmount
+          totalAmount: orderAmount
         });
         setOffers(applicableOffers);
         

@@ -33,7 +33,7 @@ export interface CheckOffersRequest {
     quantity: number;
     price: number;
   }>;
-  subtotal: number;
+  totalAmount: number;
 }
 
 export interface CheckOffersResponse {

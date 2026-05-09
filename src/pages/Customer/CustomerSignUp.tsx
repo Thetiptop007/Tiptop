@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { useCustomerAuth } from '../../context/CustomerAuthContext.tsx';
+import { useCustomerAuthActions } from '../../hooks/useCustomerAuthActions';
 import Footer from '../../components/common/Footer';
 
 export default function CustomerSignUp() {
   const navigate = useNavigate();
-  const { signUp } = useCustomerAuth();
+  const { signUp, isLoading: authLoading } = useCustomerAuthActions();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -99,19 +99,12 @@ export default function CustomerSignUp() {
         phone: cleanPhone,
         email: emailOrPhone,
         password: formData.password,
-        role: 'customer' as const,
       };
-
-      console.log('📝 Sending signup data:', { ...signupData, password: '***' });
       
       const result = await signUp(signupData);
+      const { success, user, message } = result;
 
-      console.log('📥 Signup result:', result);
-
-      if (result.success) {
-        if ('autoLogin' in result && result.autoLogin && 'user' in result && result.user) {
-          console.log('✅ User auto-logged in:', result.user.name);
-          
+      if (success && user) {
           // Show success message briefly before redirect
           setErrors({});
           
@@ -120,16 +113,15 @@ export default function CustomerSignUp() {
             navigate('/customer/menu', { 
               replace: true,
               state: { 
-                message: `Welcome ${result.user?.name?.first}! Your account has been created successfully.` 
+                message: `Welcome ${user.name.first}! Your account has been created successfully.` 
               }
             });
           }, 500);
-        }
       } else {
-        console.error('❌ Signup failed with message:', result.message);
+        console.error('❌ Signup failed with message:', message);
         
         // Map specific error messages to field errors for better UX
-        const errorMessage = result.message || 'Registration failed. Please try again.';
+        const errorMessage = message || 'Registration failed. Please try again.';
         
         if (errorMessage.toLowerCase().includes('phone') && errorMessage.toLowerCase().includes('already')) {
           setErrors({ 
@@ -401,7 +393,7 @@ export default function CustomerSignUp() {
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || authLoading}
                   className="flex w-full justify-center items-center rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md"
                 >
                   {loading ? (

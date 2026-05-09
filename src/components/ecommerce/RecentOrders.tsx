@@ -5,6 +5,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import Skeleton from "../ui/Skeleton";
 
 interface RecentOrder {
   orderNumber: string;

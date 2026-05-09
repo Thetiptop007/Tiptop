@@ -16,6 +16,7 @@ export type AuthState = {
   user: AuthUser | null;
   role: AuthRole;
   isAuthResolved: boolean;
+  isAppReady: boolean;
 };
 
 type AuthStoreListener = () => void;
@@ -26,6 +27,7 @@ let state: AuthState = {
   user: null,
   role: null,
   isAuthResolved: false,
+  isAppReady: false,
 };
 
 const emit = () => {
@@ -48,6 +50,7 @@ export const authStore = {
       user: null,
       role: null,
       isAuthResolved: false,
+      isAppReady: false,
     };
     emit();
   },

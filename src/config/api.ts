@@ -156,14 +156,10 @@ const extractErrorContext = (error: any, endpoint: string, response?: Response, 
   return context;
 };
 
-const shouldLogRequestLifecycle = () => import.meta.env.DEV;
+const shouldLogRequestLifecycle = () => false;
 
 const shouldLogRequestCompletion = (status: number, durationMs: number) => {
-  if (import.meta.env.DEV) {
-    return true;
-  }
-
-  return status >= 400 || durationMs >= 1000;
+  return status >= 400 || durationMs >= 5000;
 };
 
 
@@ -212,19 +208,13 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
   inFlightRefreshPromise = (async () => {
     try {
-      console.log('🔥 REFRESH START', Date.now());
+
       const scope = window.location.pathname.startsWith('/admin') ? 'admin' : 'customer';
       const csrfToken = getCsrfTokenForScope(scope);
       const refreshRequestId = createRequestId();
       const refreshUserId = extractUserId(scope);
 
-      logger.debug('TOKEN_REFRESH_STARTED', 'Token refresh bootstrap state', {
-        scope,
-        path: window.location.pathname,
-        hasCsrfToken: !!csrfToken,
-        requestId: refreshRequestId,
-        userId: refreshUserId,
-      });
+
 
       if (!csrfToken) {
         logger.warn('AUTH_REFRESH_FAILED', {
@@ -274,10 +264,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
             requestId: refreshRequestId,
             userId: refreshUserId,
           });
-          console.log('🔥 REFRESH END', Date.now(), {
-            scope,
-            status: response.status,
-          });
+
           return newAccessToken;
         }
       }
@@ -296,10 +283,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
         userId: refreshUserId,
       });
       clearAllAuthStorage();
-      console.log('🔥 REFRESH END', Date.now(), {
-        scope,
-        status: response.status,
-      });
+
       return null;
     } catch (error: any) {
       logger.error('AUTH_REFRESH_FAILED', {
@@ -311,10 +295,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
         scope: window.location.pathname.startsWith('/admin') ? 'admin' : 'customer',
       });
       clearAllAuthStorage();
-      console.log('🔥 REFRESH END', Date.now(), {
-        scope: window.location.pathname.startsWith('/admin') ? 'admin' : 'customer',
-        status: 'error',
-      });
+
       return null;
     } finally {
       inFlightRefreshPromise = null;
@@ -366,17 +347,7 @@ export const apiRequest = async (
   }
 
   if (shouldLogRequestLifecycle() && authScope && method !== 'GET') {
-    logger.debug('AUTH_REQUEST_PREPARED', 'Auth request prepared', {
-      endpoint,
-      method,
-      authScope,
-      path: window.location.pathname,
-      hasAccessToken: !!token,
-      hasCsrfToken: !!csrfToken,
-      authHeaderPresent: !!headers['Authorization'],
-      requestId,
-      userId,
-    });
+
   }
 
   if (token && !isRefreshEndpoint && !hasExplicitAuth) {
@@ -477,10 +448,7 @@ export const apiRequest = async (
       
       if (newToken) {
         // Retry once with the refreshed token from the shared auth store.
-        logger.debug('RETRYING_REQUEST_WITH_REFRESHED_TOKEN', { endpoint, requestId, userId });
-         if (shouldLogRequestLifecycle()) {
-           logger.debug('CUSTOMER_AUTH_REQUEST_RETRY', 'Retrying customer request with new token', { endpoint });
-         }
+
         return apiRequest(endpoint, options, retryCount + 1);
       }
     }

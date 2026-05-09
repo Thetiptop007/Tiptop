@@ -130,13 +130,6 @@ class ThermalPrinterService {
         throw new Error('Could not find printer endpoint');
       }
 
-      console.log('✅ Thermal printer connected:', {
-        vendorId: this.device.vendorId,
-        productId: this.device.productId,
-        manufacturer: this.device.manufacturerName,
-        product: this.device.productName,
-      });
-
       return true;
     } catch (error: any) {
       console.error('❌ Failed to connect to printer:', error);
@@ -321,9 +314,7 @@ class ThermalPrinterService {
       // Beep
       await this.send(this.CMD.BEEP);
 
-      console.log('✅ Receipt printed successfully');
     } catch (error: any) {
-      console.error('❌ Print failed:', error);
       throw error;
     }
   }
@@ -337,7 +328,6 @@ class ThermalPrinterService {
         await this.device.close();
         this.device = null;
         this.endpoint = null;
-        console.log('✅ Printer disconnected');
       } catch (error) {
         console.error('❌ Error disconnecting:', error);
       }

@@ -48,7 +48,7 @@ export default function CategoryManagement() {
         _t: Date.now(), // Cache busting parameter
       });
 
-      console.log('Fetched categories:', response.data.categories.length, 'categories');
+
       setCategories(response.data.categories);
       setTotalPages(response.pagination.pages);
       setTotalResults(response.pagination.total);
@@ -88,11 +88,9 @@ export default function CategoryManagement() {
   };
 
   const handleDelete = async (categoryId: string) => {
-    console.log('Attempting to delete category with ID:', categoryId);
     if (window.confirm('Are you sure you want to delete this category?')) {
       try {
         await deleteCategory(categoryId);
-        console.log('Category deleted successfully');
         // Clear categories before refetching to prevent showing stale data
         setCategories([]);
         await fetchCategories();

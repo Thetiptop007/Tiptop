@@ -2,6 +2,7 @@ import {
   BoxIconLine,
   GroupIcon,
 } from "../../icons";
+import Skeleton from "../ui/Skeleton";
 
 interface DashboardStats {
   totalCustomers: number;
@@ -24,12 +25,12 @@ export default function EcommerceMetrics({ stats, loading }: EcommerceMetricsPro
         {[1, 2].map((i) => (
           <div
             key={i}
-            className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 animate-pulse"
+            className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6"
           >
-            <div className="w-12 h-12 bg-gray-200 rounded-xl dark:bg-gray-700" />
+            <Skeleton variant="rect" width={48} height={48} className="rounded-xl" />
             <div className="mt-5 space-y-3">
-              <div className="h-4 w-20 bg-gray-200 rounded dark:bg-gray-700" />
-              <div className="h-7 w-24 bg-gray-200 rounded dark:bg-gray-700" />
+              <Skeleton variant="text" width="60%" height={16} />
+              <Skeleton variant="text" width="80%" height={28} />
             </div>
           </div>
         ))}

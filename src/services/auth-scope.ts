@@ -116,10 +116,6 @@ export async function forceLogout(reason: string = 'mixed_session'): Promise<voi
       // Clear cookies manually (browser won't do this for httpOnly)
       // The backend will have already cleared them
 
-      if (import.meta.env.DEV) {
-        console.log(`Force logout triggered: ${reason}`);
-      }
-
       // Reload page to reset all state
       window.location.href = '/';
     } catch (error) {

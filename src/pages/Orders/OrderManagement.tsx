@@ -22,7 +22,9 @@ import { apiRequest, parseApiResponse } from "../../config/api";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { appQueryKeys, useTodayOrdersQuery } from "../../hooks/useAppDataQueries";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAdminOrderSocket } from "../../hooks/useAdminOrderSocket";
 import { logger } from '../../utils/logger';
+import Skeleton from "../../components/ui/Skeleton";
 
 // Define order data
 type BulkActionMode = 'new' | 'accepted' | 'readyDelivery' | 'readyPickup' | 'outForDelivery';
@@ -576,12 +578,10 @@ const OrderTable = ({
         }
       case "READY_FOR_PICKUP":
       case "Ready for Pickup":
-        console.log('✅ [READY_FOR_PICKUP] Showing Mark Delivered button for:', order.orderId);
         return (
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              console.log('🎯 [Mark Delivered] Button clicked for:', order.orderId);
               onStatusUpdate(order.id, "DELIVERED");
             }}
             className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors"
@@ -1874,6 +1874,7 @@ const AllOrdersTable = ({ orders, onRefresh }: { orders: Order[], onRefresh: () 
 };
 
 export default function OrderManagement() {
+  useAdminOrderSocket();
   const [searchParams, setSearchParams] = useSearchParams();
   const view = (searchParams.get('tab') as "today" | "all") || "today";
   const [todayOrders, setTodayOrders] = useState<TodayOrdersResponse | null>(null);
@@ -2263,14 +2264,25 @@ export default function OrderManagement() {
         </button>
       </div>
       
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-        </div>
-      ) : view === "today" ? (
+      {view === "today" ? (
         <div className="space-y-6">
-          {/* Check if there are no orders at all */}
-          {!todayOrders || (
+          {loading ? (
+            <>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="space-y-4">
+                  <Skeleton variant="text" width={150} height={24} />
+                  <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+                    <div className="p-4 border-b border-gray-100 dark:border-white/[0.05]">
+                      <Skeleton variant="text" width="100%" height={20} count={1} />
+                    </div>
+                    <div className="p-4 space-y-4">
+                      <Skeleton variant="rect" width="100%" height={40} count={3} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : !todayOrders || (
             ordersByStatus.New.length === 0 && 
             ordersByStatus.Accepted.length === 0 && 
             ordersByStatus.Preparing.length === 0 && 
@@ -2358,7 +2370,18 @@ export default function OrderManagement() {
         </div>
       ) : (
         <div>
-          {!allOrdersData || !allOrdersData.orders || allOrdersData.orders.length === 0 ? (
+          {loading ? (
+            <div className="space-y-4">
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+                <div className="p-4 border-b border-gray-100 dark:border-white/[0.05]">
+                  <Skeleton variant="text" width="100%" height={20} count={1} />
+                </div>
+                <div className="p-4 space-y-4">
+                  <Skeleton variant="rect" width="100%" height={40} count={10} />
+                </div>
+              </div>
+            </div>
+          ) : !allOrdersData || !allOrdersData.orders || allOrdersData.orders.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white p-12 text-center dark:border-white/[0.05] dark:bg-white/[0.03]">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
                 <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

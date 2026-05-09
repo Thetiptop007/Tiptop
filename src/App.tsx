@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Navigate, Routes, Route, useLocation } from "react-router";
+import { BrowserRouter as Router, Navigate, Routes, Route, useLocation, Outlet } from "react-router";
 import { useEffect } from "react";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
@@ -46,137 +46,169 @@ import { ToastContainer } from "./components/Toast";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { CustomerProtectedRoute } from "./components/auth/CustomerProtectedRoute";
 import { logger } from "./utils/logger";
+import { SocketProvider } from "./context/SocketContext";
+import { getAccessToken } from "./services/auth-session.store";
+import { useAuth } from "./context/AuthContext";
+import { useCustomerAuth } from "./context/CustomerAuthContext";
+
+function PublicApp() {
+  return <Outlet />;
+}
+
+function AdminAppContent() {
+  return <Outlet />;
+}
+
+function AdminApp() {
+  return <AdminAppContent />;
+}
+
+function CustomerAppContent() {
+  return <Outlet />;
+}
+
+function CustomerApp() {
+  return <CustomerAppContent />;
+}
+
+function AdminPublicApp() {
+  return <Outlet />;
+}
+
+function CustomerPublicApp() {
+  return <Outlet />;
+}
 
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public Landing Page */}
-      <Route path="/" element={<LandingPage />} />
-                
-                {/* Guest Order Page - Public */}
-                <Route path="/order" element={<GuestOrder />} />
+      {/* Public Routes - No Auth Providers */}
+      <Route element={<PublicApp />}>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/order" element={<GuestOrder />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      </Route>
 
-                {/* Customer Auth Routes */}
-                <Route path="/customer/login" element={<CustomerLogin />} />
-                <Route path="/customer/signup" element={<CustomerSignUp />} />
+      {/* Admin Public App - No Auth Provider */}
+      <Route element={<AdminPublicApp />}>
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+      </Route>
 
-                {/* Customer Web App - All routes under /customer (Public/Protected) */}
-                <Route path="/customer" element={<CustomerLayout />}>
-                  <Route index element={<CustomerHome />} />
-                  <Route path="menu" element={<CustomerMenu />} />
-                  <Route path="menu/:id" element={<ItemDetails />} />
-                  <Route path="cart" element={<Cart />} />
-                  <Route
-                    path="payment"
-                    element={
-                      <CustomerProtectedRoute>
-                        <Payment />
-                      </CustomerProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="orders"
-                    element={
-                      <CustomerProtectedRoute>
-                        <CustomerOrders />
-                      </CustomerProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="orders/:orderId"
-                    element={
-                      <CustomerProtectedRoute>
-                        <CustomerOrders />
-                      </CustomerProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="profile"
-                    element={
-                      <CustomerProtectedRoute>
-                        <CustomerProfile />
-                      </CustomerProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="profile/edit"
-                    element={
-                      <CustomerProtectedRoute>
-                        <EditProfile />
-                      </CustomerProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="addresses"
-                    element={
-                      <CustomerProtectedRoute>
-                        <SavedAddresses />
-                      </CustomerProtectedRoute>
-                    }
-                  />
-                  <Route path="help" element={<HelpSupport />} />
-                  <Route path="privacy" element={<CustomerPrivacyPolicy />} />
-                </Route>
+      {/* Admin App - Admin Auth Provider */}
+      <Route element={<AdminApp />}>
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Home />} />
+          <Route path="insights" element={<BusinessInsights />} />
 
-                {/* Admin Panel - All routes under /admin (Protected) */}
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<Home />} />
-                  <Route path="insights" element={<BusinessInsights />} />
+          {/* Orders */}
+          <Route path="orders" element={<OrderManagement />} />
+          <Route path="orders/add" element={<AddOrder />} />
 
-                  {/* Orders */}
-                  <Route path="orders" element={<OrderManagement />} />
-                  <Route path="orders/add" element={<AddOrder />} />
+          {/* Customers */}
+          <Route path="customers" element={<CustomerList />} />
 
-                  {/* Customers */}
-                  <Route path="customers" element={<CustomerList />} />
+          {/* Menu */}
+          <Route path="menu" element={<MenuManagement />} />
+          <Route path="menu/add" element={<AddMenu />} />
 
-                  {/* Menu */}
-                  <Route path="menu" element={<MenuManagement />} />
-                  <Route path="menu/add" element={<AddMenu />} />
+          {/* Categories */}
+          <Route path="categories" element={<CategoryManagement />} />
 
-                  {/* Categories */}
-                  <Route path="categories" element={<CategoryManagement />} />
+          {/* Offers */}
+          <Route path="offers" element={<OfferList />} />
+          <Route path="offers/create" element={<CreateOffer />} />
+          <Route path="offers/edit/:id" element={<CreateOffer />} />
 
-                  {/* Offers */}
-                  <Route path="offers" element={<OfferList />} />
-                  <Route path="offers/create" element={<CreateOffer />} />
-                  <Route path="offers/edit/:id" element={<CreateOffer />} />
+          {/* Delivery */}
+          <Route path="delivery" element={<DeliveryList />} />
+          <Route path="delivery/add" element={<AddDelivery />} />
 
-                  {/* Delivery */}
-                  <Route path="delivery" element={<DeliveryList />} />
-                  <Route path="delivery/add" element={<AddDelivery />} />
+          {/* Others */}
+          <Route path="profile" element={<UserProfiles />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="developer" element={<Developer />} />
+        </Route>
+      </Route>
 
-                  {/* Others */}
-                  <Route path="profile" element={<UserProfiles />} />
-                  <Route path="settings" element={<Settings />} />
-                  <Route path="developer" element={<Developer />} />
-                </Route>
+      {/* Customer Public App - No Auth Provider */}
+      <Route element={<CustomerPublicApp />}>
+        <Route path="/customer/login" element={<CustomerLogin />} />
+        <Route path="/customer/signup" element={<CustomerSignUp />} />
+      </Route>
 
-                {/* Public Privacy Policy */}
-                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      {/* Customer App - Customer Auth Provider */}
+      <Route path="/customer" element={<CustomerApp />}>
 
-                {/* Admin Auth Layout */}
-                <Route path="/signin" element={<SignIn />} />
-                <Route path="/signup" element={<SignUp />} />
+        <Route element={<CustomerLayout />}>
+          <Route index element={<CustomerHome />} />
+          <Route path="menu" element={<CustomerMenu />} />
+          <Route path="menu/:id" element={<ItemDetails />} />
+          <Route path="cart" element={<Cart />} />
+          <Route path="help" element={<HelpSupport />} />
+          <Route path="privacy" element={<CustomerPrivacyPolicy />} />
 
-                {/* Fallback Route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-  );
-}
+          <Route
+            path="payment"
+            element={
+              <CustomerProtectedRoute>
+                <Payment />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="orders"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerOrders />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="orders/:orderId"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerOrders />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="profile"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerProfile />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="profile/edit"
+            element={
+              <CustomerProtectedRoute>
+                <EditProfile />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="addresses"
+            element={
+              <CustomerProtectedRoute>
+                <SavedAddresses />
+              </CustomerProtectedRoute>
+            }
+          />
+        </Route>
+      </Route>
 
-function AppContent() {
-  return (
-    <AppRouteGate>
-      <AppRoutes />
-    </AppRouteGate>
+      {/* Fallback Route */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 
@@ -184,29 +216,61 @@ function LocationLogger() {
   const location = useLocation();
   
   useEffect(() => {
-    logger.debug('Route changed', { pathname: location.pathname });
+    // Suppressed in production-ready clean up
   }, [location]);
   
   return null;
 }
 
-export default function App() {
+function AppContent() {
+  const { isAuthenticated: isCustomerAuth, customer } = useCustomerAuth();
+  const { isAuthenticated: isAdminAuth, user: adminUser } = useAuth();
+  
+  const customerName = customer?.name && typeof customer.name === 'object' 
+    ? customer.name.first 
+    : (customer?.name || 'Customer');
+
+
+
+  // Decide which token to use for the socket based on active session
+  const customerToken = getAccessToken('customer');
+  const adminToken = getAccessToken('admin');
+  
+  const activeToken = adminToken || customerToken;
+  const isSocketAuth = isAdminAuth || isCustomerAuth;
+
   return (
-    <>
-      <Router>
-        <LocationLogger />
-        <ToastProvider>
+    <SocketProvider token={activeToken} isAuthenticated={isSocketAuth}>
+      <AppRouteGate>
+        <AppRoutes />
+      </AppRouteGate>
+    </SocketProvider>
+  );
+}
+
+function RootProviders({ children }: { children: React.ReactNode }) {
+  return (
+    <Router>
+      <LocationLogger />
+      <ToastProvider>
+        <ShopStatusProvider>
+          <ScrollToTop />
+          <ToastContainer />
           <AuthProvider>
             <CustomerAuthProvider>
-              <ShopStatusProvider>
-                <ScrollToTop />
-                <ToastContainer />
-                <AppContent />
-              </ShopStatusProvider>
+              {children}
             </CustomerAuthProvider>
           </AuthProvider>
-        </ToastProvider>
-      </Router>
-    </>
+        </ShopStatusProvider>
+      </ToastProvider>
+    </Router>
+  );
+}
+
+export default function App() {
+  return (
+    <RootProviders>
+      <AppContent />
+    </RootProviders>
   );
 }

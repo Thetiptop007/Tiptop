@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
-import EcommerceMetrics from "../../components/ecommerce/EcommerceMetrics";
-import MonthlySalesChart from "../../components/ecommerce/MonthlySalesChart";
-import MonthlyTarget from "../../components/ecommerce/MonthlyTarget";
-import RecentOrders from "../../components/ecommerce/RecentOrders";
 import PageMeta from "../../components/common/PageMeta";
 import { type DashboardStats } from "../../services/dashboard.service";
 import { useDashboardDataQuery } from "../../hooks/useAppDataQueries";
+import React, { Suspense, lazy, useEffect, useState } from "react";
+import Skeleton from "../../components/ui/Skeleton";
+
+// Lazy load heavy components
+const EcommerceMetrics = lazy(() => import("../../components/ecommerce/EcommerceMetrics"));
+const MonthlySalesChart = lazy(() => import("../../components/ecommerce/MonthlySalesChart"));
+const MonthlyTarget = lazy(() => import("../../components/ecommerce/MonthlyTarget"));
+const RecentOrders = lazy(() => import("../../components/ecommerce/RecentOrders"));
 
 // Match the component's expected interface
 interface RecentOrder {
@@ -58,17 +61,23 @@ export default function Home() {
       />
       <div className="grid grid-cols-12 gap-4 md:gap-6">
         <div className="col-span-12 space-y-6 xl:col-span-7">
-          <EcommerceMetrics stats={stats} loading={isLoading} />
+          <Suspense fallback={<Skeleton height={180} className="rounded-2xl" />}>
+            <EcommerceMetrics stats={stats} loading={isLoading} />
+          </Suspense>
           
-          <MonthlySalesChart salesData={monthlySales} loading={isLoading} />
+          <Suspense fallback={<Skeleton height={350} className="rounded-2xl" />}>
+            <MonthlySalesChart salesData={monthlySales} loading={isLoading} />
+          </Suspense>
         </div>
 
         <div className="col-span-12 xl:col-span-5">
-          <MonthlyTarget targetData={monthlyTarget} loading={isLoading} />
+          <Suspense fallback={<Skeleton height={450} className="rounded-2xl" />}>
+            <MonthlyTarget targetData={monthlyTarget} loading={isLoading} />
+          </Suspense>
         </div>
 
         <div className="col-span-12 xl:col-span-5">
-          <div className="h-full rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
+          <div className="h-full rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 overflow-hidden min-h-[300px]">
             <img 
               src="https://img.freepik.com/free-vector/restaurant-background_23-2148067523.jpg" 
               alt="Dashboard visualization"
@@ -78,7 +87,9 @@ export default function Home() {
         </div>
 
         <div className="col-span-12 xl:col-span-7">
-          <RecentOrders orders={recentOrders} loading={isLoading} />
+          <Suspense fallback={<Skeleton height={400} className="rounded-2xl" />}>
+            <RecentOrders orders={recentOrders} loading={isLoading} />
+          </Suspense>
         </div>
       </div>
     </>

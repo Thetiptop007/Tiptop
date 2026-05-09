@@ -97,7 +97,6 @@ const CreateOffer: React.FC = () => {
   });
 
   useEffect(() => {
-    console.log('🚀 CreateOffer component mounted, fetching data... v2');
     fetchMenuItems();
     fetchCategories();
     if (isEditMode) {
@@ -106,11 +105,9 @@ const CreateOffer: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    console.log('📋 MenuItems state updated:', menuItems.length, 'items');
   }, [menuItems]);
 
   useEffect(() => {
-    console.log('🎯 ApplicableTo changed:', formData.applicableTo);
   }, [formData.applicableTo]);
 
   const fetchOfferDetails = async () => {
@@ -224,8 +221,6 @@ const CreateOffer: React.FC = () => {
   };
 
   const handleCategoryToggle = (categoryId: string) => {
-    console.log('🎯 Toggling category ID:', categoryId);
-    
     // Find category name from ID
     const categoriesArray = Array.isArray(categories) ? categories : (categories as any)?.categories || [];
     const category = categoriesArray.find((cat: Category) => cat._id === categoryId);
@@ -236,14 +231,10 @@ const CreateOffer: React.FC = () => {
       return;
     }
     
-    console.log('✅ Category name:', categoryName);
-    
     // Filter items that have this category NAME in their categories array
     const itemsInCategory = menuItems.filter(item => 
       item.categories && item.categories.includes(categoryName)
     ).map(item => item._id);
-    
-    console.log('📦 Items in category:', itemsInCategory.length);
     
     const allSelected = itemsInCategory.every(id => selectedItems.includes(id));
     
@@ -252,26 +243,19 @@ const CreateOffer: React.FC = () => {
       const newSelected = selectedItems.filter(id => !itemsInCategory.includes(id));
       setSelectedItems(newSelected);
       setFormData({ ...formData, applicableItems: newSelected });
-      console.log('✅ Deselected all items in category');
     } else {
       // Select all items in category
       const newSelected = [...new Set([...selectedItems, ...itemsInCategory])];
       setSelectedItems(newSelected);
       setFormData({ ...formData, applicableItems: newSelected });
-      console.log('✅ Selected all items in category');
     }
   };
 
   const getItemsByCategory = () => {
     const grouped: { [key: string]: { categoryName: string; items: MenuItem[] } } = {};
     
-    console.log('📂 Grouping items by category... v3');
-    console.log('📚 Available categories:', categories);
-    console.log('📊 Categories type:', typeof categories, Array.isArray(categories));
-    
     // Handle both array and object with categories property
     const categoriesArray = Array.isArray(categories) ? categories : (categories as any)?.categories || [];
-    console.log('✅ Categories array extracted:', categoriesArray);
     
     menuItems.forEach(item => {
       // Get first category (items can have multiple categories)
@@ -283,15 +267,12 @@ const CreateOffer: React.FC = () => {
       const catId = category?._id || 'uncategorized';
       const displayName = category?.name || 'Uncategorized';
       
-      console.log(`📝 Item "${item.name}" -> Category Name: ${catName}, Category ID: ${catId}, Display: ${displayName}`);
-      
       if (!grouped[catId]) {
         grouped[catId] = { categoryName: displayName, items: [] };
       }
       grouped[catId].items.push(item);
     });
     
-    console.log('✅ Grouped items:', grouped);
     return grouped;
   };
 

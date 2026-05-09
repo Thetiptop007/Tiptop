@@ -121,10 +121,8 @@ export default function GuestOrder() {
           const [offerCategory] = categoryNames.splice(offerIndex, 1);
           // Add it right after "All"
           setCategories(["All", offerCategory, ...categoryNames]);
-          console.log('✅ [GuestOrder] Reordered categories - Offer is now 2nd:', ["All", offerCategory, ...categoryNames]);
         } else {
           setCategories(["All", ...categoryNames]);
-          console.log('⚠️ [GuestOrder] Offer category not found in:', categoryNames);
         }
         
       } catch (error) {
