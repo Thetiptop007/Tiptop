@@ -316,13 +316,20 @@ export const getRequestAuthScope = (endpoint: string, pathname: string = window.
   if (
     normalizedEndpoint.startsWith('customer/') ||
     normalizedEndpoint.startsWith('auth/customer/') ||
-    normalizedEndpoint.startsWith('orders/') ||
     normalizedEndpoint.startsWith('addresses/')
   ) {
     return 'customer';
   }
 
-  // 2. URL Pathname fallback (WEAKER SIGNAL - vulnerable to redirects)
+  // 2. Shared endpoints (e.g. orders/) - use current path context
+  if (normalizedEndpoint.startsWith('orders/')) {
+    if (pathname.startsWith('/admin')) {
+      return 'admin';
+    }
+    return 'customer';
+  }
+
+  // 3. URL Pathname fallback (WEAKER SIGNAL - vulnerable to redirects)
   if (pathname.startsWith('/admin')) {
     return 'admin';
   }
