@@ -36,12 +36,6 @@ export interface CheckOffersRequest {
   totalAmount: number;
 }
 
-export interface CheckOffersResponse {
-  success: boolean;
-  message?: string;
-  data: ApplicableOffer[];
-}
-
 // Get active offers (for display on menu)
 export const getActiveOffers = async (): Promise<Offer[]> => {
   try {
@@ -86,7 +80,7 @@ export const checkApplicableOffers = async (
       body: JSON.stringify(cartData),
     });
 
-    const data = await parseApiResponse<CheckOffersResponse>(response);
+    const data = await parseApiResponse<ApplicableOffer[]>(response);
 
     if (data.status === 'error') {
       throw new Error(data.message || 'Failed to check applicable offers');

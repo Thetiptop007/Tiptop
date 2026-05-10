@@ -7,9 +7,9 @@ import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useAuth } from "../context/AuthContext";
 
 export default function LandingPage() {
-  const { isAuthenticated: isCustomer, customer, authReady: customerAuthReady } = useCustomerAuth();
-  const { isAuthenticated: isAdmin, user: admin, authReady: adminAuthReady } = useAuth();
-  
+  const { isAuthenticated: isCustomer, authReady: customerAuthReady } = useCustomerAuth();
+  const { isAuthenticated: isAdmin, authReady: adminAuthReady } = useAuth();
+
   const [settings, setSettings] = useState<Settings | null>(null);
   const [popularDishes, setPopularDishes] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +56,7 @@ export default function LandingPage() {
             ) : isAdmin ? (
               <div className="flex items-center gap-3">
                 <Link
-                  to="/admin/dashboard"
+                  to="/admin"
                   className="inline-block rounded-lg bg-[#e36057] px-4 py-2 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors shadow-sm"
                 >
                   Admin Panel
@@ -126,7 +126,7 @@ export default function LandingPage() {
           </p>
           <div className="mt-6 md:mt-8 flex flex-col sm:flex-row gap-3">
             <Link
-              to={isAdmin ? "/admin/dashboard" : isCustomer ? "/customer/menu" : "/order"}
+              to={isAdmin ? "/admin" : isCustomer ? "/customer/menu" : "/order"}
               className="inline-block rounded-lg bg-[#e36057] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors dark:hover:bg-[#e36057] text-center"
             >
               {isAdmin ? "Admin Panel" : "Order Now"}
