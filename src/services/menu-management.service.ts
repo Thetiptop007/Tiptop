@@ -319,9 +319,7 @@ export const updateMenuItem = async (
     }
     
     // Debug: surface validation errors from backend in browser console
-    if (data.status !== 'success') {
-      logger.warn('Menu item update failed response', { id, message: data.message });
-    }
+    logger.warn('Menu item update failed response', { id, message: data.message });
 
     return {
       success: false,
