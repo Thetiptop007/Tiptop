@@ -85,8 +85,7 @@ describe('REGRESSION: Customer Lifecycle & Auth Flow', () => {
           } 
         });
       }),
-      http.post(/\/auth\/customer\/login/, async ({ request }) => {
-        const body = await request.clone().json();
+      http.post(/\/auth\/customer\/login/, async () => {
         return HttpResponse.json({ 
           status: 'success', 
           data: { 
