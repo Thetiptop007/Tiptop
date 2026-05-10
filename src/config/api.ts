@@ -28,6 +28,7 @@ import {
   CustomerLogoutReason,
   performCustomerLogoutWithReason,
 } from '../services/customer-auth.coordinator';
+import { refreshAdminSession } from '../services/admin-auth.coordinator';
 
 const normalizeApiBaseUrl = (rawBaseUrl: string): string => {
   const trimmed = rawBaseUrl.trim().replace(/\/+$/, '');
@@ -51,7 +52,7 @@ interface ResponseSnapshot {
 const inFlightGetRequests = new Map<string, Promise<ResponseSnapshot>>();
 const recentGetResponses = new Map<string, { snapshot: ResponseSnapshot; expiresAt: number }>();
 const GET_RESPONSE_TTL_MS = 1500;
-let inFlightRefreshPromise: Promise<string | null> | null = null;
+let inFlightRefreshPromise: Promise<any> | null = null;
 
 const clearAdminSession = () => {
   inFlightGetRequests.clear();
@@ -337,6 +338,22 @@ export const apiRequest = async (
   const authScope = getRequestAuthScope(endpoint);
   const userId = extractUserId(authScope);
   const isRefreshEndpoint = endpoint.endsWith('/refresh') || endpoint === 'auth/refresh-token';
+  const isPublicEndpoint = endpoint.includes('shop-status') || endpoint.includes('categories') || endpoint.includes('offers');
+
+  // TRIGGER REFRESH if token is missing for a protected route (Hydration recovery)
+  if (authScope && !getAccessToken(authScope) && !isRefreshEndpoint && !isPublicEndpoint) {
+    if (!inFlightRefreshPromise) {
+      if (authScope === 'admin') {
+        inFlightRefreshPromise = refreshAdminSession().then(() => {
+          inFlightRefreshPromise = null;
+        });
+      } else {
+        inFlightRefreshPromise = refreshCustomerSession().then(() => {
+          inFlightRefreshPromise = null;
+        });
+      }
+    }
+  }
 
   // WAIT for refresh if one is in progress (prevents race condition on page reload)
   if (inFlightRefreshPromise && !isRefreshEndpoint) {

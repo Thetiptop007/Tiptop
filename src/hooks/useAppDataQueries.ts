@@ -5,6 +5,7 @@ import { getDashboardData, type DashboardData } from '../services/dashboard.serv
 import { getShopStatus, toggleShopStatus, type ShopStatus } from '../services/settings.service';
 import { getTodayOrders, type TodayOrdersResponse } from '../services/order-management.service';
 import { getAccessToken } from '../services/auth-session.store';
+import { useAuthStore } from '../services/auth.store';
 
 export const appQueryKeys = {
   currentUser: ['admin', 'current-user'] as const,
@@ -14,14 +15,16 @@ export const appQueryKeys = {
   todayOrders: ['admin', 'orders', 'today'] as const,
 };
 
-export const useCurrentAdminUserQuery = () =>
-  useQuery<User | null>({
+export const useCurrentAdminUserQuery = () => {
+  const { isAppReady } = useAuthStore();
+  return useQuery<User | null>({
     queryKey: appQueryKeys.currentUser,
     queryFn: getCurrentUser,
-    enabled: !!getAccessToken('admin'),
+    enabled: isAppReady && !!getAccessToken('admin'),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+};
 
 export const useShopStatusQuery = () =>
   useQuery<ShopStatus>({
@@ -32,8 +35,9 @@ export const useShopStatusQuery = () =>
     refetchOnMount: false,
   });
 
-export const useDashboardDataQuery = () =>
-  useQuery<DashboardData | null>({
+export const useDashboardDataQuery = () => {
+  const { isAppReady } = useAuthStore();
+  return useQuery<DashboardData | null>({
     queryKey: appQueryKeys.dashboard,
     queryFn: async () => {
       if (import.meta.env.DEV) {
@@ -45,28 +49,34 @@ export const useDashboardDataQuery = () =>
 
       return getDashboardData();
     },
-    enabled: !!getAccessToken('admin'),
+    enabled: isAppReady && !!getAccessToken('admin'),
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+};
 
-export const useBusinessInsightsQuery = () =>
-  useQuery<BusinessInsightsData | null>({
+export const useBusinessInsightsQuery = () => {
+  const { isAppReady } = useAuthStore();
+  return useQuery<BusinessInsightsData | null>({
     queryKey: appQueryKeys.businessInsights,
     queryFn: getBusinessInsightsData,
-    enabled: !!getAccessToken('admin'),
+    enabled: isAppReady && !!getAccessToken('admin'),
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: false,
   });
+};
 
-export const useTodayOrdersQuery = () =>
-  useQuery<TodayOrdersResponse | null>({
+export const useTodayOrdersQuery = () => {
+  const { isAppReady } = useAuthStore();
+  return useQuery<TodayOrdersResponse | null>({
     queryKey: appQueryKeys.todayOrders,
     queryFn: getTodayOrders,
+    enabled: isAppReady && !!getAccessToken('admin'),
     staleTime: 20_000,
     refetchOnWindowFocus: false,
   });
+};
 
 export const useUpdateCurrentAdminUserMutation = () => {
   const queryClient = useQueryClient();

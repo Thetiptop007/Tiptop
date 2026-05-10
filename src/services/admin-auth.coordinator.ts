@@ -72,7 +72,7 @@ const readCookie = (name: string): string | null => {
 
 const getAdminCsrfToken = (): string | null => getCsrfTokenForScope('admin') || readCookie('adminCsrfToken');
 
-const refreshAdminSession = async (): Promise<boolean> => {
+export const refreshAdminSession = async (): Promise<boolean> => {
   const existingToken = getAccessToken('admin');
   if (existingToken) {
     return true;
