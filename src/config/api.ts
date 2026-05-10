@@ -12,7 +12,6 @@ import {
   getAuthUser,
   getRequestAuthScope,
   setAccessToken,
-  setAuthUser,
   setCsrfToken,
 } from '../services/auth-session.store';
 
