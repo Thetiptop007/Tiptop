@@ -28,7 +28,7 @@ const SERVICE_AREAS = [
 
 const SavedAddresses: React.FC = () => {
   const navigate = useNavigate();
-  const { customer, authReady } = useCustomerAuth();
+  const { customer, authReady, isAuthenticated, isLoading: authLoading } = useCustomerAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

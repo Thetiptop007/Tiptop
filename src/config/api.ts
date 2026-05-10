@@ -381,6 +381,11 @@ export const apiRequest = async (
     headers['X-CSRF-Token'] = csrfToken;
   }
 
+  // Inject token scope to help backend identify the intended role for shared routes
+  if (authScope) {
+    headers['X-Token-Scope'] = authScope;
+  }
+
   if (shouldLogRequestLifecycle() && authScope && method !== 'GET') {
 
   }
@@ -410,7 +415,21 @@ export const apiRequest = async (
       headers,
       credentials: 'include',
       cache: 'no-store',
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: (() => {
+        // In some test environments (like Vitest/JSDOM), AbortSignal.timeout
+        // or even AbortController.signal might not be fully compatible with fetch.
+        if (import.meta.env.MODE === 'test') {
+          return undefined;
+        }
+
+        try {
+          return AbortSignal.timeout(timeoutMs);
+        } catch (e) {
+          const controller = new AbortController();
+          setTimeout(() => controller.abort(), timeoutMs);
+          return controller.signal;
+        }
+      })(),
     });
     const durationMs = Math.round(performance.now() - startedAt);
     const requestSucceeded = response.status < 400;

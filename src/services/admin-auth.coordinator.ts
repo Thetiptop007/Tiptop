@@ -20,7 +20,7 @@
 
 import { apiRequest, parseApiResponse, getCsrfTokenForScope } from '../config/api';
 import { logger } from '../utils/logger';
-import { setAccessToken, setCsrfToken, setSessionId, getAccessToken } from './auth-session.store';
+import { setAccessToken, setCsrfToken, setSessionId, getAccessToken, getCsrfToken } from './auth-session.store';
 
 export interface AdminUser {
   _id: string;
@@ -61,23 +61,7 @@ let currentAuthSnapshot: AdminAuthSnapshot = {
   isLoading: true,
 };
 
-const readCookie = (name: string): string | null => {
-  if (typeof document === 'undefined') {
-    return null;
-  }
-
-  // Find all cookies with this name
-  const cookies = document.cookie.split(';');
-  const values = cookies
-    .map(c => c.trim())
-    .filter(c => c.startsWith(`${name}=`))
-    .map(c => decodeURIComponent(c.substring(name.length + 1)));
-
-  // Return the first non-empty value, or the last empty one if none found
-  return values.find(v => v.length > 0) || (values.length > 0 ? values[0] : null);
-};
-
-const getAdminCsrfToken = (): string | null => getCsrfTokenForScope('admin') || readCookie('adminCsrfToken');
+const getAdminCsrfToken = (): string | null => getCsrfToken('admin');
 
 export const refreshAdminSession = async (): Promise<boolean> => {
   const existingToken = getAccessToken('admin');

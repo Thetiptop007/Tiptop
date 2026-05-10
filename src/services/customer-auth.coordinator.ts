@@ -115,23 +115,7 @@ const updateSnapshot = (next: Partial<CustomerAuthSnapshot>) => {
   emit();
 };
 
-const readCookie = (name: string): string | null => {
-  if (typeof document === 'undefined') {
-    return null;
-  }
-
-  // Find all cookies with this name
-  const cookies = document.cookie.split(';');
-  const values = cookies
-    .map(c => c.trim())
-    .filter(c => c.startsWith(`${name}=`))
-    .map(c => decodeURIComponent(c.substring(name.length + 1)));
-
-  // Return the first non-empty value, or the last empty one if none found
-  return values.find(v => v.length > 0) || (values.length > 0 ? values[0] : null);
-};
-
-const getCustomerCsrfToken = (): string | null => getCsrfToken('customer') || readCookie('customerCsrfToken');
+const getCustomerCsrfToken = (): string | null => getCsrfToken('customer');
 
 const normalizeApiResponse = async (response: Response): Promise<any> => {
   try {

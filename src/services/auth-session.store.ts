@@ -24,8 +24,8 @@ const users: Record<AuthScope, unknown | null> = {
 };
 
 const scopeLocalStorageKeys: Record<AuthScope, string[]> = {
-  admin: ['adminToken', 'adminSessionId', 'adminRefreshToken', 'adminEmail', 'adminName', 'adminRole', 'adminUser'],
-  customer: ['customerToken', 'customerSessionId', 'customerRefreshToken', 'customerUser'],
+  admin: ['adminToken', 'adminSessionId', 'adminRefreshToken', 'adminCsrfToken', 'adminEmail', 'adminName', 'adminRole', 'adminUser'],
+  customer: ['customerToken', 'customerSessionId', 'customerRefreshToken', 'customerCsrfToken', 'customerUser'],
 };
 
 const clearPersistedScopeState = (scope?: AuthScope) => {
@@ -201,12 +201,28 @@ const getCookie = (name: string): string | null => {
 
 export const setCsrfToken = (scope: AuthScope, token: string | null) => {
   csrfTokens[scope] = token;
+  if (typeof localStorage !== 'undefined') {
+    if (token) {
+      localStorage.setItem(`${scope}CsrfToken`, token);
+    } else {
+      localStorage.removeItem(`${scope}CsrfToken`);
+    }
+  }
 };
 
 export const getCsrfToken = (scope: AuthScope): string | null => {
   if (csrfTokens[scope]) return csrfTokens[scope];
   
-  // Fallback to cookie if memory is empty (e.g. after refresh)
+  // Fallback to localStorage if memory is empty
+  if (typeof localStorage !== 'undefined') {
+    const persisted = localStorage.getItem(`${scope}CsrfToken`);
+    if (persisted) {
+      csrfTokens[scope] = persisted;
+      return persisted;
+    }
+  }
+
+  // Fallback to cookie if localStorage is empty
   const cookieName = `${scope}CsrfToken`;
   const cookieValue = getCookie(cookieName);
   if (cookieValue) {
