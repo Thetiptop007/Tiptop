@@ -1,6 +1,6 @@
 
 import { Navigate } from 'react-router';
-import { useAuth } from '../../context/AuthContext.tsx';
+import { useAuth } from '../../context/AuthContext';
 import { useAuthStore } from '../../services/auth.store';
 
 

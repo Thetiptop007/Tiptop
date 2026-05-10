@@ -190,7 +190,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const value = {
-    user,
+    user: (coordinatorSnapshot.user as User | null),
     isAuthenticated: coordinatorSnapshot.isAuthenticated,
     isLoading: coordinatorSnapshot.isLoading,
     authReady: coordinatorSnapshot.user !== null || (coordinatorSnapshot.isLoading === false && coordinatorSnapshot.user === null),

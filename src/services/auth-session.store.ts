@@ -303,27 +303,33 @@ export const getAuthSyncPayload = (event: StorageEvent): { scope: AuthScope; eve
 export const getRequestAuthScope = (endpoint: string, pathname: string = window.location.pathname): AuthScope | null => {
   const normalizedEndpoint = endpoint.replace(/^\//, '');
 
-  if (pathname.startsWith('/admin') || normalizedEndpoint.startsWith('admin/')) {
+  // 1. Explicit endpoint prefixes (STRONGEST SIGNAL)
+  if (
+    normalizedEndpoint.startsWith('admin/') ||
+    normalizedEndpoint.startsWith('auth/admin/') ||
+    normalizedEndpoint.startsWith('dashboard/') ||
+    normalizedEndpoint.startsWith('stats/')
+  ) {
     return 'admin';
   }
 
   if (
-    pathname.startsWith('/customer') ||
     normalizedEndpoint.startsWith('customer/') ||
     normalizedEndpoint.startsWith('auth/customer/') ||
-    normalizedEndpoint.startsWith('orders') ||
-    normalizedEndpoint.startsWith('addresses')
+    normalizedEndpoint.startsWith('orders/') ||
+    normalizedEndpoint.startsWith('addresses/')
   ) {
     return 'customer';
   }
 
-  if (normalizedEndpoint.startsWith('auth/admin/')) {
+  // 2. URL Pathname fallback (WEAKER SIGNAL - vulnerable to redirects)
+  if (pathname.startsWith('/admin')) {
     return 'admin';
   }
-
-  if (normalizedEndpoint.startsWith('auth/customer/')) {
+  if (pathname.startsWith('/customer')) {
     return 'customer';
   }
 
   return null;
 };
+

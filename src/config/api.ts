@@ -12,8 +12,17 @@ import {
   getAuthUser,
   getRequestAuthScope,
   setAccessToken,
+  setAuthUser,
   setCsrfToken,
 } from '../services/auth-session.store';
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as any).__AUTH_DEBUG__ = {
+    getAccessToken,
+    setAccessToken,
+  };
+}
+
 import {
   clearCustomerSession as clearCustomerAuthSession,
   refreshCustomerSession,
@@ -330,11 +339,14 @@ export const apiRequest = async (
   const userId = extractUserId(authScope);
   const isRefreshEndpoint = endpoint.endsWith('/refresh') || endpoint === 'auth/refresh-token';
 
-  // Auth is handled by coordinators - no need to wait
+  // WAIT for refresh if one is in progress (prevents race condition on page reload)
+  if (inFlightRefreshPromise && !isRefreshEndpoint) {
+    await inFlightRefreshPromise;
+  }
   
   // Check if Authorization header is explicitly provided in options
   const hasExplicitAuth = requestOptions.headers && 'Authorization' in requestOptions.headers;
-  const token = authScope ? getAccessToken(authScope) : null;
+  let token = authScope ? getAccessToken(authScope) : null;
   const csrfToken = authScope ? getCsrfTokenForScope(authScope) : null;
   
   const headers: Record<string, string> = {
@@ -358,12 +370,10 @@ export const apiRequest = async (
   const bearerToken = token ? `Bearer ${token}` : '';
   const isAdminAuthRequest =
     authScope === 'admin' &&
-    authHeader.length > 0 &&
     authHeader === bearerToken &&
     !isRefreshEndpoint;
   const isCustomerAuthRequest =
     authScope === 'customer' &&
-    authHeader.length > 0 &&
     authHeader === bearerToken &&
     !isRefreshEndpoint &&
     !isAdminAuthRequest;

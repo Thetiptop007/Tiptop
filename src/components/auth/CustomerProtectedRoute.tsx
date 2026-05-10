@@ -1,6 +1,6 @@
 
 import { Navigate, useLocation } from 'react-router-dom';
-import { useCustomerAuth } from '../../context/CustomerAuthContext.tsx';
+import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useAuthStore } from '../../services/auth.store';
 
 
