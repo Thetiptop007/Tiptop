@@ -31,15 +31,15 @@ import {
 import { refreshAdminSession } from '../services/admin-auth.coordinator';
 
 const normalizeApiBaseUrl = (rawBaseUrl: string): string => {
-  const trimmed = rawBaseUrl.trim().replace(/\/+$/, '');
+  let trimmed = rawBaseUrl.trim().replace(/\/+$/, '');
 
-  // If the configured URL already points to /api/v1, keep it as-is.
-  if (trimmed.endsWith('/api/v1')) {
-    return trimmed;
+  // If it's a bare domain like 'https://api.thetiptop.in', append /api/v1
+  // If it already has /api/v1, leave it.
+  if (!trimmed.endsWith('/api/v1')) {
+    trimmed = `${trimmed}/api/v1`;
   }
 
-  // Most backend routes are mounted under /api/v1.
-  return `${trimmed}/api/v1`;
+  return trimmed;
 };
 
 interface ResponseSnapshot {
@@ -203,7 +203,7 @@ const extractUserId = (scope: 'admin' | 'customer' | null): string | null => {
 };
 
 export const getApiUrl = (endpoint: string = ''): string => {
-  const configuredBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+  const configuredBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const baseUrl = normalizeApiBaseUrl(configuredBaseUrl);
   
   // Remove leading slash from endpoint if present
@@ -250,10 +250,6 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
       const refreshEndpoint = scope === 'admin' ? 'auth/admin/refresh' : 'auth/customer/refresh';
       
-      if (import.meta.env.PROD) {
-        console.log(`[DEEP_TRACE] Refreshing ${scope} token at ${refreshEndpoint}...`);
-      }
-
       const response = await fetch(getApiUrl(refreshEndpoint), {
         method: 'POST',
         headers: {
@@ -272,10 +268,6 @@ const refreshAccessToken = async (): Promise<string | null> => {
         if (data.status === 'success' && data.data?.tokens?.accessToken) {
           const newAccessToken = data.data.tokens.accessToken;
           
-          if (import.meta.env.PROD) {
-            console.log(`[DEEP_TRACE] ${scope} refresh SUCCESS. New token obtained.`);
-          }
-
           setAccessToken(scope, newAccessToken);
           const sessionId = extractSessionId(data);
           if (sessionId) {
@@ -293,10 +285,6 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
           return newAccessToken;
         }
-      }
-
-      if (import.meta.env.PROD) {
-        console.log(`[DEEP_TRACE] ${scope} refresh FAILED. Status: ${response.status}`);
       }
 
       logger.error('AUTH_REFRESH_FAILED', {
@@ -363,9 +351,6 @@ export const apiRequest = async (
 
   // TRIGGER REFRESH if token is missing for a protected route (Hydration recovery)
   if (authScope && !getAccessToken(authScope) && !isRefreshEndpoint && !isPublicEndpoint) {
-    if (import.meta.env.PROD) {
-      console.log(`[DEEP_TRACE] Triggering hydration refresh for ${authScope} at ${endpoint}`);
-    }
     if (!inFlightRefreshPromise) {
       if (authScope === 'admin') {
         inFlightRefreshPromise = refreshAdminSession().then(() => {
@@ -381,9 +366,6 @@ export const apiRequest = async (
 
   // WAIT for refresh if one is in progress (prevents race condition on page reload)
   if (inFlightRefreshPromise && !isRefreshEndpoint) {
-    if (import.meta.env.PROD) {
-      console.log(`[DEEP_TRACE] Waiting for in-flight refresh to complete before ${endpoint}...`);
-    }
     await inFlightRefreshPromise;
   }
   
@@ -391,17 +373,6 @@ export const apiRequest = async (
   const hasExplicitAuth = requestOptions.headers && 'Authorization' in requestOptions.headers;
   let token = authScope ? getAccessToken(authScope) : null;
   const csrfToken = authScope ? getCsrfTokenForScope(authScope) : null;
-
-  if (import.meta.env.PROD) {
-    console.log(`[DEEP_TRACE] Executing ${method} ${endpoint}`, {
-      authScope,
-      hasToken: !!token,
-      hasCsrf: !!csrfToken,
-      isRefresh: isRefreshEndpoint,
-      isPublic: isPublicEndpoint,
-      location: window.location.pathname
-    });
-  }
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
