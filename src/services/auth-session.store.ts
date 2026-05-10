@@ -216,6 +216,11 @@ export const getCsrfToken = (scope: AuthScope): string | null => {
   // Fallback to localStorage if memory is empty
   if (typeof localStorage !== 'undefined') {
     const persisted = localStorage.getItem(`${scope}CsrfToken`);
+    
+    if (import.meta.env.PROD) {
+      console.log(`[AUTH_DEBUG] ${scope} CSRF Recovery - Memory: MISSING, LocalStorage: ${persisted ? 'FOUND' : 'MISSING'}`);
+    }
+
     if (persisted) {
       csrfTokens[scope] = persisted;
       return persisted;
@@ -225,6 +230,11 @@ export const getCsrfToken = (scope: AuthScope): string | null => {
   // Fallback to cookie if localStorage is empty
   const cookieName = `${scope}CsrfToken`;
   const cookieValue = getCookie(cookieName);
+
+  if (import.meta.env.PROD) {
+    console.log(`[AUTH_DEBUG] ${scope} CSRF Recovery - Cookie: ${cookieValue ? 'FOUND' : 'MISSING'}`);
+  }
+
   if (cookieValue) {
     csrfTokens[scope] = cookieValue;
     return cookieValue;

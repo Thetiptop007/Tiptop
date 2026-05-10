@@ -249,6 +249,11 @@ const refreshAccessToken = async (): Promise<string | null> => {
       }
 
       const refreshEndpoint = scope === 'admin' ? 'auth/admin/refresh' : 'auth/customer/refresh';
+      
+      if (import.meta.env.PROD) {
+        console.log(`[DEEP_TRACE] Refreshing ${scope} token at ${refreshEndpoint}...`);
+      }
+
       const response = await fetch(getApiUrl(refreshEndpoint), {
         method: 'POST',
         headers: {
@@ -266,6 +271,11 @@ const refreshAccessToken = async (): Promise<string | null> => {
         const data = await response.json();
         if (data.status === 'success' && data.data?.tokens?.accessToken) {
           const newAccessToken = data.data.tokens.accessToken;
+          
+          if (import.meta.env.PROD) {
+            console.log(`[DEEP_TRACE] ${scope} refresh SUCCESS. New token obtained.`);
+          }
+
           setAccessToken(scope, newAccessToken);
           const sessionId = extractSessionId(data);
           if (sessionId) {
@@ -283,6 +293,10 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
           return newAccessToken;
         }
+      }
+
+      if (import.meta.env.PROD) {
+        console.log(`[DEEP_TRACE] ${scope} refresh FAILED. Status: ${response.status}`);
       }
 
       logger.error('AUTH_REFRESH_FAILED', {
@@ -349,6 +363,9 @@ export const apiRequest = async (
 
   // TRIGGER REFRESH if token is missing for a protected route (Hydration recovery)
   if (authScope && !getAccessToken(authScope) && !isRefreshEndpoint && !isPublicEndpoint) {
+    if (import.meta.env.PROD) {
+      console.log(`[DEEP_TRACE] Triggering hydration refresh for ${authScope} at ${endpoint}`);
+    }
     if (!inFlightRefreshPromise) {
       if (authScope === 'admin') {
         inFlightRefreshPromise = refreshAdminSession().then(() => {
@@ -364,6 +381,9 @@ export const apiRequest = async (
 
   // WAIT for refresh if one is in progress (prevents race condition on page reload)
   if (inFlightRefreshPromise && !isRefreshEndpoint) {
+    if (import.meta.env.PROD) {
+      console.log(`[DEEP_TRACE] Waiting for in-flight refresh to complete before ${endpoint}...`);
+    }
     await inFlightRefreshPromise;
   }
   
@@ -371,6 +391,17 @@ export const apiRequest = async (
   const hasExplicitAuth = requestOptions.headers && 'Authorization' in requestOptions.headers;
   let token = authScope ? getAccessToken(authScope) : null;
   const csrfToken = authScope ? getCsrfTokenForScope(authScope) : null;
+
+  if (import.meta.env.PROD) {
+    console.log(`[DEEP_TRACE] Executing ${method} ${endpoint}`, {
+      authScope,
+      hasToken: !!token,
+      hasCsrf: !!csrfToken,
+      isRefresh: isRefreshEndpoint,
+      isPublic: isPublicEndpoint,
+      location: window.location.pathname
+    });
+  }
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
