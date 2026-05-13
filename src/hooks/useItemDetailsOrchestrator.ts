@@ -72,7 +72,11 @@ export function useItemDetailsOrchestrator(id: string | undefined) {
   return {
     queries: { item: itemQuery, related: relatedQuery },
     selection: {
-      variant: { value: selectedVariant, set: (v: string, p: number) => { setSelectedVariant(v); setSelectedPrice(p); } },
+      variant: { 
+        value: selectedVariant, 
+        price: selectedPrice,
+        set: (v: string, p: number) => { setSelectedVariant(v); setSelectedPrice(p); } 
+      },
       quantity: { value: quantity, set: setQuantity },
       cartQuantity
     },

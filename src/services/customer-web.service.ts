@@ -140,11 +140,8 @@ export interface OrderItem {
 }
 
 export interface DeliveryAddress {
-  street: string;
-  apartment?: string;
-  city: string;
-  state: string;
-  zipCode: string;
+  area: string;
+  addressLine: string;
   landmark?: string;
 }
 
@@ -184,17 +181,11 @@ export interface Address {
   _id?: string;
   type: 'home' | 'work' | 'other';
   label?: string;
-  street: string;
-  apartment?: string;
-  city: string;
-  state: string;
-  zipCode: string;
+  area: string;
+  addressLine: string;
   landmark?: string;
   isDefault: boolean;
   createdAt?: string;
-  // Legacy fields for backward compatibility
-  area?: string;
-  postalCode?: string;
 }
 
 /**

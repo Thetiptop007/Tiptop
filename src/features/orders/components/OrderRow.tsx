@@ -166,13 +166,13 @@ export const OrderRow: React.FC<OrderRowProps> = ({
         </TableCell>
         <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{order.phone}</TableCell>
         <TableCell className="px-4 py-3 text-start">
-          {order.address && (order.address.street || order.address.city) ? (
+          {order.address && (order.address.area || order.address.addressLine) ? (
             <>
               <div className="text-gray-800 text-theme-sm dark:text-white/90">
-                {order.address.street}
+                {order.address.addressLine}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">
-                {order.address.city}, {order.address.state} {order.address.zip}
+                {order.address.area}
               </div>
             </>
           ) : order.orderType === 'TAKEAWAY' ? (
@@ -255,8 +255,8 @@ export const OrderRow: React.FC<OrderRowProps> = ({
                           Delivery Address
                         </h4>
                         <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                          <p>{order.address.street}</p>
-                          <p>{order.address.city}, {order.address.state} {order.address.zip}</p>
+                          <p><span className="font-medium text-gray-700 dark:text-gray-300">Address:</span> {order.address.addressLine}</p>
+                          <p><span className="font-medium text-gray-700 dark:text-gray-300">Area:</span> {order.address.area}</p>
                         </div>
                       </div>
                     )}

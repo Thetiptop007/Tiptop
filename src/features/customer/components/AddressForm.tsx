@@ -9,11 +9,11 @@ interface AddressFormProps {
 }
 
 const SERVICE_AREAS = [
-  { id: 'law_gate', name: 'Law Gate', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
-  { id: 't_point', name: 'T Point', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
-  { id: 'green_valley', name: 'Green Valley', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
-  { id: 'bhutani_colony', name: 'Bhutani Colony', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
-  { id: 'riya_girls_hostel', name: 'Riya Girls Hostel', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+  { id: 'law_gate', name: 'Law Gate' },
+  { id: 't_point', name: 'T Point' },
+  { id: 'green_valley', name: 'Green Valley' },
+  { id: 'bhutani_colony', name: 'Bhutani Colony' },
+  { id: 'riya_girls_hostel', name: 'Riya Girls Hostel' },
 ];
 
 export const AddressForm: React.FC<AddressFormProps> = ({
@@ -22,56 +22,31 @@ export const AddressForm: React.FC<AddressFormProps> = ({
   onCancel,
   isSaving
 }) => {
-  const [selectedArea, setSelectedArea] = useState<string>('');
   const [formData, setFormData] = useState<AddressData>({
     type: 'home',
     label: '',
-    street: '',
-    apartment: '',
-    city: '',
-    state: '',
-    zipCode: '',
+    area: '',
+    addressLine: '',
     landmark: '',
     isDefault: false,
   });
 
   useEffect(() => {
     if (initialData) {
-      let areaId = '';
-      let cleanStreet = initialData.street;
-      
-      for (const area of SERVICE_AREAS) {
-        if (initialData.street.startsWith(`${area.name}, `)) {
-          areaId = area.id;
-          cleanStreet = initialData.street.replace(`${area.name}, `, '');
-          break;
-        }
-      }
-      
-      setSelectedArea(areaId);
       setFormData({
-        ...initialData,
-        street: cleanStreet
+        ...initialData
       });
     }
   }, [initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedArea) {
+    if (!formData.area) {
       alert('Please select a delivery area');
       return;
     }
 
-    const selectedAreaDetails = SERVICE_AREAS.find(area => area.id === selectedArea);
-    const submissionData = {
-      ...formData,
-      street: selectedAreaDetails 
-        ? `${selectedAreaDetails.name}, ${formData.street}` 
-        : formData.street
-    };
-
-    onSubmit(submissionData);
+    onSubmit(formData);
   };
 
   return (
@@ -99,13 +74,13 @@ export const AddressForm: React.FC<AddressFormProps> = ({
       </div>
 
       <div className="space-y-3">
-        <label className="text-xs font-bold text-gray-500 uppercase">Street Address</label>
+        <label className="text-xs font-bold text-gray-500 uppercase">Exact Location</label>
         <input
           type="text"
-          placeholder="House No, Apartment name, etc."
+          placeholder="House No, Apartment name, Landmark etc."
           required
-          value={formData.street}
-          onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+          value={formData.addressLine}
+          onChange={(e) => setFormData({ ...formData, addressLine: e.target.value })}
           className="w-full p-3 border border-gray-300 rounded focus:border-red-500 outline-none"
         />
       </div>
@@ -118,22 +93,18 @@ export const AddressForm: React.FC<AddressFormProps> = ({
               key={area.id}
               type="button"
               onClick={() => {
-                setSelectedArea(area.id);
                 setFormData({
                   ...formData,
-                  city: area.city,
-                  state: area.state,
-                  zipCode: area.zipCode
+                  area: area.name
                 });
               }}
               className={`p-3 rounded border text-left transition-all ${
-                selectedArea === area.id
+                formData.area === area.name
                   ? 'border-red-600 bg-red-50'
                   : 'border-gray-200'
               }`}
             >
               <p className="font-bold text-xs">{area.name}</p>
-              <p className="text-[10px] text-gray-500">{area.zipCode}</p>
             </button>
           ))}
         </div>

@@ -19,11 +19,8 @@ export interface UpdateCustomerData {
 export interface AddressData {
   type: 'home' | 'work' | 'other';
   label?: string;
-  street: string;
-  apartment?: string;
-  city: string;
-  state: string;
-  zipCode: string;
+  area: string;
+  addressLine: string;
   landmark?: string;
   isDefault?: boolean;
 }
@@ -31,7 +28,7 @@ export interface AddressData {
 /**
  * Update customer profile
  */
-export const updateCustomer = async (customerId: string, data: UpdateCustomerData) => {
+export const updateCustomer = async (data: UpdateCustomerData) => {
   const token = getAccessToken('customer');
   
   const response = await apiRequest('/auth/me', {

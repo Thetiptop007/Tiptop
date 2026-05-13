@@ -108,8 +108,22 @@ describe('REGRESSION: Admin Order Management Flow', () => {
             items: [],
             total: 500,
             date: '2026-05-10',
-            time: '12:00 PM'
+            time: '12:00 PM',
+            address: {
+              area: 'Law Gate',
+              addressLine: 'House 123'
+            }
           } 
+        });
+      }),
+      // Mock for all orders (delivered/cancelled sections)
+      http.get('*/api/v1/admin/orders/all', () => {
+        return HttpResponse.json({
+          status: 'success',
+          data: {
+            orders: [],
+            pagination: { currentPage: 1, totalPages: 1, totalOrders: 0, limit: 10 }
+          }
         });
       })
     );

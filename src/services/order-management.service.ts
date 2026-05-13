@@ -68,10 +68,8 @@ export interface Order {
   date: string;
   time: string;
   address?: {
-    street: string;
-    city: string;
-    state: string;
-    zip: string;
+    area: string;
+    addressLine: string;
   };
   image?: string;
   deliveryPartner?: {
@@ -353,10 +351,8 @@ export interface CreateAdminOrderData {
     email?: string;
   };
   deliveryAddress?: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
+    area: string;
+    addressLine: string;
   };
   orderType: 'DELIVERY' | 'TAKEAWAY';
   paymentMethod?: string;
@@ -420,7 +416,7 @@ export const printKitchenBill = async (orderId: string): Promise<void> => {
     
     const data = await parseApiResponse(response);
     
-    if (data.status === 'success' || data.success) {
+    if (data.status === 'success') {
       logger.business('THERMAL_PRINT_MARKED', 'Order marked for thermal printing', { orderId });
       return;
     }

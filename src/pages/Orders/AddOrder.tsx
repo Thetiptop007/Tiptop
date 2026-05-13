@@ -25,6 +25,13 @@ interface MenuItem {
   isAvailable?: boolean;
 }
 
+const SERVICE_AREAS = [
+  { id: 'law_gate', name: 'Law Gate' },
+  { id: 't_point', name: 'T Point' },
+  { id: 'green_valley', name: 'Green Valley' },
+  { id: 'bhutani_colony', name: 'Bhutani Colony' },
+];
+
 // Define the TypeScript interface for cart items
 interface CartItem extends MenuItem {
   quantity: number;
@@ -45,10 +52,8 @@ export default function AddOrder() {
   const [customerPhone, setCustomerPhone] = useState<string>("");
   
   // Delivery address state
-  const [deliveryStreet, setDeliveryStreet] = useState<string>("");
-  const [deliveryCity, setDeliveryCity] = useState<string>("");
-  const [deliveryState, setDeliveryState] = useState<string>("");
-  const [deliveryZipCode, setDeliveryZipCode] = useState<string>("");
+  const [deliveryArea, setDeliveryArea] = useState<string>("");
+  const [deliveryAddressLine, setDeliveryAddressLine] = useState<string>("");
 
   // Notification state
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -97,32 +102,18 @@ export default function AddOrder() {
         
         // Fetch settings for tax and charges
         const settingsData = await getSettings();
+        if (!settingsData) {
+          throw new Error('Settings data is missing');
+        }
         setSettings(settingsData);
         logger.network('POS_SETTINGS_LOADED', 'POS settings loaded', {
           hasSettings: !!settingsData,
         });
         
-        // Auto-fill city, state, zip from business address
+        // Auto-fill city, state, zip logic removed for simplified schema
         if (settingsData.businessAddress) {
-          const addressParts = settingsData.businessAddress.split(',').map(part => part.trim());
-          if (addressParts.length >= 3) {
-            const city = addressParts[addressParts.length - 2] || '';
-            const lastPart = addressParts[addressParts.length - 1] || '';
-            
-            // Extract state and zip code from last part (e.g., "Punjab 144411")
-            const zipMatch = lastPart.match(/\b\d{5,6}\b/); // Match 5-6 digit zip code
-            if (zipMatch) {
-              const zipCode = zipMatch[0];
-              const state = lastPart.replace(zipCode, '').trim();
-              setDeliveryState(state);
-              setDeliveryZipCode(zipCode);
-            } else {
-              // No zip found, just set the whole thing as state
-              setDeliveryState(lastPart);
-            }
-            
-            setDeliveryCity(city);
-          }
+          // Just set a default address line from settings if available
+          setDeliveryAddressLine(settingsData.businessAddress);
         }
         
         // Fetch categories
@@ -308,8 +299,12 @@ export default function AddOrder() {
     }
 
     if (orderType === "DELIVERY") {
-      if (!deliveryStreet.trim() || !deliveryCity.trim() || !deliveryState.trim() || !deliveryZipCode.trim()) {
-        showNotification("Please fill in all delivery address fields", "error");
+      if (!deliveryArea) {
+        showNotification("Please select a delivery area", "error");
+        return;
+      }
+      if (!deliveryAddressLine.trim()) {
+        showNotification("Please enter delivery address details", "error");
         return;
       }
     }
@@ -341,10 +336,8 @@ export default function AddOrder() {
 
       if (orderType === "DELIVERY") {
         orderData.deliveryAddress = {
-          street: deliveryStreet,
-          city: deliveryCity,
-          state: deliveryState,
-          zipCode: deliveryZipCode
+          area: deliveryArea,
+          addressLine: deliveryAddressLine
         };
       }
 
@@ -357,7 +350,8 @@ export default function AddOrder() {
         setCart([]);
         setCustomerName("");
         setCustomerPhone("");
-        setDeliveryStreet("");
+        setDeliveryAddressLine("");
+        setDeliveryArea("");
         // Keep city, state, zip for next order (pre-filled from settings)
         // Navigate to order management after a short delay to show notification
         setTimeout(() => {
@@ -846,63 +840,42 @@ export default function AddOrder() {
                   </h3>
                 </div>
                 
-                <div className="space-y-3">
-                  {/* Street Address */}
+                <div className="space-y-4">
+                  {/* Area Selection */}
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                      Street Address <span className="text-red-500">*</span>
+                    <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                      Select Area <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={deliveryStreet}
-                      onChange={(e) => setDeliveryStreet(e.target.value)}
-                      placeholder="Street address"
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      {SERVICE_AREAS.map((area) => (
+                        <button
+                          key={area.id}
+                          type="button"
+                          onClick={() => setDeliveryArea(area.name)}
+                          className={`flex items-center justify-center rounded-lg border-2 py-2.5 text-xs font-medium transition-all ${
+                            deliveryArea === area.name
+                              ? "border-indigo-600 bg-indigo-50 text-indigo-600 dark:border-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400"
+                              : "border-gray-100 bg-white text-gray-700 hover:border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-600"
+                          }`}
+                        >
+                          {area.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* City */}
+                  {/* Exact Location */}
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                      City <span className="text-red-500">*</span>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                      Exact Location / Landmark <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={deliveryCity}
-                      onChange={(e) => setDeliveryCity(e.target.value)}
-                      placeholder="City"
+                    <textarea
+                      rows={2}
+                      value={deliveryAddressLine}
+                      onChange={(e) => setDeliveryAddressLine(e.target.value)}
+                      placeholder="House No, Apartment name, Landmark etc."
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
                     />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* State */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        State <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={deliveryState}
-                        onChange={(e) => setDeliveryState(e.target.value)}
-                        placeholder="State"
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                      />
-                    </div>
-
-                    {/* Zip Code */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Zip Code <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={deliveryZipCode}
-                        onChange={(e) => setDeliveryZipCode(e.target.value)}
-                        placeholder="Zip Code"
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                      />
-                    </div>
                   </div>
                 </div>
               </div>

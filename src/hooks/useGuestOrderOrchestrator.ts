@@ -85,11 +85,8 @@ export function useGuestOrderOrchestrator() {
         })),
         orderType: 'DELIVERY',
         deliveryAddress: {
-          street: customerInfo.apartmentName,
-          city: 'Phagwara',
-          state: 'Punjab',
-          zipCode: '144401',
-          area: customerInfo.area
+          area: customerInfo.area,
+          addressLine: customerInfo.apartmentName
         },
         paymentMethod: 'COD',
         fcmToken

@@ -147,10 +147,8 @@ describe('REGRESSION: Customer Lifecycle & Auth Flow', () => {
             addresses: [{
               _id: 'addr1',
               type: 'home',
-              street: '123 Main St',
-              city: 'Phagwara',
-              state: 'Punjab',
-              zipCode: '144401',
+              area: 'Law Gate',
+              addressLine: '123 Main St, Near PG',
               isDefault: true
             }]
           } 
@@ -257,8 +255,8 @@ describe('REGRESSION: Customer Lifecycle & Auth Flow', () => {
     await waitFor(() => expect(screen.getByText(/Saved Addresses/i)).toBeInTheDocument());
     
     // Wait for the addresses to be loaded and displayed
-    await waitFor(() => expect(screen.getByText(/123 Main/i)).toBeInTheDocument(), { timeout: 4000 });
-    expect(screen.getByText(/Phagwara/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Law Gate/i)).toBeInTheDocument(), { timeout: 4000 });
+    expect(screen.getByText(/123 Main St, Near PG/i)).toBeInTheDocument();
     
     bootstrapSpy.mockRestore();
   });

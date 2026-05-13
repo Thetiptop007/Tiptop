@@ -7,10 +7,10 @@ import { Link } from "react-router";
 import OfferBanner from "../components/customer/OfferBanner";
 
 const SERVICE_AREAS = [
-  { id: 'law_gate', name: 'Law Gate', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
-  { id: 't_point', name: 'T-Point', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
-  { id: 'green_valley', name: 'Green Valley', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
-  { id: 'bhutani_colony', name: 'Bhutani Colony', city: 'Phagwara', state: 'Punjab', zipCode: '144401' },
+  { id: 'law_gate', name: 'Law Gate' },
+  { id: 't_point', name: 'T Point' },
+  { id: 'green_valley', name: 'Green Valley' },
+  { id: 'bhutani_colony', name: 'Bhutani Colony' },
 ];
 
 export default function GuestOrder() {

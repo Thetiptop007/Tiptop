@@ -63,9 +63,8 @@ const SavedAddresses: React.FC = () => {
                         {address.isDefault && <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-1 rounded">Default</span>}
                       </h3>
                       <div className="mt-2 text-xs text-gray-500 space-y-1">
-                        {address.apartment && <p>{address.apartment}</p>}
-                        <p>{address.street}</p>
-                        <p>{address.city}, {address.state} {address.zipCode}</p>
+                        <p><span className="font-bold">Area:</span> {address.area}</p>
+                        <p><span className="font-bold">Details:</span> {address.addressLine}</p>
                       </div>
                     </div>
 
