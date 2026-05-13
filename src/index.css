@@ -173,6 +173,16 @@ layer(base);
   If we ever want to remove these styles, we need to add an explicit border
   color utility to any element that depends on these defaults.
 */
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(-30%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress {
+  animation: progress 2s ease-in-out infinite;
+}
+
 @layer base {
   *,
   ::after,

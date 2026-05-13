@@ -30,7 +30,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterAll(() => server.close());
 
 vi.mock('../../context/ToastContext', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn() }),
+  useToast: () => ({ success: vi.fn(), error: vi.fn(), showToast: vi.fn() }),
   ToastProvider: ({ children }: any) => <>{children}</>
 }));
 

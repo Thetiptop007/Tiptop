@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { useCustomerAuthActions } from '../../hooks/useCustomerAuthActions';
 import GridShape from '../../components/common/GridShape';
 import ThemeTogglerTwo from '../../components/common/ThemeTogglerTwo';
-import { getSettings, Settings } from '../../services/settings.service';
+import { usePublicBootstrap } from '../../hooks/useAppDataQueries';
 
 export default function CustomerLogin() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isLoading: authLoading } = useCustomerAuthActions();
+  const { settings } = usePublicBootstrap();
   
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -16,23 +17,9 @@ export default function CustomerLogin() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
-  const [settings, setSettings] = useState<Settings | null>(null);
 
   // Get redirect path from location state (for redirecting after login)
   const from = (location.state as any)?.from?.pathname || '/customer/menu';
-
-  // Load settings on mount
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settingsData = await getSettings();
-        setSettings(settingsData);
-      } catch (error) {
-        console.error('Failed to load settings:', error);
-      }
-    };
-    loadSettings();
-  }, []);
 
   const validatePhone = (phone: string): boolean => {
     // Indian phone number format - starts with 6-9 and has 10 digits
@@ -285,7 +272,7 @@ export default function CustomerLogin() {
                 <img
                   width={231}
                   height={48}
-                  src="/images/logo/auth-logo.svg"
+                  src="/logo-full.png"
                   alt="Logo"
                 />
               </Link>

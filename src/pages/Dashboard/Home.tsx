@@ -1,8 +1,10 @@
 import PageMeta from "../../components/common/PageMeta";
-import { type DashboardStats } from "../../services/dashboard.service";
-import { useDashboardDataQuery } from "../../hooks/useAppDataQueries";
-import React, { Suspense, lazy, useEffect, useState } from "react";
-import Skeleton from "../../components/ui/Skeleton";
+import React, { Suspense, lazy } from "react";
+import { useDashboardOrchestrator } from "../../features/dashboard/useDashboardOrchestrator";
+import { QueryBoundary } from "../../components/common/QueryBoundary";
+import { StatsSkeleton } from "../../components/ui/skeletons/StatsSkeleton";
+import { ChartSkeleton } from "../../components/ui/skeletons/ChartSkeleton";
+import { TableSkeleton } from "../../components/ui/skeletons/TableSkeleton";
 
 // Lazy load heavy components
 const EcommerceMetrics = lazy(() => import("../../components/ecommerce/EcommerceMetrics"));
@@ -10,48 +12,8 @@ const MonthlySalesChart = lazy(() => import("../../components/ecommerce/MonthlyS
 const MonthlyTarget = lazy(() => import("../../components/ecommerce/MonthlyTarget"));
 const RecentOrders = lazy(() => import("../../components/ecommerce/RecentOrders"));
 
-// Match the component's expected interface
-interface RecentOrder {
-  orderNumber: string;
-  productName: string;
-  productImage: string;
-  itemCount: number;
-  category: string;
-  totalPrice: number;
-  status: string;
-}
-
 export default function Home() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
-  const [monthlySales, setMonthlySales] = useState<number[]>([]);
-  const [monthlyTarget, setMonthlyTarget] = useState<{ target: number; currentRevenue: number; progress: number } | null>(null);
-  const { data, isLoading } = useDashboardDataQuery();
-
-  useEffect(() => {
-    if (!data) {
-      return;
-    }
-
-    setStats({
-      totalCustomers: data.totalCustomers,
-      totalOrders: data.totalOrders,
-    });
-
-    const transformedOrders: RecentOrder[] = data.recentOrders.map((order: any) => ({
-      orderNumber: order.orderNumber || order.orderId || '',
-      productName: order.productName || order.items?.[0]?.name || 'N/A',
-      productImage: order.productImage || order.image || '',
-      itemCount: order.itemCount || order.items?.length || 0,
-      category: order.category || 'General',
-      totalPrice: order.totalPrice || order.total || 0,
-      status: order.status || 'New'
-    }));
-
-    setRecentOrders(transformedOrders);
-    setMonthlySales(data.monthlySales);
-    setMonthlyTarget(data.monthlyTarget);
-  }, [data]);
+  const { query, dashboard } = useDashboardOrchestrator();
 
   return (
     <>
@@ -59,39 +21,64 @@ export default function Home() {
         title="Dashboard | The Tip Top - Restaurant Admin Panel"
         description="View restaurant analytics, sales metrics, and performance for The Tip Top"
       />
-      <div className="grid grid-cols-12 gap-4 md:gap-6">
-        <div className="col-span-12 space-y-6 xl:col-span-7">
-          <Suspense fallback={<Skeleton height={180} className="rounded-2xl" />}>
-            <EcommerceMetrics stats={stats} loading={isLoading} />
-          </Suspense>
-          
-          <Suspense fallback={<Skeleton height={350} className="rounded-2xl" />}>
-            <MonthlySalesChart salesData={monthlySales} loading={isLoading} />
-          </Suspense>
-        </div>
-
-        <div className="col-span-12 xl:col-span-5">
-          <Suspense fallback={<Skeleton height={450} className="rounded-2xl" />}>
-            <MonthlyTarget targetData={monthlyTarget} loading={isLoading} />
-          </Suspense>
-        </div>
-
-        <div className="col-span-12 xl:col-span-5">
-          <div className="h-full rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 overflow-hidden min-h-[300px]">
-            <img 
-              src="https://img.freepik.com/free-vector/restaurant-background_23-2148067523.jpg" 
-              alt="Dashboard visualization"
-              className="w-full h-full object-cover"
-            />
+      
+      <QueryBoundary
+        query={query}
+        loadingComponent={
+          <div className="space-y-6">
+            <StatsSkeleton />
+            <div className="grid grid-cols-12 gap-6">
+              <div className="col-span-12 xl:col-span-7 space-y-6">
+                <ChartSkeleton height={200} />
+                <ChartSkeleton height={350} />
+              </div>
+              <div className="col-span-12 xl:col-span-5">
+                <ChartSkeleton height={450} />
+              </div>
+            </div>
           </div>
-        </div>
+        }
+      >
+        {() => (
+          <div className="grid grid-cols-12 gap-4 md:gap-6">
+            {/* Metrics Section */}
+            <div className="col-span-12 space-y-6 xl:col-span-7">
+              <Suspense fallback={<StatsSkeleton count={1} />}>
+                <EcommerceMetrics stats={dashboard.stats} loading={query.isLoading} />
+              </Suspense>
+              
+              <Suspense fallback={<ChartSkeleton height={350} />}>
+                <MonthlySalesChart salesData={dashboard.monthlySales} loading={query.isLoading} />
+              </Suspense>
+            </div>
 
-        <div className="col-span-12 xl:col-span-7">
-          <Suspense fallback={<Skeleton height={400} className="rounded-2xl" />}>
-            <RecentOrders orders={recentOrders} loading={isLoading} />
-          </Suspense>
-        </div>
-      </div>
+            {/* Target Section */}
+            <div className="col-span-12 xl:col-span-5">
+              <Suspense fallback={<ChartSkeleton height={450} />}>
+                <MonthlyTarget targetData={dashboard.monthlyTarget} loading={query.isLoading} />
+              </Suspense>
+            </div>
+
+            {/* Image Visualization Section */}
+            <div className="col-span-12 xl:col-span-5">
+              <div className="h-full rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 overflow-hidden min-h-[300px]">
+                <img 
+                  src="https://img.freepik.com/free-vector/restaurant-background_23-2148067523.jpg" 
+                  alt="Dashboard visualization"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+
+            {/* Recent Orders Section */}
+            <div className="col-span-12 xl:col-span-7">
+              <Suspense fallback={<TableSkeleton rows={5} />}>
+                <RecentOrders orders={dashboard.recentOrders} loading={query.isLoading} />
+              </Suspense>
+            </div>
+          </div>
+        )}
+      </QueryBoundary>
     </>
   );
 }

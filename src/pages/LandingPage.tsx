@@ -1,43 +1,23 @@
 import { Link } from "react-router";
-import { useState, useEffect } from "react";
-import { getSettings, Settings } from "../services/settings.service";
-import { getPopularItems, MenuItem } from "../services/menu-management.service";
 import Footer from "../components/common/Footer";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useAuth } from "../context/AuthContext";
+import { usePopularItemsQuery, usePublicBootstrap } from "../hooks/useAppDataQueries";
+
+import { QueryBoundary } from "../components/common/QueryBoundary";
 
 export default function LandingPage() {
   const { isAuthenticated: isCustomer, authReady: customerAuthReady } = useCustomerAuth();
   const { isAuthenticated: isAdmin, authReady: adminAuthReady } = useAuth();
 
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [popularDishes, setPopularDishes] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { settings, isLoading: isBootstrapLoading } = usePublicBootstrap();
+  const popularItemsQuery = usePopularItemsQuery(3);
 
+  
   const isAuthenticated = isCustomer || isAdmin;
-  const headerAuthReady = isCustomer ? customerAuthReady : isAdmin ? adminAuthReady : (customerAuthReady && adminAuthReady);
+  const isAuthReady = isCustomer ? customerAuthReady : isAdmin ? adminAuthReady : (customerAuthReady && adminAuthReady);
+  const headerAuthReady = isAuthReady && !isBootstrapLoading;
 
-
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [settingsData, popularItems] = await Promise.all([
-          getSettings(),
-          getPopularItems(3)
-        ]);
-        
-        setSettings(settingsData);
-        setPopularDishes(popularItems);
-
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
@@ -46,8 +26,10 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center">
-              <img src="/logo-full.png" alt="The Tip Top" className="h-10" />
+              <img src="/logo-full.png" alt="The Tip Top" className="h-10 dark:hidden" />
+              <img src="/logo-full.png" alt="The Tip Top" className="h-10 hidden dark:block brightness-200" />
             </Link>
+
             
             {/* Show different buttons based on authentication status */}
             {/* Show different buttons based on authentication status */}
@@ -57,13 +39,15 @@ export default function LandingPage() {
               <div className="flex items-center gap-3">
                 <Link
                   to="/admin"
-                  className="inline-block rounded-lg bg-[#e36057] px-4 py-2 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors shadow-sm"
+                  className="inline-block rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 transition-colors shadow-sm"
                 >
                   Admin Panel
                 </Link>
+
                 <Link
                   to="/admin/profile"
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-[#e36057] hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-brand-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+
                   title="Admin Profile"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,19 +59,21 @@ export default function LandingPage() {
               <div className="flex items-center gap-3">
                 <Link
                   to="/customer/orders"
-                  className="inline-block rounded-lg bg-[#e36057] px-4 py-2 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors shadow-sm"
+                  className="inline-block rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 transition-colors shadow-sm"
                 >
                   My Orders
                 </Link>
                 <Link
                   to="/customer/menu"
-                  className="hidden sm:inline-block rounded-lg border-2 border-[#e36057] px-4 py-2 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10"
+                  className="hidden sm:inline-block rounded-lg border-2 border-brand-500 px-4 py-2 text-sm font-medium text-brand-500 hover:bg-brand-50 transition-colors dark:border-brand-500 dark:hover:bg-brand-500/10"
                 >
                   Menu
                 </Link>
+
                 <Link
                   to="/customer/profile"
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-[#e36057] hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-brand-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+
                   title="Profile"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,10 +84,11 @@ export default function LandingPage() {
             ) : (
               <Link
                 to="/customer/login"
-                className="inline-block rounded-lg border-2 border-[#e36057] px-6 py-2 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10"
+                className="inline-block rounded-lg border-2 border-brand-500 px-6 py-2 text-sm font-medium text-brand-500 hover:bg-brand-50 transition-colors dark:border-brand-500 dark:hover:bg-brand-500/10"
               >
                 Sign In
               </Link>
+
             )}
           </div>
         </div>
@@ -111,9 +98,10 @@ export default function LandingPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 px-4 md:px-6 lg:px-20 py-10 md:py-16 max-w-7xl mx-auto">
         <div className="flex flex-col justify-center">
           <div className="w-fit flex gap-3 items-center rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 font-medium shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="w-14 h-10 md:w-16 md:h-12 bg-[#e36057] flex justify-center items-center">
+            <div className="w-14 h-10 md:w-16 md:h-12 bg-brand-500 flex justify-center items-center">
               <img src="/heroImage.png" alt="heroImage small" className="w-8 md:w-10" />
             </div>
+
             <div className="pr-4 text-sm text-gray-800 dark:text-white/90">
               Food, Taste, Quality
             </div>
@@ -157,103 +145,77 @@ export default function LandingPage() {
           </p>
         </div>
         
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden animate-pulse">
-                <div className="aspect-square bg-gray-200 dark:bg-gray-700"></div>
-                <div className="p-5 space-y-3">
-                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        <QueryBoundary 
+          query={popularItemsQuery} 
+          loadingComponent={
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden animate-pulse bg-white dark:bg-white/[0.03]">
+                  <div className="aspect-square bg-gray-100 dark:bg-gray-800"></div>
+                  <div className="p-5 space-y-3">
+                    <div className="h-6 bg-gray-100 dark:bg-gray-800 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-full"></div>
+                    <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-1/2 mt-4"></div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : popularDishes.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {popularDishes.map((dish) => (
-              <div key={dish.id} className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="aspect-square overflow-hidden">
-                  <img
-                    src={dish.image}
-                    alt={dish.name}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-5">
-                  <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
-                    {dish.name}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                    {dish.description}
-                  </p>
-                  {dish.priceVariants && dish.priceVariants.length > 0 && (
-                    <p className="text-sm font-semibold text-[#e36057]">
-                      Starting from ₹{Math.min(...dish.priceVariants.map(v => v.price))}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {/* Default dishes as fallback */}
-            <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="aspect-square overflow-hidden">
-                <img
-                  src="https://img.freepik.com/free-photo/indian-butter-chicken-black-bowl-isolated-white_123827-20098.jpg"
-                  alt="Tandoori Chicken"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-              <div className="p-5">
-                <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
-                  Tandoori Chicken
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Perfectly marinated and grilled to perfection
-                </p>
-              </div>
+              ))}
             </div>
+          }
+        >
 
-            <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="aspect-square overflow-hidden">
-                <img
-                  src="https://img.freepik.com/free-photo/indian-paneer-tikka-kabab-made-cottage-cheese-served-with-mint-chutney_466689-76250.jpg"
-                  alt="Shahi Paneer"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-              <div className="p-5">
-                <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
-                  Shahi Paneer
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Rich and creamy cottage cheese curry
-                </p>
-              </div>
+          {(dishes) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {dishes && dishes.length > 0 ? (
+                dishes.map((dish: any) => (
+                  <div key={dish._id} className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="aspect-square overflow-hidden">
+                      <img
+                        src={dish.image}
+                        alt={dish.name}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
+                        {dish.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                        {dish.description}
+                      </p>
+                      {dish.priceVariants && dish.priceVariants.length > 0 && (
+                        <p className="text-sm font-semibold text-[#e36057]">
+                          Starting from ₹{Math.min(...dish.priceVariants.map((v: any) => v.price))}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <>
+                  {/* Default dishes as fallback */}
+                  <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="aspect-square overflow-hidden">
+                      <img
+                        src="https://img.freepik.com/free-photo/indian-butter-chicken-black-bowl-isolated-white_123827-20098.jpg"
+                        alt="Tandoori Chicken"
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
+                        Tandoori Chicken
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Perfectly marinated and grilled to perfection
+                      </p>
+                    </div>
+                  </div>
+                  {/* Add more fallbacks if needed */}
+                </>
+              )}
             </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="aspect-square overflow-hidden">
-                <img
-                  src="https://img.freepik.com/free-photo/delicious-indian-biryani-with-chicken-plate_23-2150696018.jpg"
-                  alt="Chicken Dum Biryani"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-              <div className="p-5">
-                <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
-                  Chicken Dum Biryani
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Aromatic basmati rice with succulent chicken
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </QueryBoundary>
         <div className="mt-8 md:mt-12 flex justify-center">
           <Link
             to={isAuthenticated ? "/customer/menu" : "/order"}
@@ -393,9 +355,10 @@ export default function LandingPage() {
                   />
                 </div>
               </div>
-              <h3 className="text-lg md:text-xl font-bold text-[#e36057] mb-3">
+              <h3 className="text-lg md:text-xl font-bold text-brand-500 mb-3">
                 Choose Your Meal
               </h3>
+
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 See the menu area for all of our dishes. Decide on your preferred dish and serving size.
               </p>
@@ -412,9 +375,10 @@ export default function LandingPage() {
                   />
                 </div>
               </div>
-              <h3 className="text-lg md:text-xl font-bold text-[#e36057] mb-3">
+              <h3 className="text-lg md:text-xl font-bold text-brand-500 mb-3">
                 Confirm Your Order
               </h3>
+
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Confirm your order on whatsapp and wait for delivery. Free delivery on orders above ₹100/-
               </p>
@@ -431,9 +395,10 @@ export default function LandingPage() {
                   />
                 </div>
               </div>
-              <h3 className="text-lg md:text-xl font-bold text-[#e36057] mb-3">
+              <h3 className="text-lg md:text-xl font-bold text-brand-500 mb-3">
                 Collect Your Meal
               </h3>
+
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Collect your meal and enjoy it. Visit again to get best food.
               </p>

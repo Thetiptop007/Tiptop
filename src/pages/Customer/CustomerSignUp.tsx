@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useCustomerAuthActions } from '../../hooks/useCustomerAuthActions';
-import Footer from '../../components/common/Footer';
+import GridShape from '../../components/common/GridShape';
+import ThemeTogglerTwo from '../../components/common/ThemeTogglerTwo';
 
 export default function CustomerSignUp() {
   const navigate = useNavigate();
@@ -9,7 +10,6 @@ export default function CustomerSignUp() {
   
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     phone: '',
     password: '',
     confirmPassword: '',
@@ -25,13 +25,7 @@ export default function CustomerSignUp() {
     return phoneRegex.test(phone.replace(/[^\d]/g, ''));
   };
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
   const validatePassword = (password: string): boolean => {
-    // At least 6 characters
     return password.length >= 6;
   };
 
@@ -41,7 +35,6 @@ export default function CustomerSignUp() {
       ...formData,
       [name]: value,
     });
-    // Clear error for this field when user types
     setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
@@ -49,18 +42,12 @@ export default function CustomerSignUp() {
     e.preventDefault();
     setErrors({});
 
-    // Validation
     const newErrors: { [key: string]: string } = {};
 
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
     } else if (formData.name.trim().length < 2) {
       newErrors.name = 'Name must be at least 2 characters';
-    }
-
-    // Email is optional
-    if (formData.email.trim() && !validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
     }
 
     if (!formData.phone.trim()) {
@@ -90,14 +77,12 @@ export default function CustomerSignUp() {
 
     try {
       const cleanPhone = formData.phone.replace(/[^\d]/g, '');
-      
-      // Use phone as email if email is not provided (backend requires email field)
-      const emailOrPhone = formData.email.trim() || `${cleanPhone}@tiptop.app`;
+      const emailOrPhone = `${cleanPhone}@tiptop.app`;
       
       const signupData = {
-        name: formData.name.trim(), // Send as single name field (backend will split)
+        name: formData.name.trim(),
         phone: cleanPhone,
-        email: emailOrPhone,
+        email: emailOrPhone, // Use fallback email since field is removed
         password: formData.password,
       };
       
@@ -105,10 +90,7 @@ export default function CustomerSignUp() {
       const { success, user, message } = result;
 
       if (success && user) {
-          // Show success message briefly before redirect
           setErrors({});
-          
-          // Short delay to show success state, then redirect
           setTimeout(() => {
             navigate('/customer/menu', { 
               replace: true,
@@ -118,40 +100,17 @@ export default function CustomerSignUp() {
             });
           }, 500);
       } else {
-        console.error('❌ Signup failed with message:', message);
-        
-        // Map specific error messages to field errors for better UX
         const errorMessage = message || 'Registration failed. Please try again.';
-        
         if (errorMessage.toLowerCase().includes('phone') && errorMessage.toLowerCase().includes('already')) {
-          setErrors({ 
-            phone: errorMessage,
-            submit: errorMessage 
-          });
-        } else if (errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('already')) {
-          setErrors({ 
-            email: errorMessage,
-            submit: errorMessage 
-          });
+          setErrors({ phone: errorMessage, submit: errorMessage });
         } else {
           setErrors({ submit: errorMessage });
         }
       }
     } catch (err: any) {
-      console.error('❌ Signup error caught:', err);
       const errorMessage = err.message || 'An error occurred. Please try again.';
-      
-      // Map specific error messages to field errors
       if (errorMessage.toLowerCase().includes('phone') && errorMessage.toLowerCase().includes('already')) {
-        setErrors({ 
-          phone: errorMessage,
-          submit: errorMessage 
-        });
-      } else if (errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('already')) {
-        setErrors({ 
-          email: errorMessage,
-          submit: errorMessage 
-        });
+        setErrors({ phone: errorMessage, submit: errorMessage });
       } else {
         setErrors({ submit: errorMessage });
       }
@@ -161,53 +120,35 @@ export default function CustomerSignUp() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col font-outfit">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">T</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">TipTop</span>
-            </Link>
-            <Link 
-              to="/customer/login"
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+    <div className="relative bg-white z-1 dark:bg-gray-900 overflow-hidden">
+      <div className="relative flex flex-col w-full h-screen lg:flex-row dark:bg-gray-900">
+        {/* Left Side - Form */}
+        <div className="flex flex-col flex-1 overflow-y-auto">
+          <div className="w-full max-w-md pt-10 mx-auto px-6 lg:px-0">
+            <Link
+              to="/"
+              className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
             >
-              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              <svg className="size-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Sign In
+              Back to home
             </Link>
           </div>
-        </div>
-      </header>
+          <div className="flex flex-col justify-center flex-1 w-full max-w-md py-12 mx-auto px-6 lg:px-0">
+            <div>
+              <div className="mb-5 sm:mb-8">
+                <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
+                  Create Your Account
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Join us to order delicious food and track your history
+                </p>
+              </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-        <div className="w-full max-w-lg space-y-6">
-          {/* Logo and Title */}
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl mb-4">
-              <svg className="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Create Your Account
-            </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Join us and start ordering delicious food
-            </p>
-          </div>
-
-          {/* Signup Form */}
-          <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-sm rounded-xl border border-gray-200 dark:border-gray-700 sm:px-10">
-            <form className="space-y-5" onSubmit={handleSubmit}>
+              {/* Error Message */}
               {errors.submit && (
-                <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800">
+                <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800">
                   <div className="flex items-start">
                     <svg className="w-5 h-5 text-red-600 dark:text-red-400 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -217,240 +158,195 @@ export default function CustomerSignUp() {
                 </div>
               )}
 
-              {/* Name Field */}
               <div>
-                <label htmlFor="name" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={handleChange}
-                    className={`block w-full pl-10 pr-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400 transition-colors ${
-                      errors.name ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    placeholder="John Doe"
-                  />
-                </div>
-                {errors.name && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name}</p>}
-              </div>
-
-              {/* Email Field (Optional) */}
-              <div>
-                <label htmlFor="email" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                  Email Address <span className="text-gray-400 text-xs normal-case">(Optional)</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`block w-full pl-10 pr-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400 transition-colors ${
-                      errors.email ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    placeholder="you@example.com"
-                  />
-                </div>
-                {errors.email && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.email}</p>}
-              </div>
-
-              {/* Phone Number */}
-              <div>
-                <label htmlFor="phone" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                  </div>
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/[^\d]/g, '');
-                      setFormData(prev => ({ ...prev, phone: value }));
-                      setErrors(prev => ({ ...prev, phone: '' }));
-                    }}
-                    className={`block w-full pl-10 pr-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400 transition-colors ${
-                      errors.phone ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    placeholder="10-digit phone number"
-                    maxLength={10}
-                  />
-                </div>
-                {errors.phone && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.phone}</p>}
-              </div>
-
-              {/* Password */}
-              <div>
-                <label htmlFor="password" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </div>
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={`block w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400 transition-colors ${
-                      errors.password ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    placeholder="At least 6 characters"
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    ) : (
-                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-                {errors.password && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.password}</p>}
-              </div>
-
-              {/* Confirm Password */}
-              <div>
-                <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                  Confirm Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  </div>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    required
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className={`block w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400 transition-colors ${
-                      errors.confirmPassword ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    placeholder="Re-enter your password"
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    ) : (
-                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-                {errors.confirmPassword && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.confirmPassword}</p>}
-              </div>
-
-              {/* Submit Button */}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={loading || authLoading}
-                  className="flex w-full justify-center items-center rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md"
-                >
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Creating account...
+                <form onSubmit={handleSubmit}>
+                  <div className="space-y-5">
+                    {/* Full Name */}
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={handleChange}
+                        name="name"
+                        placeholder="John Doe"
+                        disabled={loading}
+                        className={`w-full px-4 py-2.5 text-sm transition-colors bg-transparent border rounded-lg outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-brand-500 dark:focus:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white ${
+                          errors.name ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                      {errors.name && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name}</p>}
                     </div>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                      </svg>
-                      Create Account
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
 
-            {/* Terms */}
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-center text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                By creating an account, you agree to our{' '}
-                <Link to="/privacy-policy" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link to="/privacy-policy" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors">
-                  Privacy Policy
-                </Link>
+                    {/* Phone Number */}
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Phone Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={formData.phone}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^\d]/g, '');
+                          setFormData(prev => ({ ...prev, phone: value }));
+                          setErrors(prev => ({ ...prev, phone: '' }));
+                        }}
+                        placeholder="10-digit phone number"
+                        maxLength={10}
+                        disabled={loading}
+                        className={`w-full px-4 py-2.5 text-sm transition-colors bg-transparent border rounded-lg outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-brand-500 dark:focus:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white ${
+                          errors.phone ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                      {errors.phone && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.phone}</p>}
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Password <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={formData.password}
+                          onChange={handleChange}
+                          name="password"
+                          placeholder="At least 6 characters"
+                          disabled={loading}
+                          className={`w-full px-4 py-2.5 pr-10 text-sm transition-colors bg-transparent border rounded-lg outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-brand-500 dark:focus:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white ${
+                            errors.password ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                        >
+                          {showPassword ? (
+                            <svg className="size-5 fill-gray-500 dark:fill-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className="size-5 fill-gray-500 dark:fill-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                              <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                      {errors.password && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.password}</p>}
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Confirm Password <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          required
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          name="confirmPassword"
+                          placeholder="Re-enter your password"
+                          disabled={loading}
+                          className={`w-full px-4 py-2.5 pr-10 text-sm transition-colors bg-transparent border rounded-lg outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-brand-500 dark:focus:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white ${
+                            errors.confirmPassword ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                        >
+                          {showConfirmPassword ? (
+                            <svg className="size-5 fill-gray-500 dark:fill-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className="size-5 fill-gray-500 dark:fill-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                              <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                      {errors.confirmPassword && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.confirmPassword}</p>}
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={loading || authLoading}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white transition-colors bg-brand-500 border border-transparent rounded-lg shadow-sm w-full hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-gray-900"
+                      >
+                        {loading ? (
+                          <>
+                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Creating account...
+                          </>
+                        ) : (
+                          'Create Account'
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Sign In Link */}
+                    <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+                      Already have an account?{' '}
+                      <Link
+                        to="/customer/login"
+                        className="font-medium text-brand-500 hover:text-brand-600 transition-colors"
+                      >
+                        Sign in now
+                      </Link>
+                    </p>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side - Branding */}
+        <div className="items-center hidden w-full h-full lg:w-1/2 bg-brand-950 dark:bg-white/5 lg:grid relative overflow-hidden">
+          <div className="relative flex items-center justify-center z-1 w-full h-full">
+            <GridShape />
+            <div className="flex flex-col items-center max-w-xs px-6">
+              <Link to="/" className="block mb-6">
+                <img
+                  width={231}
+                  height={48}
+                  src="/logo-full.png"
+                  alt="Logo"
+                  className="mx-auto"
+                />
+              </Link>
+              <p className="text-center text-gray-400 dark:text-white/60 text-lg leading-relaxed">
+                Join our community and order delicious food from The Tip Top Restaurant
               </p>
             </div>
           </div>
+        </div>
 
-          {/* Login Link */}
-          <div className="text-center bg-gray-50 dark:bg-gray-800/50 rounded-lg px-6 py-4 border border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Already have an account?{' '}
-              <Link
-                to="/customer/login"
-                className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors inline-flex items-center"
-              >
-                Sign in
-                <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
-            </p>
-          </div>
+        {/* Theme Toggler */}
+        <div className="fixed z-50 hidden bottom-6 right-6 sm:block">
+          <ThemeTogglerTwo />
         </div>
       </div>
-
-      {/* Footer */}
-      <Footer />
     </div>
   );
 }

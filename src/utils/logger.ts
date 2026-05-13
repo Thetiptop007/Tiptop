@@ -152,33 +152,25 @@ const sanitizeMeta = (meta?: LogMeta) => {
 
 
 const shouldEmitByCategory = (level: LogLevel, logType: LogType, event: string) => {
-  // Suppress debug and info logs globally as requested
-  if (level === 'debug' || level === 'info') {
-    // Exception: Allow specific allowlisted network info logs in production if needed,
-    // but the user asked to remove unnecessary logs, so we'll be strict.
-    if (isProduction && logType === 'network' && level === 'info') {
+  // Production: strictly suppress non-critical logs
+  if (isProduction) {
+    if (level === 'error') return true;
+    if (logType === 'auth' && level === 'warn') return true;
+    
+    // Specific allowlisted critical network events
+    if (logType === 'network' && level === 'info') {
       return PROD_NETWORK_INFO_ALLOWLIST.has(event);
     }
+    
     return false;
   }
 
+  // Development: allow most logs but provide a way to reduce noise if needed
   if (isDev) {
     return true;
   }
 
-  // Production: suppress non-critical logs
-  if (isProduction) {
-    // Always emit errors
-    if (level === 'error') return true;
-    
-    // Critical auth warnings
-    if (logType === 'auth' && level === 'warn') return true;
-
-    // Suppress other warnings in production to reduce noise
-    return false;
-  }
-
-  return true;
+  return level === 'error' || level === 'warn';
 };
 
 const shouldDedupe = (level: LogLevel, logType: LogType, event: string, message: string, route: string) => {
@@ -298,6 +290,10 @@ export const logger = {
   auth: (event: string, message: string, meta?: LogMeta) => emitStructured('info', 'auth', event, message, meta),
   business: (event: string, message: string, meta?: LogMeta) => emitStructured('info', 'business', event, message, meta),
   runtime: (event: string, message: string, meta?: LogMeta) => emitStructured('error', 'runtime', event, message, meta),
+  /** Log React Query lifecycle events (FETCH_START, CACHE_HIT, etc.) */
+  query: (event: string, message: string, meta?: LogMeta) => emitStructured('debug', 'network', event, message, meta),
+  /** Log major component or application lifecycle events (MOUNT, BOOTSTRAP, etc.) */
+  lifecycle: (event: string, message: string, meta?: LogMeta) => emitStructured('debug', 'runtime', event, message, meta),
 };
 
 export const installBrowserRuntimeLogging = () => {
