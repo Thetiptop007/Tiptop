@@ -12,6 +12,7 @@ const SERVICE_AREAS = [
   { id: 't_point', name: 'T Point' },
   { id: 'green_valley', name: 'Green Valley' },
   { id: 'bhutani_colony', name: 'Bhutani Colony' },
+  { id: 'riya_hostel', name: 'Riya Girls Hostel' },
 ];
 
 export default function GuestOrder() {

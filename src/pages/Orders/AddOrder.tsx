@@ -30,6 +30,7 @@ const SERVICE_AREAS = [
   { id: 't_point', name: 'T Point' },
   { id: 'green_valley', name: 'Green Valley' },
   { id: 'bhutani_colony', name: 'Bhutani Colony' },
+  { id: 'riya_hostel', name: 'Riya Girls Hostel' },
 ];
 
 // Define the TypeScript interface for cart items
@@ -110,11 +111,7 @@ export default function AddOrder() {
           hasSettings: !!settingsData,
         });
         
-        // Auto-fill city, state, zip logic removed for simplified schema
-        if (settingsData.businessAddress) {
-          // Just set a default address line from settings if available
-          setDeliveryAddressLine(settingsData.businessAddress);
-        }
+        // Auto-fill logic removed to ensure manual entry by admin
         
         // Fetch categories
         const categoriesData: any = await getCategories();
