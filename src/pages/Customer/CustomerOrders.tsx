@@ -4,6 +4,8 @@ import { QueryBoundary } from '../../components/common/QueryBoundary';
 import { useCustomerOrderSocket } from '../../hooks/useCustomerOrderSocket';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { formatOrderNumberForDisplay } from '../../utils/orderNumber';
+
 
 const getStatusInfo = (status: string) => {
   switch (status.toUpperCase()) {
@@ -85,7 +87,7 @@ export default function CustomerOrders() {
                     >
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <p className="text-xs font-bold text-brand-500 mb-1">#{order.orderNumber}</p>
+                          <p className="text-xs font-bold text-brand-500 mb-1">#{formatOrderNumberForDisplay(order.orderNumber)}</p>
                           <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleString()}</p>
                         </div>
                         <span className={`${status.color} text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider`}>

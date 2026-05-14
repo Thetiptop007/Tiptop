@@ -8,6 +8,7 @@ import AppDownloadLinksCard from "../components/UserProfile/AppDownloadLinksCard
 import ChangePasswordCard from "../components/UserProfile/ChangePasswordCard";
 import ShopStatusCard from "../components/UserProfile/ShopStatusCard";
 import PageMeta from "../components/common/PageMeta";
+import SessionManagerCard from "../components/UserProfile/SessionManagerCard";
 
 export default function UserProfiles() {
   return (
@@ -27,6 +28,7 @@ export default function UserProfiles() {
           <UserInfoCard />
           <ContactInfoCard />
           <ChangePasswordCard />
+          <SessionManagerCard role="admin" />
           <OrderPricingCard />
           <AppDownloadLinksCard />
           <AppUpdateCard />

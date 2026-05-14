@@ -32,37 +32,39 @@ export default function OrderManagement() {
       <PageBreadcrumb pageTitle="Order Management" />
 
       {/* View Toggle Buttons */}
-      <div className="mb-6 flex items-center gap-2">
-        <button
-          onClick={() => setTab('today')}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-            tab === "today"
-              ? "bg-indigo-600 text-white dark:bg-indigo-500"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-          }`}
-        >
-          Today
-        </button>
-        <button
-          onClick={() => setTab('all')}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-            tab === "all"
-              ? "bg-indigo-600 text-white dark:bg-indigo-500"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-          }`}
-        >
-          All
-        </button>
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex bg-gray-100 dark:bg-white/[0.05] p-1 rounded-xl">
+          <button
+            onClick={() => setTab('today')}
+            className={`rounded-lg px-5 py-2 text-sm font-semibold transition-all ${
+              tab === "today"
+                ? "bg-white text-indigo-600 shadow-sm dark:bg-indigo-600 dark:text-white"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => setTab('all')}
+            className={`rounded-lg px-5 py-2 text-sm font-semibold transition-all ${
+              tab === "all"
+                ? "bg-white text-indigo-600 shadow-sm dark:bg-indigo-600 dark:text-white"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            All
+          </button>
+        </div>
         
         {/* Refresh Button */}
         <button
           onClick={() => activeQuery.refetch()}
           disabled={activeQuery.isFetching}
-          className="ml-auto rounded-lg bg-gray-100 px-3 py-2 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="ml-auto flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-white/[0.05] dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.08] transition-all disabled:opacity-50"
           title="Refresh orders"
         >
           <svg 
-            className={`h-5 w-5 ${activeQuery.isFetching ? 'animate-spin' : ''}`}
+            className={`h-4 w-4 ${activeQuery.isFetching ? 'animate-spin' : ''}`}
             fill="none" 
             viewBox="0 0 24 24" 
             stroke="currentColor"
@@ -74,6 +76,7 @@ export default function OrderManagement() {
               d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357-2H15" 
             />
           </svg>
+          <span>Refresh</span>
         </button>
       </div>
 
@@ -95,6 +98,7 @@ export default function OrderManagement() {
                 badgeColor="indigo"
                 onStatusUpdate={actions.updateStatus}
                 showBulkControls
+                bulkActionLabel="Accept Selected"
                 onBulkUpdate={(ids) => actions.bulkUpdateStatus(ids, 'ACCEPTED')}
               />
 
@@ -104,6 +108,7 @@ export default function OrderManagement() {
                 badgeColor="blue"
                 onStatusUpdate={actions.updateStatus}
                 showBulkControls
+                bulkActionLabel="Mark Ready"
                 onBulkUpdate={(ids) => actions.bulkUpdateStatus(ids, 'READY')}
               />
 
@@ -114,6 +119,7 @@ export default function OrderManagement() {
                 onStatusUpdate={actions.updateStatus}
                 onAssignClick={(id) => actions.openAssignModal([id])}
                 showBulkControls
+                bulkActionLabel="Assign Selected"
                 onBulkUpdate={(ids) => actions.openAssignModal(ids)}
               />
 

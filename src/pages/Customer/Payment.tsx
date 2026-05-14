@@ -7,6 +7,8 @@ import { getSettings } from '../../services/settings.service';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useShopStatus } from '../../context/ShopStatusContext';
 import { logger } from '../../utils/logger';
+import { formatOrderNumberForDisplay } from '../../utils/orderNumber';
+
 
 // Service areas configuration
 const SERVICE_AREAS = [
@@ -169,7 +171,7 @@ export default function Payment() {
       if (customer) {
         navigate(`/customer/orders/${order._id}`);
       } else {
-        alert(`Order placed successfully! Your order ID is: ${order._id}`);
+        alert(`Order placed successfully! Your order number is: ${formatOrderNumberForDisplay(order.orderNumber)}`);
         navigate('/customer/menu');
       }
     } catch (error: any) {

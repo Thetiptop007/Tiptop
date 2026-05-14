@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterAll, beforeAll } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelmetProvider } from 'react-helmet-async';
 import { http, HttpResponse } from 'msw';

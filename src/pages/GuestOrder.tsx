@@ -5,6 +5,7 @@ import { useCustomerMenuQuery, usePublicBootstrap } from "../hooks/useAppDataQue
 import { QueryBoundary } from "../components/common/QueryBoundary";
 import { Link } from "react-router";
 import OfferBanner from "../components/customer/OfferBanner";
+import { formatOrderNumberForDisplay } from "../utils/orderNumber";
 
 const SERVICE_AREAS = [
   { id: 'law_gate', name: 'Law Gate' },
@@ -75,7 +76,7 @@ export default function GuestOrder() {
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Your order has been confirmed and accepted. We'll start preparing it right away!</p>
           <div className="mb-6 rounded-lg bg-brand-50 dark:bg-brand-950/20 p-4">
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Order Number</p>
-            <p className="text-2xl font-bold text-brand-500">{orchestrator.status.orderNumber}</p>
+            <p className="text-2xl font-bold text-brand-500">{formatOrderNumberForDisplay(orchestrator.status.orderNumber)}</p>
           </div>
 
           <div className="mb-6 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 p-4 text-left">

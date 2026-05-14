@@ -3,6 +3,7 @@ import { TableRow, TableCell } from '../../../components/ui/table';
 import { type Order, getOrderDetails } from '../../../services/order-management.service';
 import { printOrderReceipt } from '../utils/order-print';
 import { logger } from '../../../utils/logger';
+import { formatOrderNumberForDisplay } from '../../../utils/orderNumber';
 
 interface OrderRowProps {
   order: Order;
@@ -154,7 +155,7 @@ export const OrderRow: React.FC<OrderRowProps> = ({
               <path d="M9 5l7 7-7 7" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span className="font-medium text-gray-800 text-theme-sm dark:text-white/90">
-              {order.orderId}
+              {formatOrderNumberForDisplay(order.orderId)}
             </span>
           </div>
         </TableCell>
@@ -221,7 +222,7 @@ export const OrderRow: React.FC<OrderRowProps> = ({
                         Order Details
                       </h4>
                       <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                        <p><span className="font-medium text-gray-700 dark:text-gray-300">Order ID:</span> {order.orderId}</p>
+                        <p><span className="font-medium text-gray-700 dark:text-gray-300">Order ID:</span> {formatOrderNumberForDisplay(order.orderId)}</p>
                         <p><span className="font-medium text-gray-700 dark:text-gray-300">Date:</span> {order.date || new Date().toLocaleDateString('en-CA')}</p>
                         <p><span className="font-medium text-gray-700 dark:text-gray-300">Time:</span> {order.time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}</p>
                         <p>
@@ -267,7 +268,7 @@ export const OrderRow: React.FC<OrderRowProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm(`Are you sure you want to cancel order ${order.orderId}?`)) {
+                            if (window.confirm(`Are you sure you want to cancel order ${formatOrderNumberForDisplay(order.orderId)}?`)) {
                               onStatusUpdate(order.id, 'CANCELLED');
                             }
                           }}

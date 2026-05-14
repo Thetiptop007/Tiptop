@@ -101,8 +101,8 @@ export function useGuestOrderOrchestrator() {
       if (result.status === 'success') {
         const order = result.data.order;
         
-        // Strict validation for order number format
-        const orderNumberPattern = /^ORD-\d{6,}$/;
+        // Support both legacy ORD-XXXXXX and new ORD-YYMMDD-XXX formats
+        const orderNumberPattern = /^ORD-\d{6,}(-\d{3,})?$/;
         if (!order.orderNumber || !orderNumberPattern.test(order.orderNumber)) {
           throw new Error('Invalid order confirmation received. Please contact support.');
         }

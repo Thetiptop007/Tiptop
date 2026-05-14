@@ -2,6 +2,7 @@ import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { logger } from '../../utils/logger';
 import { useAuthStore } from '../../services/auth.store';
+import SessionManagerCard from '../../components/UserProfile/SessionManagerCard';
 
 export default function CustomerProfile() {
   const { customer, logout, authReady } = useCustomerAuth();
@@ -158,6 +159,11 @@ export default function CustomerProfile() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
+        </div>
+
+        {/* Active Sessions */}
+        <div className="mb-6">
+          <SessionManagerCard role="customer" />
         </div>
 
         {/* Logout Button */}
