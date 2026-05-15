@@ -325,7 +325,8 @@ export const getRequestAuthScope = (endpoint: string, pathname: string = window.
     normalizedEndpoint.startsWith('admin/') ||
     normalizedEndpoint.startsWith('auth/admin/') ||
     normalizedEndpoint.startsWith('dashboard/') ||
-    normalizedEndpoint.startsWith('stats/')
+    normalizedEndpoint.startsWith('stats/') ||
+    normalizedEndpoint.startsWith('delivery/')
   ) {
     return 'admin';
   }

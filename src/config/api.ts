@@ -661,10 +661,23 @@ export interface ApiResponse<T = any> {
 export const parseApiResponse = async <T = any>(
   response: Response
 ): Promise<ApiResponse<T>> => {
+  const responseClone = response.clone();
   try {
-    return await response.json();
+    const data = await response.json();
+    if (data.status === 'error' || data.status === 'fail' || response.status >= 400) {
+      const errorMsg = data.message || data.error?.message || 'Unknown API Error';
+      logger.error('API_ERROR_RESPONSE', `Error [${response.status}]: ${errorMsg}`, { 
+        status: response.status, 
+        data 
+      });
+    }
+    return data;
   } catch (error) {
-    logger.error('Failed to parse API response', { status: response.status });
+    const rawBody = await responseClone.text();
+    logger.error('Failed to parse API response', { 
+      status: response.status, 
+      rawBody 
+    });
     return {
       status: 'error',
       message: 'Failed to parse response',

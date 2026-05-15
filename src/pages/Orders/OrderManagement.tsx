@@ -117,18 +117,26 @@ export default function OrderManagement() {
                 orders={data.ready || []}
                 badgeColor="purple"
                 onStatusUpdate={actions.updateStatus}
-                onAssignClick={(id) => actions.openAssignModal([id])}
                 showBulkControls
                 bulkActions={[
                   {
-                    label: "Assign Selected",
+                    label: 'Assign Selected',
                     onExecute: (ids) => actions.openAssignModal(ids),
-                    className: "border-indigo-100 bg-indigo-50/50 text-indigo-600 hover:bg-indigo-600 hover:text-white dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-600 dark:hover:text-white"
+                    icon: (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    )
                   },
                   {
-                    label: "Mark Delivered",
+                    label: 'Mark Delivered',
                     onExecute: (ids) => actions.bulkUpdateStatus(ids, 'DELIVERED'),
-                    className: "border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white"
+                    className: 'bg-green-600 hover:bg-green-700 text-white border-green-500',
+                    icon: (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )
                   }
                 ]}
               />
@@ -139,8 +147,18 @@ export default function OrderManagement() {
                 badgeColor="emerald"
                 onStatusUpdate={actions.updateStatus}
                 showBulkControls
-                bulkActionLabel="Mark Delivered"
-                onBulkUpdate={(ids) => actions.bulkUpdateStatus(ids, 'DELIVERED')}
+                bulkActions={[
+                  {
+                    label: 'Mark Delivered',
+                    onExecute: (ids) => actions.bulkUpdateStatus(ids, 'DELIVERED'),
+                    className: 'bg-green-600 hover:bg-green-700 text-white border-green-500',
+                    icon: (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )
+                  }
+                ]}
               />
 
               <div className="pt-8 border-t border-gray-100 dark:border-gray-800 space-y-8">

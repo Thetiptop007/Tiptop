@@ -73,7 +73,7 @@ export function useGuestOrderOrchestrator() {
 
     setSubmitting(true);
     try {
-      const fcmToken = await requestFcmToken().catch(() => null);
+      const fcmToken = await requestFcmToken().catch(() => '') || '';
       
       const orderData = {
         customer: { name: customerInfo.name, phone: customerInfo.phone },
@@ -92,6 +92,7 @@ export function useGuestOrderOrchestrator() {
         fcmToken
       };
 
+      logger.debug('GUEST_ORDER_PAYLOAD', 'Sending guest order payload', orderData);
       const response = await apiRequest('orders/guest/create', {
         method: 'POST',
         body: JSON.stringify(orderData)
