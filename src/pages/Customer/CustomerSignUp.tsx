@@ -95,7 +95,7 @@ export default function CustomerSignUp() {
             navigate('/customer/menu', { 
               replace: true,
               state: { 
-                message: `Welcome ${user.name.first}! Your account has been created successfully.` 
+                message: `Welcome ${typeof user.name === 'object' ? user.name.first : user.name}! Your account has been created successfully.` 
               }
             });
           }, 500);

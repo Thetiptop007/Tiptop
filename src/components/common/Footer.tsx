@@ -96,10 +96,11 @@ export default function Footer() {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               © {new Date().getFullYear()} {settings?.siteName || 'ThéTipTop'}. All rights reserved.
             </p>
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-gray-500 dark:text-gray-500">
-                Developed by Naitik Kumar | Contact: <a href="tel:+919060557296" className="text-orange-500 hover:text-orange-600">9060557296</a>
-              </span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] md:text-xs text-gray-500 dark:text-gray-500 sm:justify-end">
+              <p>Developed by: <span className="font-semibold text-gray-700 dark:text-gray-300">Naitik Kumar</span></p>
+              <p>Contact Developer: <a href="tel:+919060557296" className="text-orange-500 hover:text-orange-600 font-medium">9060557296</a></p>
+              <span className="hidden sm:block h-3 w-px bg-gray-300 dark:bg-gray-700"></span>
+              <p>Tiptop Helpline: <a href="tel:+917696482938" className="text-orange-500 hover:text-orange-600 font-medium">7696482938</a></p>
             </div>
           </div>
         </div>

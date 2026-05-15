@@ -30,7 +30,7 @@ export function useProfileOrchestrator() {
     
     setSaving(true);
     try {
-      await updateCustomer(customer!._id, {
+      await updateCustomer({
         name: { first: firstName.trim(), last: lastName.trim() }
       });
       await refreshProfile();

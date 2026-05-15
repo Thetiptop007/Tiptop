@@ -60,7 +60,12 @@ export function useAddressOrchestrator() {
       save: handleSave,
       delete: handleDelete,
       setDefault: async (id: string) => {
-        // Implementation for setting default...
+        try {
+          await mutations.setDefaultAddress.mutateAsync(id);
+          showToast('Default address updated', 'success');
+        } catch (error: any) {
+          showToast(error.message || 'Failed to set default address', 'error');
+        }
       }
     }
   };

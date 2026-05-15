@@ -14,15 +14,15 @@ import { logger } from '../utils/logger';
 
 export interface CustomerUser {
   _id: string;
-  email: {
+  email: string | {
     address: string;
     isVerified: boolean;
   };
-  phone: {
+  phone: string | {
     number: string;
     isVerified: boolean;
   };
-  name: {
+  name: string | {
     first: string;
     last: string;
   };
@@ -94,7 +94,6 @@ let snapshot: CustomerAuthSnapshot = {
 let refreshPromise: Promise<CustomerRefreshOutcome> | null = null;
 let hydrationPromise: Promise<CustomerHydrationOutcome> | null = null;
 let profilePromise: Promise<CustomerHydrationOutcome> | null = null;
-let lastBootstrapPathname: string | null = null;
 
 let refreshRevision = 0;
 let hydrationRevision = 0;
@@ -201,7 +200,7 @@ const performRefresh = async (): Promise<CustomerRefreshOutcome> => {
 
   refreshPromise = (async () => {
     try {
-      const csrfToken = getCsrfToken('customer');
+      const csrfToken = getCustomerCsrfToken();
 
       if (!csrfToken) {
         return { status: 'terminal', message: 'Missing CSRF token' } as const;
@@ -432,6 +431,7 @@ export const bootstrapCustomerAuth = async (pathname: string): Promise<CustomerH
   }
 
   const currentRevision = ++hydrationRevision;
+  logger.debug('Customer auth bootstrap initiated', { pathname });
   updateSnapshot({ status: 'hydrating', isLoading: true });
 
   hydrationPromise = (async () => {
@@ -479,7 +479,6 @@ export const bootstrapCustomerAuth = async (pathname: string): Promise<CustomerH
   })().finally(() => {
     if (hydrationRevision === currentRevision) {
       hydrationPromise = null;
-      lastBootstrapPathname = pathname;
       updateSnapshot({
         status: snapshot.customer ? 'authenticated' : snapshot.status === 'recovering' ? 'recovering' : 'unauthenticated',
         isLoading: snapshot.customer ? false : snapshot.status === 'recovering',

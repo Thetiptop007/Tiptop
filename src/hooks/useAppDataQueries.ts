@@ -14,6 +14,7 @@ import {
   createAddress, 
   updateAddress, 
   deleteAddress,
+  setDefaultAddress,
   type AddressData
 } from '../services/customer-operations.service';
 import { 
@@ -282,9 +283,15 @@ export const useAddressMutations = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: appQueryKeys.addresses() }),
   });
 
+  const setDefaultAddr = useMutation({
+    mutationFn: (id: string) => setDefaultAddress(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: appQueryKeys.addresses() }),
+  });
+
   return {
     createAddress: createAddr,
     updateAddress: updateAddr,
     deleteAddress: deleteAddr,
+    setDefaultAddress: setDefaultAddr,
   };
 };

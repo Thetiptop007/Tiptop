@@ -2,10 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useAddressesQuery, useSettingsQuery } from './useAppDataQueries';
 import { apiRequest, parseApiResponse } from '../config/api';
 import { useToast } from '../context/ToastContext';
-import { useNavigate } from 'react-router';
 
 export function usePaymentOrchestrator() {
-  const navigate = useNavigate();
   const { showToast } = useToast();
   
   const [cartItems, setCartItems] = useState<any[]>([]);
@@ -31,7 +29,7 @@ export function usePaymentOrchestrator() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'UPI'>('COD');
   const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [appliedCoupon] = useState<any>(null);
 
   // UI State
   const [submitting, setSubmitting] = useState(false);

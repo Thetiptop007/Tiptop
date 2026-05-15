@@ -28,7 +28,7 @@ export default function CustomerHome() {
                 Welcome to TipTop Restaurant
               </h1>
               <p className="text-lg text-white/90">
-                {customer?.name?.first ? `Hello, ${customer.name.first}! ` : ''}
+                {customer?.name ? `Hello, ${typeof customer.name === 'object' ? customer.name.first : customer.name}! ` : ''}
                 Delicious food delivered to your doorstep
               </p>
             </div>
