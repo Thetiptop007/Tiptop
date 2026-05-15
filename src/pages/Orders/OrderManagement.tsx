@@ -119,8 +119,18 @@ export default function OrderManagement() {
                 onStatusUpdate={actions.updateStatus}
                 onAssignClick={(id) => actions.openAssignModal([id])}
                 showBulkControls
-                bulkActionLabel="Assign Selected"
-                onBulkUpdate={(ids) => actions.openAssignModal(ids)}
+                bulkActions={[
+                  {
+                    label: "Assign Selected",
+                    onExecute: (ids) => actions.openAssignModal(ids),
+                    className: "border-indigo-100 bg-indigo-50/50 text-indigo-600 hover:bg-indigo-600 hover:text-white dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-600 dark:hover:text-white"
+                  },
+                  {
+                    label: "Mark Delivered",
+                    onExecute: (ids) => actions.bulkUpdateStatus(ids, 'DELIVERED'),
+                    className: "border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white"
+                  }
+                ]}
               />
 
               <OrdersTable
@@ -128,6 +138,9 @@ export default function OrderManagement() {
                 orders={data.out_for_delivery || []}
                 badgeColor="emerald"
                 onStatusUpdate={actions.updateStatus}
+                showBulkControls
+                bulkActionLabel="Mark Delivered"
+                onBulkUpdate={(ids) => actions.bulkUpdateStatus(ids, 'DELIVERED')}
               />
 
               <div className="pt-8 border-t border-gray-100 dark:border-gray-800 space-y-8">

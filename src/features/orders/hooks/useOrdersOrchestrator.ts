@@ -42,10 +42,10 @@ export function useOrdersOrchestrator() {
     if (showAssignModal) {
       const fetchPartners = async () => {
         try {
-          const response = await apiRequest('/delivery-partners');
+          const response = await apiRequest('delivery/partners');
           const result = await parseApiResponse(response);
-          if (result.status === 'success' && result.data) {
-            setDeliveryPartners(result.data);
+          if (result.status === 'success' && result.data?.partners) {
+            setDeliveryPartners(result.data.partners);
           }
         } catch (error) {
           logger.error('FETCH_PARTNERS_FAILED', 'Could not load delivery partners');

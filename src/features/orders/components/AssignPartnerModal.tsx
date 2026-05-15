@@ -48,7 +48,16 @@ export const AssignPartnerModal: React.FC<AssignPartnerModalProps> = ({
                   className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-indigo-500 hover:bg-indigo-50/30 transition-all text-left dark:border-gray-700 dark:hover:bg-indigo-900/10"
                 >
                   <div>
-                    <div className="font-bold text-gray-900 dark:text-white">{partner.name}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-bold text-gray-900 dark:text-white">{partner.name}</div>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        partner.status === 'Active' 
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                          : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                      }`}>
+                        {partner.status}
+                      </span>
+                    </div>
                     <div className="text-xs text-gray-500">{partner.phone}</div>
                   </div>
                   {isAssigning ? (

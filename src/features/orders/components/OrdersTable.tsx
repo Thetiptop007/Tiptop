@@ -9,6 +9,13 @@ import {
 import { type Order } from '../../../services/order-management.service';
 import { OrderRow } from './OrderRow';
 
+export interface BulkAction {
+  label: string;
+  onExecute: (ids: string[]) => void;
+  icon?: React.ReactNode;
+  className?: string;
+}
+
 interface OrdersTableProps {
   orders: Order[];
   title: string;
@@ -18,6 +25,7 @@ interface OrdersTableProps {
   onStatusUpdate: (id: string, status: string) => void;
   onBulkUpdate?: (ids: string[]) => void;
   onAssignClick?: (id: string) => void;
+  bulkActions?: BulkAction[];
 }
 
 export const OrdersTable: React.FC<OrdersTableProps> = ({
@@ -25,10 +33,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   title,
   badgeColor = 'indigo',
   showBulkControls = false,
-  bulkActionLabel = 'Bulk Action',
+  bulkActionLabel,
   onStatusUpdate,
   onBulkUpdate,
-  onAssignClick
+  onAssignClick,
+  bulkActions = []
 }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const allSelected = orders.length > 0 && selectedIds.length === orders.length;
@@ -65,23 +74,39 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         </div>
         
         {showBulkControls && selectedIds.length > 0 && (
-          <button 
-            onClick={() => onBulkUpdate?.(selectedIds)}
-            className="group ml-auto flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-2 text-sm font-semibold text-indigo-600 transition-all hover:bg-indigo-600 hover:text-white hover:shadow-lg hover:shadow-indigo-200 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-600 dark:hover:text-white dark:hover:shadow-none"
-          >
-            <svg 
-              className="h-4 w-4 transition-transform group-hover:scale-110" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{bulkActionLabel}</span>
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white group-hover:bg-white group-hover:text-indigo-600">
-              {selectedIds.length}
-            </span>
-          </button>
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Legacy single action support */}
+            {bulkActionLabel && onBulkUpdate && (
+              <button 
+                onClick={() => onBulkUpdate(selectedIds)}
+                className="group flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-2 text-sm font-semibold text-indigo-600 transition-all hover:bg-indigo-600 hover:text-white dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-600 dark:hover:text-white"
+              >
+                <span>{bulkActionLabel}</span>
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white group-hover:bg-white group-hover:text-indigo-600">
+                  {selectedIds.length}
+                </span>
+              </button>
+            )}
+
+            {/* Multiple actions support */}
+            {bulkActions.map((action, idx) => (
+              <button 
+                key={idx}
+                onClick={() => action.onExecute(selectedIds)}
+                className={`group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
+                  action.className || "border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white"
+                }`}
+              >
+                {action.icon && <span>{action.icon}</span>}
+                <span>{action.label}</span>
+                <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
+                  action.className?.includes('emerald') ? 'bg-emerald-600 text-white group-hover:bg-white group-hover:text-emerald-600' : 'bg-indigo-600 text-white group-hover:bg-white group-hover:text-indigo-600'
+                }`}>
+                  {selectedIds.length}
+                </span>
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
