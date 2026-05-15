@@ -70,6 +70,7 @@ export interface Order {
   address?: {
     area: string;
     addressLine: string;
+    landmark?: string;
   };
   image?: string;
   deliveryPartner?: {

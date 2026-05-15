@@ -68,6 +68,11 @@ export async function printOrderReceipt(order: any, orderDetails: any) {
           <div class="row"><span>Bill: ${order.orderId}</span></div>
           <div class="row"><span>Date: ${printDate}</span><span>${printTime}</span></div>
           <div class="divider"></div>
+          ${order.address && (order.address.addressLine || order.address.area) ? `
+            <div style="font-size: 13px; margin-bottom: 4px;">
+              <span class="bold">Address:</span> ${order.address.area ? `${order.address.area}, ` : ''}${order.address.addressLine}${order.address.landmark ? ` (${order.address.landmark})` : ''}
+            </div>
+          ` : ''}
           <div class="row"><span>Customer: ${order.customer}</span></div>
           <div class="row"><span>Phone: ${order.phone}</span></div>
           <div class="divider-solid"></div>
