@@ -69,7 +69,7 @@ export function useOrdersOrchestrator() {
     
     try {
       // API call for assignment (simplified for this refactor)
-      const response = await apiRequest('/orders/assign-delivery', {
+      const response = await apiRequest('orders/assign-delivery', {
         method: 'POST',
         body: JSON.stringify({
           orderIds: selectedOrderIdsForAssign,

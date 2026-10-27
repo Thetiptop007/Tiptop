@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAccessToken } from '../services/auth-session.store';
+import { apiRequest, parseApiResponse } from '../config/api';
 
 const Developer = () => {
   const [loading, setLoading] = useState(true);
@@ -55,11 +55,8 @@ const Developer = () => {
   // Fetch health data
   const fetchHealth = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/developer/health`, {
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const res = await apiRequest('developer/health');
+      const data = await parseApiResponse(res);
       if (data.status === 'success') {
         setHealth(data.data);
       }
@@ -71,11 +68,8 @@ const Developer = () => {
   // Fetch performance metrics
   const fetchPerformance = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/developer/performance`, {
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const res = await apiRequest('developer/performance');
+      const data = await parseApiResponse(res);
       if (data.status === 'success') {
         setPerformance(data.data);
       }
@@ -87,11 +81,8 @@ const Developer = () => {
   // Fetch error logs
   const fetchErrors = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/developer/errors?limit=20`, {
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const res = await apiRequest('developer/errors?limit=20');
+      const data = await parseApiResponse(res);
       if (data.status === 'success') {
         setErrors(data.data);
       }
@@ -103,11 +94,8 @@ const Developer = () => {
   // Fetch logs
   const fetchLogs = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/developer/logs?limit=50`, {
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const res = await apiRequest('developer/logs?limit=50');
+      const data = await parseApiResponse(res);
       if (data.status === 'success') {
         setLogs(data.data);
       }
@@ -119,11 +107,8 @@ const Developer = () => {
   // Fetch database stats
   const fetchDatabaseStats = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/developer/database-stats`, {
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const res = await apiRequest('developer/database-stats');
+      const data = await parseApiResponse(res);
       if (data.status === 'success') {
         setDbStats(data.data);
       }
@@ -135,11 +120,8 @@ const Developer = () => {
   // Fetch config
   const fetchConfig = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/developer/config`, {
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const res = await apiRequest('developer/config');
+      const data = await parseApiResponse(res);
       if (data.status === 'success') {
         setConfig(data.data);
       }
@@ -151,15 +133,10 @@ const Developer = () => {
   // Test error email
   const testErrorEmail = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/developer/test-error-email`, {
+      const res = await apiRequest('developer/test-error-email', {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (data.status === 'success') {
         alert('Test error email sent successfully! Check your inbox.');
       } else {
@@ -176,14 +153,12 @@ const Developer = () => {
     if (!confirm(`Are you sure you want to clear ${type} logs?`)) return;
     
     try {
-      const res = await fetch(`${API_BASE_URL}/developer/logs?type=${type}`, {
+      const res = await apiRequest(`developer/logs?type=${type}`, {
         method: 'DELETE',
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (data.status === 'success') {
-        alert(data.message);
+        alert(data.message || 'Logs cleared successfully');
         fetchLogs();
         fetchErrors();
       }

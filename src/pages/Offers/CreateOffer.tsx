@@ -183,13 +183,13 @@ const CreateOffer: React.FC = () => {
         status: createAndActivate ? 'scheduled' : formData.status
       };
 
-      const url = isEditMode 
-        ? `${import.meta.env.VITE_API_URL}/offers/admin/${id}`
-        : `${import.meta.env.VITE_API_URL}/offers/admin`;
+      const endpoint = isEditMode 
+        ? `offers/admin/${id}`
+        : 'offers/admin';
       
       const method = isEditMode ? 'PATCH' : 'POST';
 
-      const response = await apiRequest(url.replace(`${import.meta.env.VITE_API_URL}/`, ''), {
+      const response = await apiRequest(endpoint, {
         method,
         headers: {
           'Content-Type': 'application/json',
