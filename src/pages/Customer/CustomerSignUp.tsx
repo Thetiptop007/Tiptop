@@ -11,6 +11,7 @@ export default function CustomerSignUp() {
   
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
     phone: '',
     password: '',
     confirmPassword: '',
@@ -20,6 +21,11 @@ export default function CustomerSignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    return emailRegex.test(email.trim());
+  };
 
   const validatePhone = (phone: string): boolean => {
     const phoneRegex = /^[6-9]\d{9}$/;
@@ -51,6 +57,12 @@ export default function CustomerSignUp() {
       newErrors.name = 'Name must be at least 2 characters';
     }
 
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
     } else if (!validatePhone(formData.phone)) {
@@ -78,12 +90,12 @@ export default function CustomerSignUp() {
 
     try {
       const cleanPhone = formData.phone.replace(/[^\d]/g, '');
-      const emailOrPhone = `${cleanPhone}@tiptop.app`;
+      const cleanEmail = formData.email.trim().toLowerCase();
       
       const signupData = {
         name: formData.name.trim(),
         phone: cleanPhone,
-        email: emailOrPhone, // Use fallback email since field is removed
+        email: cleanEmail,
         password: formData.password,
       };
       
@@ -207,6 +219,26 @@ export default function CustomerSignUp() {
                         }`}
                       />
                       {errors.name && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name}</p>}
+                    </div>
+
+                    {/* Email Address */}
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Email Address <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={handleChange}
+                        name="email"
+                        placeholder="john@example.com"
+                        disabled={loading}
+                        className={`w-full px-4 py-2.5 text-sm transition-colors bg-transparent border rounded-lg outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-brand-500 dark:focus:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white ${
+                          errors.email ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                      {errors.email && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.email}</p>}
                     </div>
 
                     {/* Phone Number */}
