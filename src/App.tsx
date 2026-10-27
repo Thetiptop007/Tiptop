@@ -1,3 +1,4 @@
+import Maintenance from "./pages/Maintenance";
 import { BrowserRouter as Router, Navigate, Routes, Route, useLocation, Outlet } from "react-router";
 import { useEffect } from "react";
 import SignIn from "./pages/AuthPages/SignIn";
@@ -79,7 +80,16 @@ function CustomerPublicApp() {
   return <Outlet />;
 }
 
+const MAINTENANCE_MODE = true;
+
 function AppRoutes() {
+  if (MAINTENANCE_MODE) {
+    return (
+      <Routes>
+        <Route path="*" element={<Maintenance />} />
+      </Routes>
+    );
+  }
   return (
     <Routes>
       {/* Public Routes - No Auth Providers */}
