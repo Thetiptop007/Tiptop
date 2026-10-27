@@ -48,7 +48,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   }
 
   return (
-    <div className={`w-full flex justify-center items-center transition-opacity ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div className={`w-full flex justify-center items-center overflow-hidden [&>div]:!w-full [&>div>iframe]:!w-full ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <GoogleLogin
         onSuccess={(credentialResponse) => {
           if (credentialResponse.credential) {
@@ -64,7 +64,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         shape="rectangular"
         theme="outline"
         size="large"
-        width="380"
+        width="100%"
       />
     </div>
   );

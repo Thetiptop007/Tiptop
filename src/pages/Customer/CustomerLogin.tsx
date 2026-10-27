@@ -13,7 +13,7 @@ export default function CustomerLogin() {
   const { login, googleLogin, isLoading: authLoading } = useCustomerAuthActions();
   const { settings } = usePublicBootstrap();
   
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,18 +23,9 @@ export default function CustomerLogin() {
   // Get redirect path from location state (for redirecting after login)
   const from = (location.state as any)?.from?.pathname || '/customer/menu';
 
-  const validateIdentifier = (val: string): boolean => {
-    const trimmed = val.trim();
-    // Valid email check
+  const validateEmail = (val: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailRegex.test(trimmed)) return true;
-
-    // 10-digit Indian phone check
-    const phoneRegex = /^[6-9]\d{9}$/;
-    const cleanPhone = trimmed.replace(/[^\d]/g, '');
-    if (phoneRegex.test(cleanPhone)) return true;
-
-    return false;
+    return emailRegex.test(val.trim());
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,10 +34,10 @@ export default function CustomerLogin() {
 
     const newErrors: { [key: string]: string } = {};
 
-    if (!identifier.trim()) {
-      newErrors.identifier = 'Email or phone number is required';
-    } else if (!validateIdentifier(identifier)) {
-      newErrors.identifier = 'Please enter a valid email address or 10-digit phone number';
+    if (!email.trim()) {
+      newErrors.email = 'Email address is required';
+    } else if (!validateEmail(email)) {
+      newErrors.email = 'Please enter a valid email address';
     }
 
     if (!password) {
@@ -61,11 +52,7 @@ export default function CustomerLogin() {
     setLoading(true);
 
     try {
-      const trimmed = identifier.trim();
-      const isDigitsOnly = /^\d+$/.test(trimmed.replace(/[^\d]/g, '')) && !trimmed.includes('@');
-      const payloadIdentifier = isDigitsOnly ? trimmed.replace(/[^\d]/g, '') : trimmed.toLowerCase();
-
-      const result = await login(payloadIdentifier, password);
+      const result = await login(email.trim().toLowerCase(), password);
 
       if (result.success) {
         navigate(from, { replace: true });
@@ -133,7 +120,7 @@ export default function CustomerLogin() {
                   Sign In to Your Account
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Login with your email or phone to order your favorite food
+                  Login with your email to order your favorite food
                 </p>
               </div>
 
@@ -152,27 +139,27 @@ export default function CustomerLogin() {
               <div>
                 <form onSubmit={handleSubmit}>
                   <div className="space-y-6">
-                    {/* Email or Phone Number */}
+                    {/* Email Address */}
                     <div>
                       <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Email or Phone Number <span className="text-red-500">*</span>
+                        Email Address <span className="text-red-500">*</span>
                       </label>
                       <input
-                        type="text"
-                        autoComplete="username"
+                        type="email"
+                        autoComplete="email"
                         required
-                        value={identifier}
+                        value={email}
                         onChange={(e) => {
-                          setIdentifier(e.target.value);
-                          setErrors(prev => ({ ...prev, identifier: '' }));
+                          setEmail(e.target.value);
+                          setErrors(prev => ({ ...prev, email: '' }));
                         }}
-                        placeholder="yourname@gmail.com or 10-digit phone"
+                        placeholder="yourname@gmail.com"
                         disabled={loading}
                         className={`w-full px-4 py-2.5 text-sm transition-colors bg-transparent border rounded-lg outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-brand-500 dark:focus:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white ${
-                          errors.identifier ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
+                          errors.email ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
                         }`}
                       />
-                      {errors.identifier && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.identifier}</p>}
+                      {errors.email && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.email}</p>}
                     </div>
 
                     {/* Password */}
@@ -265,8 +252,8 @@ export default function CustomerLogin() {
                   </div>
                 </div>
 
-                {/* Google Sign In */}
-                <div>
+                {/* Google Sign In - Full width matching Sign In button */}
+                <div className="w-full">
                   <GoogleAuthButton
                     onSuccess={handleGoogleSuccess}
                     onError={handleGoogleError}
@@ -318,7 +305,7 @@ export default function CustomerLogin() {
       <ForgotPasswordModal
         isOpen={showForgotPasswordModal}
         onClose={() => setShowForgotPasswordModal(false)}
-        defaultEmail={identifier.includes('@') ? identifier : ''}
+        defaultEmail={email}
       />
     </div>
   );
