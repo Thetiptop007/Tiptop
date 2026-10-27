@@ -120,10 +120,17 @@ export default function CustomerList() {
   const handleDelete = async (customerId: string) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
+        setActionLoadingId(customerId);
         await deleteCustomer(customerId);
-        fetchCustomers();
-      } catch (error) {
-        logger.error('Error deleting customer');
+        // Optimistically remove from state or re-fetch
+        setCustomers((prev) => prev.filter((c) => c._id !== customerId));
+        setTotalResults((prev) => Math.max(0, prev - 1));
+        await fetchCustomers();
+      } catch (error: any) {
+        logger.error('Error deleting customer', { error });
+        alert(error?.message || 'Failed to delete customer');
+      } finally {
+        setActionLoadingId(null);
       }
     }
   };
