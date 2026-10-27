@@ -13,9 +13,8 @@ export default function OfferBanner() {
 
   const handleOfferClick = () => {
     const isCustomerMenu = location.pathname === '/customer/menu';
-    const isGuestOrder = location.pathname === '/guest-order';
     
-    if (isCustomerMenu || isGuestOrder) {
+    if (isCustomerMenu) {
       setSearchParams({ category: 'Offer' });
     } else {
       navigate('/customer/menu?category=Offer');

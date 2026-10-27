@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useItemDetailsOrchestrator } from '../../hooks/useItemDetailsOrchestrator';
 import { useShopStatus } from '../../context/ShopStatusContext';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { QueryBoundary } from '../../components/common/QueryBoundary';
+import QuickCheckoutModal from '../../components/customer/QuickCheckoutModal';
 
 export interface CartItem {
   menuItemId: string;
@@ -20,230 +22,248 @@ export default function ItemDetails() {
   const { customer } = useCustomerAuth();
   const orchestrator = useItemDetailsOrchestrator(id);
   const isShopOpen = shopStatus?.isOpen ?? true;
+  const [quickCheckoutOpen, setQuickCheckoutOpen] = useState(false);
 
   const handleUpdateQuantity = (newQuantity: number) => {
     orchestrator.actions.updateCartQuantity(newQuantity);
   };
 
+  const handleQuickCheckout = () => {
+    setQuickCheckoutOpen(true);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-outfit">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Back Button */}
+    <div className="min-h-screen bg-[#F6F5F2] text-neutral-900 font-sans pb-24">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-12 py-4 sm:py-8">
+        {/* Back Link */}
         <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 mb-6 transition-colors"
+          onClick={() => navigate('/customer/menu')}
+          className="inline-flex items-center text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-black mb-4 sm:mb-8 transition-colors group"
         >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <svg className="w-3.5 h-3.5 mr-1.5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
           </svg>
           Back to Menu
         </button>
 
         <QueryBoundary query={orchestrator.queries.item}>
-          {(item) => (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Image Section */}
-              <div className="relative bg-gray-100 dark:bg-gray-900 rounded-xl overflow-hidden">
-                <img
-                  src={item.image || '/images/product/placeholder.jpg'}
-                  alt={item.name}
-                  className="w-full h-96 lg:h-[500px] object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/images/product/placeholder.jpg';
-                  }}
-                />
-                {!item.isAvailable && (
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-                    <div className="text-center">
-                      <svg className="w-12 h-12 text-white mb-2 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      <span className="text-white font-bold text-base">Currently Unavailable</span>
+          {(item) => {
+            const currentPrice = (orchestrator.selection.variant.price || 0) * (orchestrator.selection.cartQuantity > 0 ? orchestrator.selection.cartQuantity : orchestrator.selection.quantity.value);
+            const selectedVariantName = orchestrator.selection.variant.value || 'Standard';
+
+            return (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-start">
+                  {/* Left: Product Image Card */}
+                  <div className="relative aspect-4/3 sm:aspect-square rounded-2xl sm:rounded-3xl overflow-hidden bg-neutral-200 border border-neutral-200/80 shadow-xs">
+                    <img
+                      src={item.image || '/images/product/placeholder.jpg'}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/images/product/placeholder.jpg';
+                      }}
+                    />
+
+                    {!item.isAvailable && (
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center">
+                        <span className="text-white font-extrabold text-sm uppercase tracking-wider px-4 py-2 rounded-full bg-rose-600/90">
+                          Currently Sold Out
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Floating Badges */}
+                    <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                      {item.categories && item.categories.length > 0 && (
+                        <span className="px-3 py-1 rounded-full bg-white/95 text-neutral-900 text-[11px] font-bold shadow-xs">
+                          {item.categories[0]}
+                        </span>
+                      )}
+                      {item.isAvailable && isShopOpen && (
+                        <span className="px-3 py-1 rounded-full bg-emerald-600/90 text-white text-[11px] font-bold shadow-xs flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          Freshly Made
+                        </span>
+                      )}
                     </div>
                   </div>
-                )}
 
-                {/* Floating Badges */}
-                <div className="absolute top-4 left-4 flex flex-col gap-2">
-                  {item.categories && item.categories.length > 0 && (
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm text-xs font-semibold text-indigo-600 dark:text-indigo-400 shadow-sm">
-                      {item.categories[0]}
-                    </span>
-                  )}
-                  {item.isAvailable && (
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-green-500/90 backdrop-blur-sm text-xs font-semibold text-white shadow-sm">
-                      <svg className="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      Available
-                    </span>
-                  )}
-                </div>
-              </div>
+                  {/* Right: Item Details & Fast Ordering */}
+                  <div className="flex flex-col justify-between">
+                    <div>
+                      {/* Rating & Review Header */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-extrabold">
+                          <svg className="w-3.5 h-3.5 fill-amber-400 text-amber-400" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          <span>{item.rating?.toFixed(1) || '4.8'}</span>
+                        </div>
+                        <span className="text-xs text-neutral-500 font-medium">
+                          ({item.reviews || 42} reviews)
+                        </span>
+                      </div>
 
-              {/* Details Section */}
-              <div className="sm:p-8 lg:p-10">
-                <div className="mb-5">
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1.5">{item.name}</h1>
-                  <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400 mb-2">
-                    <div className="flex items-center">
-                      <svg className="w-4 h-4 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                      <span className="font-semibold text-gray-900 dark:text-white">{item.rating?.toFixed(1) || '0.0'}</span>
+                      <h1 className="text-3xl sm:text-4xl font-extrabold text-neutral-950 tracking-tight mb-3">
+                        {item.name}
+                      </h1>
+
+                      <p className="text-sm text-neutral-600 leading-relaxed mb-6">
+                        {item.description || 'Prepared with handpicked ingredients, traditional recipes, and authentic love for wholesome flavors.'}
+                      </p>
+
+                      {/* Size / Variant Selector */}
+                      {item.priceVariants && item.priceVariants.length > 0 && (
+                        <div className="mb-6">
+                          <label className="block text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                            Select Portion Size
+                          </label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {item.priceVariants.map((variant) => {
+                              const isSelected = orchestrator.selection.variant.value === variant.quantity;
+                              return (
+                                <button
+                                  key={variant.quantity}
+                                  type="button"
+                                  onClick={() => orchestrator.selection.variant.set(variant.quantity, variant.price)}
+                                  className={`p-3.5 rounded-2xl text-left border transition-all ${
+                                    isSelected
+                                      ? 'border-black bg-neutral-950 text-white shadow-xs'
+                                      : 'border-neutral-200 bg-white text-neutral-800 hover:border-neutral-400'
+                                  } ${!item.isAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={!item.isAvailable}
+                                >
+                                  <div className={`text-xs font-bold uppercase tracking-wider ${isSelected ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                                    {variant.quantity}
+                                  </div>
+                                  <div className="text-base font-extrabold mt-0.5">
+                                    ₹{variant.price.toFixed(0)}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <span className="text-gray-400">•</span>
-                    <span>{item.reviews || 0} {item.reviews === 1 ? 'review' : 'reviews'}</span>
-                  </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{item.description}</p>
-                </div>
 
-                {/* Price Variants / Size Selection */}
-                {item.priceVariants && item.priceVariants.length > 0 && (
-                  <div className="mb-3">
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
-                      Select Size
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {item.priceVariants.map((variant) => (
+                    {/* Bottom Order Actions Box */}
+                    <div className="pt-6 border-t border-neutral-200/80 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
+                          Price
+                        </span>
+                        <span className="text-3xl font-extrabold text-neutral-950">
+                          ₹{currentPrice.toFixed(0)}
+                        </span>
+                      </div>
+
+                      {!isShopOpen && (
+                        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center gap-2">
+                          <span>⏰ Kitchen is currently closed. Ordering opens soon.</span>
+                        </div>
+                      )}
+
+                      {/* Instant Actions (1-Click Order + Add to Cart) */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        {/* 1-Step Fast Checkout */}
                         <button
-                          key={variant.quantity}
-                          onClick={() => orchestrator.selection.variant.set(variant.quantity, variant.price)}
-                          className={`p-3 border-2 rounded-lg text-left transition-all duration-200 ${orchestrator.selection.variant.value === variant.quantity
-                            ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600'
-                            } ${!item.isAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          disabled={!item.isAvailable}
+                          type="button"
+                          onClick={handleQuickCheckout}
+                          disabled={!item.isAvailable || !isShopOpen}
+                          className="flex-1 py-4 px-6 rounded-full bg-burgundy text-white text-sm font-extrabold hover:bg-burgundy-600 transition-all shadow-sm hover:scale-[1.01] active:scale-[0.99] disabled:bg-neutral-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                          <div className="text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wide mb-0.5">{variant.quantity}</div>
-                          <div className="text-base font-bold text-indigo-600 dark:text-indigo-400">₹{variant.price.toFixed(0)}</div>
+                          <svg className="w-4 h-4 text-sunflower_gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          <span>Order Now (1-Click)</span>
                         </button>
-                      ))}
+
+                        {/* Cart Stepper or Add to Cart Button */}
+                        {orchestrator.selection.cartQuantity > 0 ? (
+                          <div className="flex items-center justify-between border border-burgundy bg-white rounded-full px-2 py-1 sm:w-44">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(orchestrator.selection.cartQuantity - 1)}
+                              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-burgundy hover:bg-burgundy-900/10 transition-colors"
+                            >
+                              -
+                            </button>
+                            <span className="text-xs font-extrabold text-neutral-900">
+                              {orchestrator.selection.cartQuantity} in cart
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(orchestrator.selection.cartQuantity + 1)}
+                              disabled={!item.isAvailable || !isShopOpen}
+                              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-burgundy hover:bg-burgundy-900/10 transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={orchestrator.actions.addToCart}
+                            disabled={!item.isAvailable || !isShopOpen}
+                            className="py-4 px-6 rounded-full border border-neutral-300 bg-white text-neutral-900 text-sm font-extrabold hover:border-burgundy hover:text-burgundy transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                            <span>Add to Cart</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-
-                {/* Total and Add to Cart */}
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Price</span>
-                    <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                      ₹{((orchestrator.selection.variant.price || 0) * (orchestrator.selection.cartQuantity > 0 ? orchestrator.selection.cartQuantity : orchestrator.selection.quantity.value)).toFixed(0)}
-                    </span>
-                  </div>
-
-                  {!isShopOpen && (
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 dark:border-yellow-400 text-yellow-800 dark:text-yellow-200 p-3 mb-4 rounded-r-lg">
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                        </svg>
-                        <p className="font-medium text-xs">We're currently closed. Please try again later.</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {!customer && (
-                    <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 p-3 mb-4 rounded-lg">
-                      <div className="flex items-start">
-                        <svg className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                        <p className="text-xs">
-                          <Link to="/customer/login" className="underline font-semibold hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors">Login</Link> for a better experience - track orders, save addresses & more!
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {orchestrator.selection.cartQuantity > 0 ? (
-                    // Show quantity controls if item is already in cart
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleUpdateQuantity(orchestrator.selection.cartQuantity - 1)}
-                        className="w-10 h-10 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 flex items-center justify-center hover:border-indigo-500 dark:hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all text-gray-700 dark:text-gray-300"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
-                        </svg>
-                      </button>
-                      <div className="flex-1 text-center py-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <span className="text-base font-bold text-gray-900 dark:text-white">{orchestrator.selection.cartQuantity}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1.5">in cart</span>
-                      </div>
-                      <button
-                        onClick={() => handleUpdateQuantity(orchestrator.selection.cartQuantity + 1)}
-                        disabled={!item.isAvailable || !isShopOpen}
-                        className="w-10 h-10 rounded-lg border-2 border-indigo-600 dark:border-indigo-500 bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-700 dark:hover:bg-indigo-600 hover:border-indigo-700 dark:hover:bg-indigo-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:border-gray-400 dark:disabled:border-gray-600 disabled:cursor-not-allowed transition-all"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : (
-                    // Show add to cart button if item is not in cart
-                    <button
-                      onClick={orchestrator.actions.addToCart}
-                      disabled={!item.isAvailable || !isShopOpen}
-                      className="w-full bg-indigo-600 dark:bg-indigo-500 text-white py-3 rounded-lg font-semibold text-sm hover:bg-indigo-700 dark:hover:bg-indigo-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                      <span>Add to Cart</span>
-                    </button>
-                  )}
                 </div>
 
-                {/* You Might Also Like */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">You Might Also Like</h3>
+                {/* You Might Also Like Section */}
+                <div className="mt-16 pt-12 border-t border-neutral-200/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                    RECOMMENDED DISHES
+                  </span>
+                  <h3 className="text-2xl font-extrabold text-neutral-950 tracking-tight mt-1 mb-6">
+                    You Might Also Love
+                  </h3>
+
                   <QueryBoundary query={orchestrator.queries.related}>
                     {(related) => (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {related.data.menuItems.filter((i: any) => i._id !== id).slice(0, 6).map((relatedItem: any) => {
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {related.data.menuItems.filter((i: any) => i._id !== id).slice(0, 4).map((relatedItem: any) => {
                           const lowestPrice = relatedItem.priceVariants && relatedItem.priceVariants.length > 0
                             ? Math.min(...relatedItem.priceVariants.map((v: any) => v.price))
-                            : 0;
+                            : relatedItem.price || 0;
 
                           return (
                             <Link
                               key={relatedItem._id}
                               to={`/customer/menu/${relatedItem._id}`}
-                              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all duration-200 group"
+                              className="group bg-white rounded-3xl border border-neutral-200/80 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col justify-between"
                             >
-                              <div className="relative aspect-square bg-gray-100 dark:bg-gray-700">
+                              <div className="aspect-square bg-neutral-100 overflow-hidden relative">
                                 <img
                                   src={relatedItem.image || '/images/product/placeholder.jpg'}
                                   alt={relatedItem.name}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                   onError={(e) => {
                                     (e.target as HTMLImageElement).src = '/images/product/placeholder.jpg';
                                   }}
                                 />
                               </div>
-                              <div className="p-3">
-                                <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-1 line-clamp-1">
+                              <div className="p-4">
+                                <h4 className="font-bold text-sm text-neutral-900 group-hover:text-black line-clamp-1 mb-1">
                                   {relatedItem.name}
                                 </h4>
                                 <div className="flex items-center justify-between">
-                                  <div>
-                                    <span className="text-indigo-600 dark:text-indigo-400 font-bold text-sm">
-                                      ₹{lowestPrice.toFixed(0)}
-                                    </span>
-                                    {relatedItem.priceVariants && relatedItem.priceVariants.length > 1 && (
-                                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">onwards</span>
-                                    )}
-                                  </div>
-                                  {relatedItem.rating && (
-                                    <div className="flex items-center gap-1">
-                                      <svg className="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                      </svg>
-                                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{relatedItem.rating}</span>
-                                    </div>
-                                  )}
+                                  <span className="text-sm font-extrabold text-neutral-950">
+                                    ₹{lowestPrice.toFixed(0)}
+                                  </span>
+                                  <span className="text-xs font-bold text-neutral-400 group-hover:text-black transition-colors">
+                                    View →
+                                  </span>
                                 </div>
                               </div>
                             </Link>
@@ -253,11 +273,32 @@ export default function ItemDetails() {
                     )}
                   </QueryBoundary>
                 </div>
-              </div>
-            </div>
-          )}
+
+                {/* Direct 1-Click Fast Checkout Modal */}
+                <QuickCheckoutModal
+                  isOpen={quickCheckoutOpen}
+                  onClose={() => setQuickCheckoutOpen(false)}
+                  cartItems={[
+                    {
+                      menuItemId: item._id,
+                      name: item.name,
+                      price: orchestrator.selection.variant.price || item.price || 120,
+                      quantity: orchestrator.selection.quantity.value || 1,
+                      selectedVariant: selectedVariantName,
+                      image: item.image,
+                    },
+                  ]}
+                  onOrderPlaced={() => {
+                    setQuickCheckoutOpen(false);
+                    navigate('/customer/orders');
+                  }}
+                />
+              </>
+            );
+          }}
         </QueryBoundary>
       </div>
     </div>
   );
 }
+

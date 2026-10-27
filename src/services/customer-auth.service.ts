@@ -120,6 +120,56 @@ export const customerLogin = async (phone: string, password: string): Promise<Lo
   return data as LoginResponse;
 };
 
+export const customerGoogleAuth = async (credential: string): Promise<LoginResponse> => {
+  // CRITICAL: Validate scope before attempting login
+  if (!validateScopeSwitch('customer')) {
+    logger.error('Scope violation detected: attempting to authenticate with Google while admin logged in', {
+      currentScope: 'admin',
+      requestedScope: 'customer',
+    });
+
+    // Force logout to clean state
+    await forceLogout('scope_violation_customer_login');
+    throw new Error('You are logged in as admin. Please log out first before continuing with Google.');
+  }
+
+  resetCustomerAuthForLogin();
+
+  const response = await apiRequest('auth/customer/google', {
+    method: 'POST',
+    body: JSON.stringify({ credential }),
+  });
+
+  const data = await parseApiResponse(response);
+
+  // Check for mixed session error from backend
+  if (data?.code === 'MIXED_SESSIONS' || data?.code === 'SCOPE_VIOLATION') {
+    logger.error('Backend mixed session detected during Google login', {
+      code: data.code,
+      message: data.message,
+    });
+
+    await forceLogout('backend_mixed_session_login');
+    throw new Error(data.message || 'Mixed session detected. Please refresh and try again.');
+  }
+
+  if (data.status !== 'success' || !data.data?.user) {
+    const message = normalizeResponseError(data, 'Google authentication failed');
+    throw new Error(message);
+  }
+
+  // Set auth scope on successful Google login
+  setAuthScope('customer');
+
+  markCustomerAuthenticated(data.data.user, {
+    accessToken: data.data.tokens?.accessToken,
+    csrfToken: data.data.tokens?.csrfToken || data.data.csrfToken,
+  });
+
+  logger.debug('Customer Google login completed and auth scope set');
+  return data as LoginResponse;
+};
+
 export const customerSignUp = async (data: SignUpRequest): Promise<SignUpResponse> => {
   // CRITICAL: Validate scope before attempting signup
   if (!validateScopeSwitch('customer')) {

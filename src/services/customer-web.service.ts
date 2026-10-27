@@ -401,16 +401,17 @@ export const searchMenu = async (query: string, limit: number = 50): Promise<Men
  */
 export const createOrder = async (orderData: CreateOrderData): Promise<Order> => {
   try {
-    // Check if user is authenticated (has customer token)
+    // Enforce authenticated customer only
     const customerToken = getAccessToken('customer');
-    const endpoint = customerToken ? '/orders' : '/orders/guest/create';
+    if (!customerToken) {
+      throw new Error('Authentication required. Please log in to place an order.');
+    }
 
-    
-    const response = await apiRequest(endpoint, {
+    const response = await apiRequest('/orders', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(customerToken && { 'Authorization': `Bearer ${customerToken}` })
+        'Authorization': `Bearer ${customerToken}`
       },
       body: JSON.stringify(orderData),
     });
@@ -466,8 +467,32 @@ export const getMyOrders = async (params?: {
     const data = await parseApiResponse(response);
     
     if (data.status === 'success') {
+      const rawOrders = data.data?.orders || [];
+      const normalizedOrders = rawOrders.map((order: any) => {
+        // Robust fallback: pricing.finalAmount -> order.totalAmount -> items sum
+        const itemsSum = Array.isArray(order.items)
+          ? order.items.reduce((sum: number, it: any) => {
+              const price = Number(it.price) || 0;
+              const qty = Number(it.quantity) || 1;
+              const sub = Number(it.subtotal) || (price * qty);
+              return sum + sub;
+            }, 0)
+          : 0;
+        
+        const finalAmount = 
+          Number(order.pricing?.finalAmount) ||
+          Number(order.totalAmount) ||
+          Number(order.pricing?.itemsTotal) ||
+          itemsSum;
+
+        return {
+          ...order,
+          totalAmount: finalAmount,
+        };
+      });
+
       return {
-        orders: data.data?.orders || [],
+        orders: normalizedOrders,
         pagination: data.pagination
       };
     }

@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router';
 import { useCustomerAuthActions } from '../../hooks/useCustomerAuthActions';
 import GridShape from '../../components/common/GridShape';
 import ThemeTogglerTwo from '../../components/common/ThemeTogglerTwo';
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
 export default function CustomerSignUp() {
   const navigate = useNavigate();
-  const { signUp, isLoading: authLoading } = useCustomerAuthActions();
+  const { signUp, googleLogin, isLoading: authLoading } = useCustomerAuthActions();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -117,6 +118,33 @@ export default function CustomerSignUp() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credential: string) => {
+    setLoading(true);
+    setErrors({});
+    try {
+      const result = await googleLogin(credential);
+      if (result.success && result.user) {
+        navigate('/customer/menu', {
+          replace: true,
+          state: {
+            message: `Welcome ${typeof result.user.name === 'object' ? (result.user.name as any).first : result.user.name}!`,
+          },
+        });
+      } else {
+        setErrors({ submit: result.message || 'Google signup failed. Please try again.' });
+      }
+    } catch (err: any) {
+      console.error('Google signup error:', err);
+      setErrors({ submit: err?.message || 'Google authentication encountered an error.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = (errorMessage: string) => {
+    setErrors({ submit: errorMessage });
   };
 
   return (
@@ -288,7 +316,7 @@ export default function CustomerSignUp() {
                       <button
                         type="submit"
                         disabled={loading || authLoading}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white transition-colors bg-brand-500 border border-transparent rounded-lg shadow-sm w-full hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-gray-900"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white transition-colors bg-burgundy border border-transparent rounded-lg shadow-sm w-full hover:bg-burgundy-600 focus:outline-none focus:ring-2 focus:ring-burgundy focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-gray-900"
                       >
                         {loading ? (
                           <>
@@ -304,12 +332,34 @@ export default function CustomerSignUp() {
                       </button>
                     </div>
 
+                    {/* Divider */}
+                    <div className="relative my-2">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white dark:bg-gray-900 px-3 text-gray-500 dark:text-gray-400 font-medium">
+                          Or continue with
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Google Sign-Up/Sign-In */}
+                    <div>
+                      <GoogleAuthButton
+                        onSuccess={handleGoogleSuccess}
+                        onError={handleGoogleError}
+                        text="signup_with"
+                        disabled={loading || authLoading}
+                      />
+                    </div>
+
                     {/* Sign In Link */}
                     <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
                       Already have an account?{' '}
                       <Link
                         to="/customer/login"
-                        className="font-medium text-brand-500 hover:text-brand-600 transition-colors"
+                        className="font-medium text-burgundy hover:text-burgundy-600 transition-colors"
                       >
                         Sign in now
                       </Link>
@@ -322,7 +372,7 @@ export default function CustomerSignUp() {
         </div>
 
         {/* Right Side - Branding */}
-        <div className="items-center hidden w-full h-full lg:w-1/2 bg-brand-950 dark:bg-white/5 lg:grid relative overflow-hidden">
+        <div className="items-center hidden w-full h-full lg:w-1/2 bg-[#650707] dark:bg-[#650707]/30 lg:grid relative overflow-hidden">
           <div className="relative flex items-center justify-center z-1 w-full h-full">
             <GridShape />
             <div className="flex flex-col items-center max-w-xs px-6">

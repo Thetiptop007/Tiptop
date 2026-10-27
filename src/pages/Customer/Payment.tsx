@@ -36,11 +36,6 @@ export default function Payment() {
     landmark: '',
     isDefault: false,
   });
-  const [guestInfo, setGuestInfo] = useState({
-    name: '',
-    phone: '',
-    email: '',
-  });
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [saveAddress, setSaveAddress] = useState(true);
   const [paymentMethod] = useState<'COD'>('COD');
@@ -96,21 +91,17 @@ export default function Payment() {
   const total = subtotal + (deliveryFee > 0 ? deliveryFee : 0);
 
   const handlePlaceOrder = async () => {
-    if (!customer && (!guestInfo.name || !guestInfo.phone)) {
-      alert('Please provide your name and phone number');
+    if (!customer) {
+      alert('Please log in to place an order.');
+      navigate('/customer/login', { state: { from: { pathname: '/customer/payment' } } });
       return;
     }
 
-    if (customer && (showAddressForm || !selectedAddress)) {
+    if (showAddressForm || !selectedAddress) {
       if (!selectedArea || !newAddress.addressLine) {
         alert('Please select an area and enter your exact address');
         return;
       }
-    }
-
-    if (!customer && (!selectedArea || !newAddress.addressLine)) {
-      alert('Please select an area and enter your exact address');
-      return;
     }
 
     setSubmitting(true);
@@ -118,7 +109,7 @@ export default function Payment() {
     try {
       let finalDeliveryAddress;
 
-      if (customer && !showAddressForm && selectedAddress) {
+      if (!showAddressForm && selectedAddress) {
         finalDeliveryAddress = {
           area: selectedAddress.area,
           addressLine: selectedAddress.addressLine,
@@ -132,7 +123,7 @@ export default function Payment() {
           landmark: newAddress.landmark
         };
 
-        if (customer && saveAddress) {
+        if (saveAddress) {
           try {
             await createAddress({
               ...newAddress,
@@ -153,27 +144,17 @@ export default function Payment() {
           portion: item.selectedVariant,
           subtotal: item.price * item.quantity,
         })),
-        deliveryAddress: finalDeliveryAddress as any, // Cast due to internal type mismatch in legacy interface
+        deliveryAddress: finalDeliveryAddress as any,
         paymentMethod,
         totalAmount: total,
         deliveryFee: deliveryFee,
-        ...((!customer) ? {
-          customerName: guestInfo.name,
-          customerPhone: guestInfo.phone,
-          customerEmail: guestInfo.email || undefined,
-        } : {}),
       };
 
       const order = await createOrder(orderData);
       localStorage.removeItem('cart');
       window.dispatchEvent(new Event('cartUpdated'));
       
-      if (customer) {
-        navigate(`/customer/orders/${order._id}`);
-      } else {
-        alert(`Order placed successfully! Your order number is: ${formatOrderNumberForDisplay(order.orderNumber)}`);
-        navigate('/customer/menu');
-      }
+      navigate(`/customer/orders/${order._id}`);
     } catch (error: any) {
       logger.error('Error creating order', { error });
       alert(error.message || 'Failed to place order');
@@ -301,27 +282,7 @@ export default function Payment() {
             )}
           </div>
 
-          {!customer && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-              <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">Contact Details</h2>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Full Name *"
-                  value={guestInfo.name}
-                  onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-sm"
-                />
-                <input
-                  type="tel"
-                  placeholder="Phone Number *"
-                  value={guestInfo.phone}
-                  onChange={(e) => setGuestInfo({ ...guestInfo, phone: e.target.value })}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-sm"
-                />
-              </div>
-            </div>
-          )}
+
 
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
             <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">Bill Summary</h2>

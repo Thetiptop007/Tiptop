@@ -85,7 +85,7 @@ function AppRoutes() {
       {/* Public Routes - No Auth Providers */}
       <Route element={<PublicApp />}>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/order" element={<GuestOrder />} />
+        <Route path="/order" element={<Navigate to="/customer/menu" replace />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       </Route>
 
@@ -148,7 +148,7 @@ function AppRoutes() {
       <Route path="/customer" element={<CustomerApp />}>
 
         <Route element={<CustomerLayout />}>
-          <Route index element={<CustomerHome />} />
+          <Route index element={<Navigate to="/customer/menu" replace />} />
           <Route path="menu" element={<CustomerMenu />} />
           <Route path="menu/:id" element={<ItemDetails />} />
           <Route path="cart" element={<Cart />} />

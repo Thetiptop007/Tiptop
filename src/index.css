@@ -41,6 +41,81 @@ layer(base);
   --color-white: #ffffff;
   --color-black: #101828;
 
+  /* ========================================================
+     CENTRALIZED THEME PALETTE
+     Palette tokens:
+     --primary-scarlet: #D8271E
+     --racing-red: #F42E2D
+     --almond-silk: #F2C8B8
+     --light-coral: #E98D8D
+     --dark-garnet: #650707
+     ======================================================== */
+  --primary-scarlet: #D8271E;
+  --racing-red: #F42E2D;
+  --almond-silk: #F2C8B8;
+  --light-coral: #E98D8D;
+  --dark-garnet: #650707;
+
+  --color-primary_scarlet: #D8271E;
+  --color-racing_red: #F42E2D;
+  --color-almond_silk: #F2C8B8;
+  --color-light_coral: #E98D8D;
+  --color-dark_garnet: #650707;
+
+  /* Customer Semantic Theme Tokens */
+  --customer-primary: #D8271E;
+  --customer-accent: #F42E2D;
+  --customer-bg-soft: #F2C8B8;
+  --customer-light-coral: #E98D8D;
+  --customer-dark-garnet: #650707;
+
+  --color-customer-primary: #D8271E;
+  --color-customer-primary-hover: #c42018;
+  --color-customer-racing_red: #F42E2D;
+  --color-customer-almond_silk: #F2C8B8;
+  --color-customer-light_coral: #E98D8D;
+  --color-customer-dark_garnet: #650707;
+
+  /* Mapping Burgundy & Customer UI classes to the new Primary Scarlet (#D8271E) */
+  --burgundy: #D8271E;
+  --color-burgundy: #D8271E;
+  --color-burgundy-100: #650707;
+  --color-burgundy-200: #7d0c0c;
+  --color-burgundy-300: #a11410;
+  --color-burgundy-400: #bd1d16;
+  --color-burgundy-500: #D8271E;
+  --color-burgundy-600: #c42018;
+  --color-burgundy-700: #a71812;
+  --color-burgundy-800: #89130d;
+  --color-burgundy-900: #F2C8B8;
+
+  /* Scarlet Fire mapped to Primary Scarlet */
+  --scarlet-fire: #D8271E;
+  --color-scarlet_fire: #D8271E;
+  --color-scarlet_fire-100: #650707;
+  --color-scarlet_fire-200: #7d0c0c;
+  --color-scarlet_fire-300: #a11410;
+  --color-scarlet_fire-400: #bd1d16;
+  --color-scarlet_fire-500: #D8271E;
+  --color-scarlet_fire-600: #c42018;
+  --color-scarlet_fire-700: #a71812;
+  --color-scarlet_fire-800: #89130d;
+  --color-scarlet_fire-900: #F2C8B8;
+
+  /* Coral & Salmon mapped to Light Coral (#E98D8D) & Almond Silk (#F2C8B8) */
+  --vibrant-coral: #E98D8D;
+  --color-vibrant_coral: #E98D8D;
+  --color-customer-coral: #E98D8D;
+  --sweet-salmon: #F2C8B8;
+  --color-sweet_salmon: #F2C8B8;
+  --color-customer-salmon: #F2C8B8;
+
+  /* Sunflower Gold & Flag Red */
+  --sunflower-gold: #f7b538;
+  --color-sunflower_gold: #f7b538;
+  --flag-red: #F42E2D;
+  --color-flag_red: #F42E2D;
+
   --color-brand-25: #f2f7ff;
   --color-brand-50: #ecf3ff;
   --color-brand-100: #dde9ff;
@@ -815,4 +890,23 @@ span.flatpickr-weekday,
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+
+/* ========================================================
+   CUSTOMER PANEL THEME PALETTE
+   ======================================================== */
+:root {
+  --primary-scarlet: #D8271E;
+  --racing-red: #F42E2D;
+  --almond-silk: #F2C8B8;
+  --light-coral: #E98D8D;
+  --dark-garnet: #650707;
+}
+
+.customer-panel {
+  --primary-scarlet: #D8271E;
+  --racing-red: #F42E2D;
+  --almond-silk: #F2C8B8;
+  --light-coral: #E98D8D;
+  --dark-garnet: #650707;
 }

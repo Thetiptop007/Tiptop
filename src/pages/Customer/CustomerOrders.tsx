@@ -6,15 +6,20 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { formatOrderNumberForDisplay } from '../../utils/orderNumber';
 
-
-const getStatusInfo = (status: string) => {
+const getStatusBadge = (status: string) => {
   switch (status.toUpperCase()) {
-    case 'PENDING': return { color: 'bg-blue-500', text: 'Placed' };
-    case 'ACCEPTED': return { color: 'bg-orange-500', text: 'Preparing' };
-    case 'READY': return { color: 'bg-purple-500', text: 'Ready' };
-    case 'DELIVERED': return { color: 'bg-green-500', text: 'Delivered' };
-    case 'CANCELLED': return { color: 'bg-red-500', text: 'Cancelled' };
-    default: return { color: 'bg-gray-500', text: status };
+    case 'PENDING':
+      return { bg: 'bg-amber-100 text-amber-800 border-amber-200', text: 'Order Placed' };
+    case 'ACCEPTED':
+      return { bg: 'bg-blue-100 text-blue-800 border-blue-200', text: 'Preparing Meal' };
+    case 'READY':
+      return { bg: 'bg-purple-100 text-purple-800 border-purple-200', text: 'Ready for Pickup' };
+    case 'DELIVERED':
+      return { bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', text: 'Delivered' };
+    case 'CANCELLED':
+      return { bg: 'bg-rose-100 text-rose-800 border-rose-200', text: 'Cancelled' };
+    default:
+      return { bg: 'bg-neutral-100 text-neutral-800 border-neutral-200', text: status };
   }
 };
 
@@ -29,93 +34,144 @@ export default function CustomerOrders() {
   });
 
   return (
-    <div className="min-h-screen pb-20 bg-white dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-          My Orders
-        </h1>
-
-        <div className="flex gap-2 mb-6">
-          {(['current', 'history'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${
-                activeTab === tab
-                  ? 'bg-brand-500 text-white shadow-lg shadow-blue-100 dark:shadow-none'
-                  : 'bg-gray-100 dark:bg-white/[0.03] text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
-              }`}
-            >
-              {tab === 'current' ? 'Active' : 'History'}
-            </button>
-          ))}
+    <div className="max-w-5xl mx-auto px-3.5 sm:px-6 lg:px-12 py-5 sm:py-10 font-sans">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 mb-5 sm:mb-8">
+        <div>
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+            ORDER HISTORY
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950 tracking-tight mt-0.5 sm:mt-1">
+            My Orders
+          </h1>
         </div>
 
-        <QueryBoundary query={ordersQuery}>
-          {(data) => {
-            const filtered = data.orders.filter((o: any) => 
-              activeTab === 'current' 
-                ? !['DELIVERED', 'CANCELLED'].includes(o.status.toUpperCase())
-                : ['DELIVERED', 'CANCELLED'].includes(o.status.toUpperCase())
-            );
+        {/* Tab Buttons */}
+        <div className="flex gap-1.5 sm:gap-2 p-1 rounded-full bg-neutral-200/80 w-fit">
+          <button
+            type="button"
+            onClick={() => setActiveTab('current')}
+            className={`px-4 sm:px-6 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all ${
+              activeTab === 'current'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-neutral-700 hover:text-burgundy'
+            }`}
+          >
+            Active Orders
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`px-4 sm:px-6 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all ${
+              activeTab === 'history'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-neutral-700 hover:text-burgundy'
+            }`}
+          >
+            Past History
+          </button>
+        </div>
+      </div>
 
-            if (filtered.length === 0) {
-              return (
-                <div className="text-center py-20 bg-gray-50 dark:bg-white/[0.03] rounded-3xl border border-gray-100 dark:border-gray-800">
-                  <div className="text-4xl mb-4 text-gray-400">📦</div>
-                  <h3 className="font-bold text-gray-800 dark:text-white/90">No orders here</h3>
-                  <p className="text-sm text-gray-500 mt-1">Check out our menu to place an order!</p>
-                  <Link 
-                    to="/customer/menu" 
-                    className="mt-6 inline-block bg-brand-500 text-white px-8 py-3 rounded-2xl font-bold hover:bg-brand-600 transition-colors shadow-sm shadow-blue-200 dark:shadow-none"
-                  >
-                    Browse Menu
-                  </Link>
-                </div>
-              );
-            }
+      <QueryBoundary
+        query={ordersQuery}
+        loadingComponent={
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 rounded-3xl bg-neutral-200 animate-pulse" />
+            ))}
+          </div>
+        }
+      >
+        {(data) => {
+          const orders = data.orders || [];
+          const filtered = orders.filter((o: any) =>
+            activeTab === 'current'
+              ? !['DELIVERED', 'CANCELLED'].includes(o.status.toUpperCase())
+              : ['DELIVERED', 'CANCELLED'].includes(o.status.toUpperCase())
+          );
 
+          if (filtered.length === 0) {
             return (
-              <div className="grid gap-4">
-                {filtered.map((order: any) => {
-                  const status = getStatusInfo(order.status);
-                  return (
-                    <Link
-                      key={order._id}
-                      to={`/customer/orders/${order._id}`}
-                      className="group bg-white dark:bg-white/[0.03] p-5 rounded-3xl border border-gray-100 dark:border-gray-800 hover:border-brand-500 hover:shadow-xl transition-all block"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <p className="text-xs font-bold text-brand-500 mb-1">#{formatOrderNumberForDisplay(order.orderNumber)}</p>
-                          <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleString()}</p>
-                        </div>
-                        <span className={`${status.color} text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider`}>
-                          {status.text}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-2 mb-4">
-                        {order.items.map((item: any, i: number) => (
-                          <div key={i} className="flex justify-between text-sm">
-                            <span className="text-gray-600 dark:text-gray-400">{item.quantity}x {item.name}</span>
-                            <span className="font-bold text-gray-900 dark:text-white">₹{(item.price * item.quantity).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
-                        <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Total Amount</span>
-                        <span className="text-lg font-black text-brand-500">₹{(order.pricing?.finalAmount || order.totalAmount).toFixed(2)}</span>
-                      </div>
-                    </Link>
-                  );
-                })}
+              <div className="py-20 text-center rounded-3xl bg-white border border-neutral-200/80 p-8 shadow-2xs">
+                <div className="w-16 h-16 rounded-full bg-neutral-100 mx-auto flex items-center justify-center text-neutral-400 mb-4">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <h3 className="text-base font-extrabold text-neutral-900 mb-1">
+                  No {activeTab === 'current' ? 'active' : 'past'} orders
+                </h3>
+                <p className="text-xs text-neutral-500 mb-6">
+                  {activeTab === 'current'
+                    ? "You don't have any meals in progress right now."
+                    : "You haven't completed any orders yet."}
+                </p>
+                <Link
+                  to="/customer/menu"
+                  className="inline-flex px-7 py-3 rounded-full bg-black text-white text-xs font-bold hover:bg-neutral-800 transition-all shadow-sm"
+                >
+                  Order Something Delicious →
+                </Link>
               </div>
             );
-          }}
-        </QueryBoundary>
-      </div>
+          }
+
+          return (
+            <div className="space-y-4">
+              {filtered.map((order: any) => {
+                const badge = getStatusBadge(order.status);
+                const orderTime = new Date(order.createdAt).toLocaleDateString('en-IN', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+
+                return (
+                  <div
+                    key={order._id}
+                    className="p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border border-neutral-200/80 shadow-2xs hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-6"
+                  >
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <span className="text-xs sm:text-sm font-extrabold text-neutral-950">
+                          #{formatOrderNumberForDisplay(order.orderNumber)}
+                        </span>
+                        <span className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-extrabold border ${badge.bg}`}>
+                          {badge.text}
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] sm:text-xs text-neutral-500">
+                        {orderTime} • {order.items?.length || 0} items
+                      </p>
+
+                      <p className="text-xs text-neutral-700 font-medium line-clamp-1 sm:line-clamp-none">
+                        {order.items?.map((it: any) => `${it.quantity}x ${it.name}`).join(', ')}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between md:justify-end gap-4 sm:gap-6 pt-2.5 md:pt-0 border-t md:border-t-0 border-neutral-100">
+                      <div>
+                        <p className="text-[10px] sm:text-[11px] text-neutral-400 font-medium">Total Amount</p>
+                        <p className="text-sm sm:text-base font-extrabold text-neutral-950">
+                          ₹{
+                            order.totalAmount ||
+                            order.pricing?.finalAmount ||
+                            order.pricing?.itemsTotal ||
+                            order.items?.reduce((s: number, it: any) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) ||
+                            0
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }}
+      </QueryBoundary>
     </div>
   );
 }

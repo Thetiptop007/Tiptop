@@ -1,414 +1,740 @@
-import { Link } from "react-router";
-import Footer from "../components/common/Footer";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useAuth } from "../context/AuthContext";
-import { usePopularItemsQuery, usePublicBootstrap } from "../hooks/useAppDataQueries";
-
+import { usePopularItemsQuery, usePublicBootstrap, useCategoriesQuery } from "../hooks/useAppDataQueries";
 import { QueryBoundary } from "../components/common/QueryBoundary";
+import StandardHeader from "../components/common/StandardHeader";
+import VariantSelectionModal from "../components/customer/VariantSelectionModal";
+
+// Curated Category Icons & Visuals matching the design
+const CATEGORY_ITEMS = [
+  {
+    id: "burgers",
+    name: "Burgers",
+    tag: "Available",
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 11a8 8 0 0116 0v1H4v-1zm0 4h16v1a3 3 0 01-3 3H7a3 3 0 01-3-3v-1zm1 3h14M3 13h18" />
+      </svg>
+    ),
+  },
+  {
+    id: "juicy-fresh",
+    name: "Juicy & Fresh",
+    tag: "Available",
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+      </svg>
+    ),
+  },
+  {
+    id: "hot-cheesy",
+    name: "Hot & Cheesy",
+    tag: "Available",
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: "chicken-fries",
+    name: "Chicken Fries",
+    tag: "Available",
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+  },
+  {
+    id: "pizza",
+    name: "Pizza",
+    tag: "Available",
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 2L2 22h20L12 2zm0 6a2 2 0 110 4 2 2 0 010-4zm-3 8a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm6 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
+      </svg>
+    ),
+  },
+  {
+    id: "french-fries",
+    name: "French-fries",
+    tag: "Available",
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+      </svg>
+    ),
+  },
+];
+
+// Fallback high quality dishes matching design aesthetics
+const FALLBACK_TODAYS_MENU = [
+  {
+    _id: "m1",
+    name: "Classic Crispy Burger",
+    price: 6.5,
+    tag: "CHEF'S PICK",
+    veg: true,
+    time: "20 min",
+    rating: 4.7,
+    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    _id: "m2",
+    name: "Cheese Burger",
+    price: 8.0,
+    tag: "NEW",
+    veg: false,
+    time: "25 min",
+    rating: 4.8,
+    image: "https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    _id: "m3",
+    name: "Loaded Fries",
+    price: 5.0,
+    tag: "POPULAR",
+    veg: true,
+    time: "15 min",
+    rating: 4.6,
+    image: "https://images.unsplash.com/photo-1585109649139-366815a0d713?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    _id: "m4",
+    name: "Grilled Chicken Wrap",
+    price: 9.0,
+    tag: "LIMITED",
+    veg: false,
+    time: "25 min",
+    rating: 4.9,
+    image: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=600&q=80",
+  },
+];
+
+const FAQS = [
+  {
+    q: "How does the delivery process work?",
+    a: "Orders are prepared hot & fresh and delivered directly to your doorstep with real-time updates.",
+  },
+  {
+    q: "Can I customize ingredients in my meal?",
+    a: "Yes! While selecting items on the menu, choose your preferred portion size and dietary preferences.",
+  },
+  {
+    q: "What are your operational delivery hours?",
+    a: "We deliver 7 days a week from 11:00 AM to 11:00 PM throughout our designated service areas.",
+  },
+];
 
 export default function LandingPage() {
-  const { isAuthenticated: isCustomer, authReady: customerAuthReady } = useCustomerAuth();
+  const navigate = useNavigate();
+  const { isAuthenticated: isCustomer, authReady: customerAuthReady, customer } = useCustomerAuth();
   const { isAuthenticated: isAdmin, authReady: adminAuthReady } = useAuth();
-
   const { settings, isLoading: isBootstrapLoading } = usePublicBootstrap();
-  const popularItemsQuery = usePopularItemsQuery(3);
+  const popularItemsQuery = usePopularItemsQuery(4);
+  const categoriesQuery = useCategoriesQuery();
 
-  
-  const isAuthenticated = isCustomer || isAdmin;
+  const [faqOpen, setFaqOpen] = useState<number | null>(0);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [selectedItemForVariant, setSelectedItemForVariant] = useState<any | null>(null);
+
+  useEffect(() => {
+    const syncCart = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('cart') || '[]');
+        setCartItems(stored);
+      } catch {
+        setCartItems([]);
+      }
+    };
+    syncCart();
+
+    const handleUpdate = () => syncCart();
+    window.addEventListener('cartUpdated', handleUpdate);
+    return () => window.removeEventListener('cartUpdated', handleUpdate);
+  }, []);
+
   const isAuthReady = isCustomer ? customerAuthReady : isAdmin ? adminAuthReady : (customerAuthReady && adminAuthReady);
   const headerAuthReady = isAuthReady && !isBootstrapLoading;
 
+  const handleNewsletterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newsletterEmail.trim()) {
+      setNewsletterSubscribed(true);
+      setNewsletterEmail("");
+      setTimeout(() => setNewsletterSubscribed(false), 4000);
+    }
+  };
+
+  const handleUpdateVariantQuantity = (item: any, variantQuantity: string, variantPrice: number, delta: number) => {
+    try {
+      const existing = JSON.parse(localStorage.getItem('cart') || '[]');
+      const matchIndex = existing.findIndex(
+        (c: any) => c.menuItemId === item._id && c.selectedVariant === variantQuantity
+      );
+
+      if (matchIndex > -1) {
+        const newQty = existing[matchIndex].quantity + delta;
+        if (newQty <= 0) {
+          existing.splice(matchIndex, 1);
+        } else {
+          existing[matchIndex].quantity = newQty;
+        }
+      } else if (delta > 0) {
+        existing.push({
+          menuItemId: item._id,
+          name: item.name,
+          price: variantPrice,
+          image: item.image,
+          selectedVariant: variantQuantity,
+          quantity: 1,
+        });
+      }
+
+      localStorage.setItem('cart', JSON.stringify(existing));
+      setCartItems(existing);
+      window.dispatchEvent(new Event('cartUpdated'));
+    } catch (err) {
+      console.error('Failed to update variant cart quantity', err);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-        <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center">
-              <img src="/logo-full.png" alt="The Tip Top" className="h-10 dark:hidden" />
-              <img src="/logo-full.png" alt="The Tip Top" className="h-10 hidden dark:block brightness-200" />
-            </Link>
+    <div className="min-h-screen bg-[#F6F5F2] text-[#1E1E1E] font-sans antialiased selection:bg-black selection:text-white">
+      {/* =========================================================
+          1. NAVIGATION BAR (Standard Header)
+      ========================================================= */}
+      <StandardHeader
+        navItems={[
+          { path: '/', label: 'Home', exact: true },
+          { path: '/customer/menu', label: 'Our Menu' },
+          { path: '/customer/menu?category=Offer', label: 'Offers' },
+          { path: '/#how-it-works', label: 'How it Works' },
+          { path: '/#faqs', label: 'FAQ' },
+        ]}
+      />
 
-            
-            {/* Show different buttons based on authentication status */}
-            {/* Show different buttons based on authentication status */}
-            {!headerAuthReady ? (
-              <div className="h-10 w-24 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
-            ) : isAdmin ? (
-              <div className="flex items-center gap-3">
-                <Link
-                  to="/admin"
-                  className="inline-block rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 transition-colors shadow-sm"
-                >
-                  Admin Panel
-                </Link>
+      {/* =========================================================
+          2. HERO SECTION
+      ========================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 pt-4 pb-8 sm:pt-10 sm:pb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center">
+          {/* Left Column Content */}
+          <div className="lg:col-span-6 space-y-4 sm:space-y-6">
+            {/* Tagline Badge */}
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-burgundy">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-burgundy"></span>
+              HOME-COOKED • MADE FRESH DAILY
+            </div>
 
-                <Link
-                  to="/admin/profile"
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-brand-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            {/* Main Title */}
+            <h1 className="text-3xl sm:text-5xl xl:text-[68px] font-extrabold text-neutral-900 tracking-tight leading-[1.1]">
+              Real food,<br />
+              <span className="text-burgundy">made to crave.</span>
+            </h1>
 
-                  title="Admin Profile"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </Link>
-              </div>
-            ) : isCustomer ? (
-              <div className="flex items-center gap-3">
-                <Link
-                  to="/customer/orders"
-                  className="inline-block rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 transition-colors shadow-sm"
-                >
-                  My Orders
-                </Link>
-                <Link
-                  to="/customer/menu"
-                  className="hidden sm:inline-block rounded-lg border-2 border-brand-500 px-4 py-2 text-sm font-medium text-brand-500 hover:bg-brand-50 transition-colors dark:border-brand-500 dark:hover:bg-brand-500/10"
-                >
-                  Menu
-                </Link>
+            {/* Subtitle */}
+            <p className="text-xs sm:text-base text-neutral-600 max-w-lg leading-relaxed">
+              No dull meals, no waiting too long — just fresh, delicious food made for every craving delivered straight to your door.
+            </p>
 
-                <Link
-                  to="/customer/profile"
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-brand-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-
-                  title="Profile"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </Link>
-              </div>
-            ) : (
+            {/* CTA Buttons */}
+            <div className="pt-1 sm:pt-2">
               <Link
-                to="/customer/login"
-                className="inline-block rounded-lg border-2 border-brand-500 px-6 py-2 text-sm font-medium text-brand-500 hover:bg-brand-50 transition-colors dark:border-brand-500 dark:hover:bg-brand-500/10"
+                to="/customer/menu"
+                className="inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 py-3 sm:py-3.5 rounded-full bg-burgundy text-white font-semibold text-xs sm:text-sm hover:bg-burgundy-600 transition-all shadow-md group"
               >
-                Sign In
+                <span>Order Now</span>
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
               </Link>
-
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 px-4 md:px-6 lg:px-20 py-10 md:py-16 max-w-7xl mx-auto">
-        <div className="flex flex-col justify-center">
-          <div className="w-fit flex gap-3 items-center rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 font-medium shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="w-14 h-10 md:w-16 md:h-12 bg-brand-500 flex justify-center items-center">
-              <img src="/heroImage.png" alt="heroImage small" className="w-8 md:w-10" />
-            </div>
-
-            <div className="pr-4 text-sm text-gray-800 dark:text-white/90">
-              Food, Taste, Quality
             </div>
           </div>
-          <h1 className="mt-6 md:mt-8 text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-800 dark:text-white/90 leading-tight">
-            Eat <span className="text-[#e36057]">Finest</span> Flavours at Finest Vibezz
-          </h1>
-          <p className="mt-4 md:mt-6 text-sm md:text-base text-gray-500 dark:text-gray-400">
-            Get your food at the comfort of your place, delivered fresh and fast to your doorstep.
-          </p>
-          <div className="mt-6 md:mt-8 flex flex-col sm:flex-row gap-3">
-            <Link
-              to={isAdmin ? "/admin" : isCustomer ? "/customer/menu" : "/order"}
-              className="inline-block rounded-lg bg-[#e36057] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors dark:hover:bg-[#e36057] text-center"
-            >
-              {isAdmin ? "Admin Panel" : "Order Now"}
-            </Link>
-            <a
-              href="#"
-              className="inline-block rounded-lg border-2 border-[#e36057] px-6 py-2.5 text-sm font-medium text-[#e36057] hover:bg-red-50 transition-colors dark:border-[#e36057] dark:hover:bg-red-900/10 text-center"
-            >
-              Download App
-            </a>
+
+          {/* Right Column Dish Showcase */}
+          <div className="lg:col-span-6 relative flex items-center justify-center">
+            {/* Hero Main Food Photo */}
+            <div className="relative w-full max-w-xl aspect-[4/3] rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl transition-transform hover:scale-[1.01] duration-500">
+              <img
+                src="/heroImage.png"
+                alt="Fresh Delicacy"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
+            </div>
           </div>
         </div>
-        <div className="flex items-center justify-center">
-          <div className="rounded-2xl overflow-hidden">
-            <img src="/heroImage.png" alt="heroImage" className="w-full h-auto" />
+      </section>
+
+      {/* =========================================================
+          3. BROWSE BY FOOD TYPE
+      ========================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-6 sm:py-12">
+        <div className="flex items-center justify-between mb-4 sm:mb-8">
+          <div>
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500 mb-0.5 sm:mb-2">
+              WHAT ARE YOU CRAVING?
+            </p>
+            <h2 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-neutral-900 tracking-tight">
+              Browse by food type
+            </h2>
           </div>
-        </div>
-      </div>
 
-      {/* Popular Dishes Section */}
-      <div className="px-4 md:px-6 lg:px-20 py-10 md:py-16 max-w-7xl mx-auto">
-        <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white/90">
-            Our Popular Dishes
-          </h2>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Explore our most loved menu items
-          </p>
-        </div>
-        
-        <QueryBoundary 
-          query={popularItemsQuery} 
-          loadingComponent={
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden animate-pulse bg-white dark:bg-white/[0.03]">
-                  <div className="aspect-square bg-gray-100 dark:bg-gray-800"></div>
-                  <div className="p-5 space-y-3">
-                    <div className="h-6 bg-gray-100 dark:bg-gray-800 rounded w-3/4"></div>
-                    <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-full"></div>
-                    <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-1/2 mt-4"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          }
-        >
-
-          {(dishes) => (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {dishes && dishes.length > 0 ? (
-                dishes.map((dish: any) => (
-                  <div key={dish._id} className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="aspect-square overflow-hidden">
-                      <img
-                        src={dish.image}
-                        alt={dish.name}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                    <div className="p-5">
-                      <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
-                        {dish.name}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                        {dish.description}
-                      </p>
-                      {dish.priceVariants && dish.priceVariants.length > 0 && (
-                        <p className="text-sm font-semibold text-[#e36057]">
-                          Starting from ₹{Math.min(...dish.priceVariants.map((v: any) => v.price))}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <>
-                  {/* Default dishes as fallback */}
-                  <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="aspect-square overflow-hidden">
-                      <img
-                        src="https://img.freepik.com/free-photo/indian-butter-chicken-black-bowl-isolated-white_123827-20098.jpg"
-                        alt="Tandoori Chicken"
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                    <div className="p-5">
-                      <h3 className="font-bold text-gray-800 dark:text-white/90 mb-2">
-                        Tandoori Chicken
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Perfectly marinated and grilled to perfection
-                      </p>
-                    </div>
-                  </div>
-                  {/* Add more fallbacks if needed */}
-                </>
-              )}
-            </div>
-          )}
-        </QueryBoundary>
-        <div className="mt-8 md:mt-12 flex justify-center">
           <Link
-            to={isAuthenticated ? "/customer/menu" : "/order"}
-            className="rounded-lg bg-[#e36057] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#d14f47] transition-colors dark:hover:bg-[#e36057]"
+            to="/customer/menu"
+            className="inline-flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-semibold text-neutral-700 hover:text-black transition-colors group"
           >
-            See All Dishes
+            <span>See full menu</span>
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
           </Link>
         </div>
-      </div>
 
-      {/* Download App Section */}
-      <div id="download-app" className="px-4 md:px-6 lg:px-20 py-10 md:py-16 max-w-7xl mx-auto">
-        <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-red-50 to-orange-50 dark:border-gray-800 dark:from-red-950/20 dark:to-orange-950/20 p-8 md:p-12">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white/90 mb-3">
-              Download Our App
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Get the best food ordering experience on your mobile device
-            </p>
-          </div>
+        {/* Categories Grid - 3 cols on mobile, 6 cols on desktop */}
+        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-2.5 sm:gap-4">
+          {(() => {
+            const dynamicCategories = (categoriesQuery.data || [])
+              .filter((cat: string) => cat.toLowerCase() !== 'all')
+              .slice(0, 6);
 
-          {/* Installation Instructions */}
-          <div className="max-w-3xl mx-auto mb-8 p-4 md:p-6 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mt-0.5">
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-sm md:text-base">Installation Instructions</h3>
-                <ul className="space-y-1.5 text-xs md:text-sm text-gray-600 dark:text-gray-300">
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-500 mt-0.5">•</span>
-                    <span>Click "Download APK" to download the app file (approx 108 MB)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-500 mt-0.5">•</span>
-                    <span>After download, open the APK file from your notifications or downloads folder</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-500 mt-0.5">•</span>
-                    <span>If prompted, enable "Install from unknown sources" in your device settings</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-500 mt-0.5">•</span>
-                    <span>Tap "Install" and wait for the installation to complete</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
+            const displayList = dynamicCategories.length >= 6
+              ? dynamicCategories.map((name: string) => {
+                  const match = CATEGORY_ITEMS.find((c) => c.name.toLowerCase() === name.toLowerCase());
+                  return {
+                    id: name.toLowerCase().replace(/\s+/g, '-'),
+                    name,
+                    tag: 'Available',
+                    icon: match?.icon || (
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                    ),
+                  };
+                })
+              : CATEGORY_ITEMS.slice(0, 6);
 
-          {/* Warning Banner */}
-          <div className="max-w-3xl mx-auto mb-6 p-3 md:p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900">
-            <div className="flex items-start gap-2">
-              <svg className="w-5 h-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              <p className="text-xs md:text-sm text-amber-800 dark:text-amber-200">
-                <strong>Security Notice:</strong> You may see a warning about installing apps from unknown sources. This is normal for apps not downloaded from Google Play Store. Our app is safe to install.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-2xl mx-auto">
-            <a
-              href={settings?.apkDownloadUrl || "#"}
-              download
-              className="flex items-center gap-4 rounded-xl border-2 border-[#e36057] bg-white p-5 hover:bg-red-50 hover:shadow-lg transition-all dark:border-[#e36057] dark:bg-gray-800 dark:hover:bg-red-900/10"
-            >
-              <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-red-100 dark:bg-red-900">
-                <svg className="w-7 h-7 text-[#e36057]" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                </svg>
-              </div>
-              <div className="flex-1 text-left">
-                <h3 className="font-bold text-gray-800 dark:text-white/90 mb-1">
-                  Download APK
+            return displayList.map((cat: any) => (
+              <Link
+                key={cat.id || cat.name}
+                to={`/customer/menu?category=${encodeURIComponent(cat.name)}`}
+                className="flex flex-col items-center justify-center p-3 sm:p-6 rounded-2xl bg-white border border-neutral-200/70 hover:border-black hover:shadow-md transition-all duration-300 group text-center"
+              >
+                <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-700 mb-1.5 sm:mb-3 group-hover:bg-black group-hover:text-white transition-colors duration-300 [&>svg]:w-4 [&>svg]:h-4 sm:[&>svg]:w-6 sm:[&>svg]:h-6">
+                  {cat.icon}
+                </div>
+                <h3 className="text-xs sm:text-sm font-bold text-neutral-900 group-hover:text-black truncate w-full">
+                  {cat.name}
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Android v1.0.5 • 108 MB
+                <p className="text-[9px] sm:text-[11px] text-neutral-400 mt-0.5 hidden sm:block">
+                  {cat.tag || 'Available'}
                 </p>
-              </div>
-              <svg className="w-5 h-5 text-[#e36057]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
+              </Link>
+            ));
+          })()}
+        </div>
+      </section>
+
+      {/* =========================================================
+          4. TODAY'S MENU (WHITE SECTION) - 2 ITEMS PER ROW ON MOBILE
+      ========================================================= */}
+      <section className="bg-white py-8 sm:py-16 md:py-20 border-y border-neutral-200/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+          <div className="flex items-center justify-between mb-5 sm:mb-10">
+            <div>
+              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500 mb-0.5 sm:mb-1">
+                COOKED FRESH • SERVED HOT
+              </p>
+              <h2 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-neutral-900 tracking-tight">
+                Today's menu
+              </h2>
+            </div>
 
             <Link
-              to="/order"
-              className="flex items-center gap-4 rounded-xl border-2 border-gray-200 bg-white p-5 hover:border-blue-500 hover:shadow-lg transition-all dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500"
+              to="/customer/menu"
+              className="inline-flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-semibold text-neutral-700 hover:text-black transition-colors group"
             >
-              <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900">
-                <svg className="w-7 h-7 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-              </div>
-              <div className="flex-1 text-left">
-                <h3 className="font-bold text-gray-800 dark:text-white/90 mb-1">
-                  iOS / Other Users
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Order via Website
-                </p>
-              </div>
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              <span>Full menu</span>
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </Link>
           </div>
-        </div>
-      </div>
 
-      {/* How It Works Section */}
-      <div className="mt-16 md:mt-20 bg-gradient-to-b from-red-50 dark:from-red-950/20 to-transparent rounded-t-[60px] md:rounded-t-[120px] px-4 md:px-6 lg:px-20 py-12 md:py-20">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-10 md:mb-16">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white/90">
-              How Does It Work
-            </h2>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Simple steps to get your favorite food
+          {/* Dish Cards Carousel / Grid: 2 cols on mobile */}
+          <QueryBoundary
+            query={popularItemsQuery}
+            loadingComponent={
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="rounded-2xl sm:rounded-3xl border border-neutral-100 p-2.5 sm:p-4 space-y-2 sm:space-y-4 bg-neutral-50 animate-pulse">
+                    <div className="w-full aspect-square rounded-xl sm:rounded-2xl bg-neutral-200" />
+                    <div className="h-4 bg-neutral-200 rounded w-3/4" />
+                    <div className="h-3 bg-neutral-200 rounded w-1/2" />
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            {(dishes) => {
+              const displayDishes = (dishes && dishes.length >= 4) ? dishes.slice(0, 4) : FALLBACK_TODAYS_MENU;
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                  {displayDishes.map((dish: any, idx: number) => {
+                    const price = dish.priceVariants?.[0]?.price || dish.price || 120;
+                    const hasVariants = dish.priceVariants && dish.priceVariants.length > 1;
+                    const inCartCount = cartItems
+                      .filter((c: any) => c.menuItemId === dish._id)
+                      .reduce((sum: number, c: any) => sum + (c.quantity || 0), 0);
+
+                    return (
+                      <div
+                        key={dish._id || idx}
+                        onClick={() => setSelectedItemForVariant(dish)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedItemForVariant(dish);
+                          }
+                        }}
+                        className="rounded-2xl sm:rounded-3xl border border-neutral-200/70 bg-[#FAFAFA] p-2.5 sm:p-4 flex flex-col justify-between hover:shadow-lg hover:border-neutral-400 transition-all duration-300 group cursor-pointer active:scale-[0.99] text-left select-none relative"
+                      >
+                        {/* Image */}
+                        <div className="relative w-full aspect-square rounded-xl sm:rounded-2xl overflow-hidden mb-2.5 sm:mb-4 bg-neutral-200">
+                          <img
+                            src={dish.image || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80"}
+                            alt={dish.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+
+                          {inCartCount > 0 && (
+                            <span className="absolute bottom-1.5 left-1.5 sm:bottom-3 sm:left-3 bg-burgundy text-white text-[8px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">
+                              {inCartCount} in cart
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Title & Price */}
+                        <div>
+                          <div className="flex items-start justify-between gap-1 mb-1">
+                            <h3 className="font-bold text-neutral-900 text-xs sm:text-base leading-tight line-clamp-1 group-hover:text-burgundy transition-colors">
+                              {dish.name}
+                            </h3>
+                            <span className="font-extrabold text-neutral-900 text-xs sm:text-base shrink-0">
+                              ₹{price}
+                            </span>
+                          </div>
+
+                          {/* Portions or subtext */}
+                          {dish.priceVariants && dish.priceVariants.length > 0 ? (
+                            <p className="text-[9px] sm:text-[11px] font-bold text-neutral-400 uppercase tracking-wide line-clamp-1 mb-2.5 sm:mb-4">
+                              {dish.priceVariants.map((v: any) => v.quantity).join(' • ')}
+                            </p>
+                          ) : (
+                            <p className="text-[9px] sm:text-[11px] text-neutral-400 line-clamp-1 mb-2.5 sm:mb-4">
+                              Fresh & made to order
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Bottom Action Bar */}
+                        <div className="pt-2 flex items-center justify-between border-t border-neutral-200/60 text-[10px] sm:text-xs text-neutral-500 font-bold group-hover:text-burgundy transition-colors">
+                          <span>{hasVariants ? 'Select options' : 'Choose portion'}</span>
+                          <span className="text-xs font-black">→</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }}
+          </QueryBoundary>
+        </div>
+      </section>
+
+      {/* =========================================================
+          5. HOW IT WORKS - 2 COLS ON MOBILE
+      ========================================================= */}
+      <section id="how-it-works" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-10 sm:py-16 md:py-24">
+        <div className="mb-6 sm:mb-12">
+          <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1 sm:mb-2">
+            FROM YOUR DESIRE TO YOUR DOOR
+          </p>
+          <h2 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-neutral-900 tracking-tight">
+            How it works
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+          {/* Step 1 */}
+          <div className="p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border border-neutral-200/70 shadow-2xs hover:shadow-md transition-all">
+            <span className="text-[10px] sm:text-xs font-bold text-neutral-400 mb-2 sm:mb-4 block">01</span>
+            <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-neutral-900 text-white flex items-center justify-center mb-3 sm:mb-6">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xs sm:text-base font-bold text-neutral-900 mb-1 sm:mb-2">Pick your Food</h3>
+            <p className="text-[10px] sm:text-xs text-neutral-500 leading-relaxed line-clamp-2 sm:line-clamp-none">
+              Choose from our fresh burgers, crispy sides, pizzas and more.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            {/* Step 1 */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 text-center dark:border-gray-800 dark:bg-white/[0.03]">
-              <div className="flex justify-center mb-5">
-                <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-gray-200 dark:border-gray-700 shadow-lg">
-                  <img
-                    src="https://img.freepik.com/free-vector/hand-drawn-people-taking-pictures-food-illustration_23-2150504673.jpg"
-                    alt="Choose Your Meal"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-              <h3 className="text-lg md:text-xl font-bold text-brand-500 mb-3">
-                Choose Your Meal
-              </h3>
+          {/* Step 2 */}
+          <div className="p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border border-neutral-200/70 shadow-2xs hover:shadow-md transition-all">
+            <span className="text-[10px] sm:text-xs font-bold text-neutral-400 mb-2 sm:mb-4 block">02</span>
+            <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-neutral-900 text-white flex items-center justify-center mb-3 sm:mb-6">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xs sm:text-base font-bold text-neutral-900 mb-1 sm:mb-2">Add to cart</h3>
+            <p className="text-[10px] sm:text-xs text-neutral-500 leading-relaxed line-clamp-2 sm:line-clamp-none">
+              Build your order with favourite meals, sides, and chilled beverages.
+            </p>
+          </div>
 
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                See the menu area for all of our dishes. Decide on your preferred dish and serving size.
-              </p>
+          {/* Step 3 */}
+          <div className="p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border border-neutral-200/70 shadow-2xs hover:shadow-md transition-all">
+            <span className="text-[10px] sm:text-xs font-bold text-neutral-400 mb-2 sm:mb-4 block">03</span>
+            <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-neutral-900 text-white flex items-center justify-center mb-3 sm:mb-6">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+            </div>
+            <h3 className="text-xs sm:text-base font-bold text-neutral-900 mb-1 sm:mb-2">Packed fresh</h3>
+            <p className="text-[10px] sm:text-xs text-neutral-500 leading-relaxed line-clamp-2 sm:line-clamp-none">
+              Every dish is freshly cooked and sealed for delivery freshness.
+            </p>
+          </div>
+
+          {/* Step 4 */}
+          <div className="p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border border-neutral-200/70 shadow-2xs hover:shadow-md transition-all">
+            <span className="text-[10px] sm:text-xs font-bold text-neutral-400 mb-2 sm:mb-4 block">04</span>
+            <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-neutral-900 text-white flex items-center justify-center mb-3 sm:mb-6">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 className="text-xs sm:text-base font-bold text-neutral-900 mb-1 sm:mb-2">Fast delivery</h3>
+            <p className="text-[10px] sm:text-xs text-neutral-500 leading-relaxed line-clamp-2 sm:line-clamp-none">
+              Track rider in real time and enjoy hot meals at home.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================
+          6. CHEF FEATURE SECTION (WHITE BACKGROUND)
+      ========================================================= */}
+      <section className="bg-white py-10 sm:py-16 md:py-24 border-y border-neutral-200/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Chef Portrait */}
+            <div className="lg:col-span-5 flex justify-center">
+              <div className="relative w-full max-w-xs sm:max-w-md aspect-[4/3] sm:aspect-[3/4] rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl bg-neutral-100">
+                <img
+                  src="https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&w=800&q=80"
+                  alt="Professional Chef"
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
 
-            {/* Step 2 */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 text-center dark:border-gray-800 dark:bg-white/[0.03]">
-              <div className="flex justify-center mb-5">
-                <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-gray-200 dark:border-gray-700 shadow-lg">
-                  <img
-                    src="https://img.freepik.com/free-vector/set-different-bubbles-chat-messenger-app_23-2147785718.jpg"
-                    alt="Confirm Your Order"
-                    className="w-full h-full object-cover"
-                  />
+            {/* Chef Details */}
+            <div className="lg:col-span-7 space-y-4 sm:space-y-6">
+              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500">
+                MEET OUR CHEFS
+              </p>
+              <h2 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-neutral-900 tracking-tight leading-snug">
+                Cooked with care, served with flavor.
+              </h2>
+              <p className="text-neutral-600 text-xs sm:text-base leading-relaxed">
+                Every dish is made with fresh ingredients, bold flavours and recipes we truly love. That's the difference you can taste in every single bite.
+              </p>
+
+              <div className="space-y-3 sm:space-y-4 pt-1 sm:pt-2">
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-neutral-900 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-neutral-900">Fresh ingredients</h4>
+                    <p className="text-[10px] sm:text-xs text-neutral-500">Carefully selected farm produce make every meal taste significantly better.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-neutral-900 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-neutral-900">Made to order</h4>
+                    <p className="text-[10px] sm:text-xs text-neutral-500">Every dish is prepared fresh right when your order is placed, never pre-packed.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-neutral-900 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-neutral-900">Real, simple flavors</h4>
+                    <p className="text-[10px] sm:text-xs text-neutral-500">No unnecessary additives, just honest home-style delicious food crafted right.</p>
+                  </div>
                 </div>
               </div>
-              <h3 className="text-lg md:text-xl font-bold text-brand-500 mb-3">
-                Confirm Your Order
-              </h3>
-
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Confirm your order on whatsapp and wait for delivery. Free delivery on orders above ₹100/-
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 text-center dark:border-gray-800 dark:bg-white/[0.03]">
-              <div className="flex justify-center mb-5">
-                <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-gray-200 dark:border-gray-700 shadow-lg">
-                  <img
-                    src="https://img.freepik.com/free-vector/cash-delivery-courier-client_23-2148788572.jpg"
-                    alt="Collect Your Meal"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-              <h3 className="text-lg md:text-xl font-bold text-brand-500 mb-3">
-                Collect Your Meal
-              </h3>
-
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Collect your meal and enjoy it. Visit again to get best food.
-              </p>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Footer */}
-      <Footer />
+      {/* =========================================================
+          7. FAQ
+      ========================================================= */}
+      <section id="faqs" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-10 sm:py-16 md:py-24">
+        <div className="text-center mb-6 sm:mb-12">
+          <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1 sm:mb-2">HAVE QUESTIONS?</p>
+          <h2 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-neutral-900 tracking-tight">
+            Quick questions, quick answers
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center">
+          {/* FAQ Accordions */}
+          <div className="lg:col-span-8 space-y-2.5 sm:space-y-4">
+            {FAQS.map((faq, i) => (
+              <div
+                key={i}
+                className="rounded-xl sm:rounded-2xl border border-neutral-200/80 bg-white p-3.5 sm:p-5 cursor-pointer transition-all hover:border-black"
+                onClick={() => setFaqOpen(faqOpen === i ? null : i)}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-xs sm:text-base font-bold text-neutral-900">
+                    {faq.q}
+                  </h4>
+                  <span className="text-neutral-500 text-base sm:text-lg font-bold">
+                    {faqOpen === i ? "−" : "+"}
+                  </span>
+                </div>
+                {faqOpen === i && (
+                  <p className="mt-2.5 sm:mt-3 text-[11px] sm:text-sm text-neutral-600 leading-relaxed pt-2 border-t border-neutral-100">
+                    {faq.a}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Side Chef Badge */}
+          <div className="lg:col-span-4 flex justify-center hidden sm:flex">
+            <div className="relative w-48 sm:w-64 aspect-[3/4] rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl bg-neutral-200">
+              <img
+                src="https://images.unsplash.com/photo-1581299894007-aaa50297cf16?auto=format&fit=crop&w=600&q=80"
+                alt="Chef Portrait"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================
+          11. PREMIUM DARK FOOTER
+      ========================================================= */}
+      <footer className="bg-black text-white pt-16 pb-12 border-t border-neutral-800">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-12 border-b border-neutral-800">
+            {/* Col 1 Brand */}
+            <div className="md:col-span-2 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center font-black">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+                <span className="text-lg font-black tracking-tight uppercase">
+                  {settings?.siteName || "DABBA"}
+                </span>
+              </div>
+              <p className="text-xs text-neutral-400 max-w-sm leading-relaxed">
+                {settings?.businessAddress || "Law Gate, Near LPU, Phagwara, Punjab"}. Bringing authentic flavors, fresh local ingredients, and unforgettable dining experiences directly to you.
+              </p>
+            </div>
+
+            {/* Col 2 Menu */}
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">
+                Explore
+              </h4>
+              <ul className="space-y-2 text-xs text-neutral-300">
+                <li><Link to="/customer/menu" className="hover:text-white transition-colors">Burgers</Link></li>
+                <li><Link to="/customer/menu" className="hover:text-white transition-colors">Juices & Fresh</Link></li>
+                <li><Link to="/customer/menu" className="hover:text-white transition-colors">Cheesy Items</Link></li>
+                <li><Link to="/customer/menu" className="hover:text-white transition-colors">Crispy Wraps</Link></li>
+              </ul>
+            </div>
+
+            {/* Col 3 Company */}
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">
+                Company
+              </h4>
+              <ul className="space-y-2 text-xs text-neutral-300">
+                <li><a href="#how-it-works" className="hover:text-white transition-colors">About Us</a></li>
+                <li><Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                <li><a href="#faqs" className="hover:text-white transition-colors">FAQ</a></li>
+                <li><Link to="/customer/login" className="hover:text-white transition-colors">Customer Portal</Link></li>
+              </ul>
+            </div>
+
+            {/* Col 4 Contact */}
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">
+                Contact
+              </h4>
+              <ul className="space-y-2 text-xs text-neutral-300">
+                <li>{settings?.contactPhone || "+91 7696482938"}</li>
+                <li>{settings?.contactEmail || "contact@thetiptop.in"}</li>
+                <li>Phagwara, Punjab, India</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-500 gap-4">
+            <p>© {new Date().getFullYear()} {settings?.siteName || "DABBA"}. All rights reserved.</p>
+            <div className="flex items-center gap-6">
+              <span>Developed with ❤️ for food lovers</span>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* Variant Selection Modal (Half/Full / Portion Selector) */}
+      <VariantSelectionModal
+        isOpen={Boolean(selectedItemForVariant)}
+        onClose={() => setSelectedItemForVariant(null)}
+        item={selectedItemForVariant}
+        cartItems={cartItems}
+        onUpdateQuantity={handleUpdateVariantQuantity}
+      />
     </div>
   );
 }

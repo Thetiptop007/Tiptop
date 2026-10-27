@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useCustomerMenuQuery, usePublicBootstrap } from '../../hooks/useAppDataQueries';
 import { useShopStatus } from '../../context/ShopStatusContext';
 import { QueryBoundary } from '../../components/common/QueryBoundary';
-import OfferBanner from '../../components/customer/OfferBanner';
+import QuickCheckoutModal from '../../components/customer/QuickCheckoutModal';
+import VariantSelectionModal from '../../components/customer/VariantSelectionModal';
 
 export default function CustomerMenu() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,11 +14,31 @@ export default function CustomerMenu() {
   const selectedCategory = searchParams.get('category') || 'All';
   const searchTerm = searchParams.get('search') || '';
   const [page, setPage] = useState(1);
+  const [quickCheckoutOpen, setQuickCheckoutOpen] = useState(false);
+  const [directCheckoutCart, setDirectCheckoutCart] = useState<any[]>([]);
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [selectedItemForVariant, setSelectedItemForVariant] = useState<any | null>(null);
+
+  useEffect(() => {
+    const syncCart = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('cart') || '[]');
+        setCartItems(stored);
+      } catch {
+        setCartItems([]);
+      }
+    };
+    syncCart();
+
+    const handleUpdate = () => syncCart();
+    window.addEventListener('cartUpdated', handleUpdate);
+    return () => window.removeEventListener('cartUpdated', handleUpdate);
+  }, []);
 
   const { categories = ["All"], isLoading: isBootstrapLoading } = usePublicBootstrap();
   const menuQuery = useCustomerMenuQuery({
     page,
-    limit: 12,
+    limit: 16,
     category: selectedCategory !== 'All' ? selectedCategory : undefined,
     search: searchTerm || undefined,
     sort: '-rating',
@@ -40,28 +61,64 @@ export default function CustomerMenu() {
     setPage(1);
   };
 
+  // Get total quantity of an item across all its variants in cart
+  const getItemTotalCartQuantity = (itemId: string) => {
+    return cartItems
+      .filter((c: any) => c.menuItemId === itemId)
+      .reduce((sum: number, c: any) => sum + (c.quantity || 0), 0);
+  };
+
+  // Handler passed to VariantSelectionModal to increment/decrement a specific variant
+  const handleUpdateVariantQuantity = (item: any, variantQuantity: string, variantPrice: number, delta: number) => {
+    try {
+      const existing = JSON.parse(localStorage.getItem('cart') || '[]');
+      const matchIndex = existing.findIndex(
+        (c: any) => c.menuItemId === item._id && c.selectedVariant === variantQuantity
+      );
+
+      if (matchIndex > -1) {
+        const newQty = existing[matchIndex].quantity + delta;
+        if (newQty <= 0) {
+          existing.splice(matchIndex, 1);
+        } else {
+          existing[matchIndex].quantity = newQty;
+        }
+      } else if (delta > 0) {
+        existing.push({
+          menuItemId: item._id,
+          name: item.name,
+          price: variantPrice,
+          image: item.image,
+          selectedVariant: variantQuantity,
+          quantity: 1,
+        });
+      }
+
+      localStorage.setItem('cart', JSON.stringify(existing));
+      setCartItems(existing);
+      window.dispatchEvent(new Event('cartUpdated'));
+    } catch (err) {
+      console.error('Failed to update variant cart quantity', err);
+    }
+  };
+
   return (
-    <div className="min-h-screen pb-20 bg-white dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-6">
-        {/* Header Section */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
-            Menu
-          </h1>
-        
-          {/* Search and Filter Bar */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            {/* Search Bar */}
-            <div className="relative flex-1">
+    <div className="min-h-screen pb-24 bg-[#F6F5F2] text-neutral-900 font-sans">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-6 sm:py-8">
+        {/* Search Bar */}
+        <div className="space-y-3 mb-6">
+          <div className="max-w-2xl">
+            {/* Search Input */}
+            <div className="relative w-full">
               <input
                 type="text"
-                placeholder="Search for dishes..."
+                placeholder="Search dishes, burgers..."
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 pl-10 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white dark:placeholder:text-gray-500 dark:focus:border-brand-500"
+                className="w-full rounded-full border border-neutral-300/80 bg-white px-4 sm:px-5 py-2.5 sm:py-3 pl-10 sm:pl-11 text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-black focus:outline-none shadow-2xs transition-all"
               />
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500"
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -73,48 +130,39 @@ export default function CustomerMenu() {
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                 />
               </svg>
-            </div>
-
-            {/* Category Dropdown for mobile */}
-            <div className="sm:hidden">
-              <select
-                value={selectedCategory}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white"
-              >
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => handleSearchChange('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black text-xs font-bold"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Categories Chips for desktop */}
-          <div className="hidden sm:flex flex-wrap gap-2">
+          {/* Quick Category Filter Pills */}
+          <div className="flex overflow-x-auto no-scrollbar items-center gap-1.5 sm:gap-2 pt-1 pb-1">
             {isBootstrapLoading ? (
-              [1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="h-8 w-20 animate-pulse rounded-md bg-gray-100 dark:bg-gray-800" />
+              [1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-8 w-16 sm:w-20 rounded-full bg-neutral-200 animate-pulse flex-shrink-0" />
               ))
             ) : (
               categories.map((category) => {
-                const isOfferCategory = category === 'Offer';
+                const isSelected = selectedCategory === category;
                 return (
                   <button
                     key={category}
+                    type="button"
                     onClick={() => handleCategoryChange(category)}
-                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
-                      selectedCategory === category
-                        ? isOfferCategory
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg scale-105'
-                          : 'bg-brand-50 text-brand-500 dark:bg-brand-500/10 dark:text-brand-400'
-                        : isOfferCategory
-                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border-2 border-green-300 hover:from-green-100 hover:to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 dark:text-green-400 dark:border-green-700'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-gray-700'
+                    className={`px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs font-extrabold whitespace-nowrap transition-all flex-shrink-0 ${
+                      isSelected
+                        ? 'bg-burgundy text-white shadow-xs'
+                        : 'bg-white text-neutral-700 border border-neutral-200/90 hover:border-burgundy hover:text-burgundy'
                     }`}
                   >
-                    {isOfferCategory && '🎁 '}{category}
+                    {category}
                   </button>
                 );
               })
@@ -122,198 +170,148 @@ export default function CustomerMenu() {
           </div>
         </div>
 
-        {/* Offer Banners */}
-        <OfferBanner />
-
-        {/* Shop Status Banner */}
-        {!isShopOpen && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/10">
-            <p className="text-sm text-red-700 dark:text-red-400">
-              ⏰ We're currently closed. You can browse the menu but orders are not accepted.
-            </p>
-            {shopStatus?.closureReason && <p className="text-xs mt-1 text-red-600 dark:text-red-300">{shopStatus.closureReason}</p>}
-          </div>
-        )}
-
-        {/* Results Info */}
-        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-          {menuQuery.isLoading ? (
-            'Loading...'
-          ) : (
-            <>
-              Showing {menuQuery.data?.data?.menuItems?.length || 0} items
-              {selectedCategory !== 'All' && ` in ${selectedCategory}`}
-              {searchTerm && ` matching "${searchTerm}"`}
-            </>
-          )}
-        </div>
-
-        <QueryBoundary 
+        {/* Dishes Grid - 2 items per row on mobile (grid-cols-2) */}
+        <QueryBoundary
           query={menuQuery}
           loadingComponent={
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="rounded-xl border border-gray-200 bg-white overflow-hidden dark:border-gray-800 dark:bg-white/[0.03]">
-                  <div className="aspect-square bg-gray-200 dark:bg-gray-700 animate-pulse" />
-                  <div className="p-3 space-y-2">
-                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3 animate-pulse" />
-                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                  </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="rounded-2xl sm:rounded-3xl border border-neutral-200/80 bg-white p-2.5 sm:p-4 space-y-3 animate-pulse">
+                  <div className="w-full aspect-square rounded-xl sm:rounded-2xl bg-neutral-200" />
+                  <div className="h-3 sm:h-4 bg-neutral-200 rounded w-3/4" />
+                  <div className="h-3 sm:h-4 bg-neutral-200 rounded w-1/3" />
                 </div>
               ))}
             </div>
           }
         >
           {(data) => {
-            const menuItems = data.data.menuItems;
+            const menuItems = data.data.menuItems || [];
             const pagination = data.pagination;
+
+            if (menuItems.length === 0) {
+              return (
+                <div className="py-16 sm:py-20 text-center rounded-3xl bg-white border border-neutral-200/70 p-6 sm:p-8">
+                  <p className="text-sm sm:text-base font-bold text-neutral-800 mb-1">No dishes found</p>
+                  <p className="text-xs text-neutral-500">Try adjusting your search or category filter.</p>
+                </div>
+              );
+            }
 
             return (
               <>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
                   {menuItems.map((item: any) => {
                     const lowestPrice = item.priceVariants && item.priceVariants.length > 0
                       ? Math.min(...item.priceVariants.map((v: any) => v.price))
-                      : item.price;
-                    const hasMultipleVariants = item.priceVariants && item.priceVariants.length > 1;
+                      : item.price || 120;
+                    const hasVariants = item.priceVariants && item.priceVariants.length > 1;
+                    const totalQtyInCart = getItemTotalCartQuantity(item._id);
 
                     return (
-                      <Link
+                      <div
                         key={item._id}
-                        to={`/customer/menu/${item._id}`}
-                        className="group relative rounded-xl border border-gray-200 bg-white overflow-hidden hover:border-brand-500 hover:shadow-md transition-all dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-brand-500"
+                        onClick={() => setSelectedItemForVariant(item)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedItemForVariant(item);
+                          }
+                        }}
+                        className="rounded-2xl sm:rounded-3xl border border-neutral-200/90 bg-white p-2.5 sm:p-4 flex flex-col justify-between hover:shadow-xl hover:border-black/30 transition-all duration-300 group cursor-pointer active:scale-[0.99] text-left select-none relative"
                       >
-                        {/* Image Section */}
-                        <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800">
-                          <img
-                            src={item.image || '/images/product/placeholder.jpg'}
-                            alt={item.name}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/images/product/placeholder.jpg';
-                            }}
-                          />
-                          {!item.isAvailable && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                              <span className="text-white font-bold text-xs">Out of Stock</span>
-                            </div>
-                          )}
-                        </div>
+                        <div>
+                          {/* Image Box */}
+                          <div className="relative w-full aspect-square rounded-xl sm:rounded-2xl overflow-hidden bg-neutral-100 mb-2 sm:mb-3.5">
+                            <img
+                              src={item.image || '/images/product/placeholder.jpg'}
+                              alt={item.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/images/product/placeholder.jpg';
+                              }}
+                            />
 
-                        {/* Content Section */}
-                        <div className="p-3">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white/90 mb-1 line-clamp-2">
-                            {item.name}
-                          </h3>
-                          
-                          {item.priceVariants && item.priceVariants.length > 0 && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 line-clamp-1">
-                              {item.priceVariants.map((variant: any, index: number) => (
-                                <span key={variant.quantity}>
-                                  {variant.quantity}
-                                  {index < item.priceVariants.length - 1 ? ', ' : ''}
+                            {/* In-cart indicator badge */}
+                            {totalQtyInCart > 0 && (
+                              <div className="absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-burgundy text-white text-[9px] sm:text-[11px] font-black shadow-xs flex items-center gap-1">
+                                <span>{totalQtyInCart} in cart</span>
+                              </div>
+                            )}
+
+                            {/* Unavailable Overlay */}
+                            {!item.isAvailable && (
+                              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center">
+                                <span className="text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-neutral-900/90">
+                                  Sold Out
                                 </span>
-                              ))}
-                            </p>
-                          )}
-
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-baseline">
-                              <span className="text-sm font-bold text-brand-500">
-                                ₹{lowestPrice.toFixed(0)}
-                              </span>
-                              {hasMultipleVariants && (
-                                <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">+</span>
-                              )}
-                            </div>
-                            {item.rating && (
-                              <div className="flex items-center gap-0.5">
-                                <svg
-                                  className="w-3.5 h-3.5 text-yellow-400 fill-current"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                </svg>
-                                <span className="text-xs text-gray-700 dark:text-gray-300">{item.rating.toFixed(1)}</span>
                               </div>
                             )}
                           </div>
+
+                          {/* Item Meta */}
+                          <div className="mb-1.5 sm:mb-2">
+                            <h3 className="font-extrabold text-neutral-950 text-xs sm:text-base leading-tight sm:leading-snug line-clamp-1 group-hover:text-burgundy transition-colors mb-0.5 sm:mb-1">
+                              {item.name}
+                            </h3>
+
+                            {/* Portion Variants Display */}
+                            {item.priceVariants && item.priceVariants.length > 0 ? (
+                              <p className="text-[9px] sm:text-[11px] font-bold text-neutral-400 uppercase tracking-wide line-clamp-1 mb-1 sm:mb-2">
+                                {item.priceVariants.map((v: any) => v.quantity).join(' • ')}
+                              </p>
+                            ) : (
+                              <p className="text-[9px] sm:text-[11px] text-neutral-400 line-clamp-1 mb-1 sm:mb-2">
+                                Fresh & made to order
+                              </p>
+                            )}
+
+                            {/* Price */}
+                            <div className="flex items-baseline gap-0.5 sm:gap-1">
+                              <span className="font-black text-neutral-950 text-sm sm:text-lg">
+                                ₹{lowestPrice.toFixed(0)}
+                              </span>
+                              {hasVariants && (
+                                <span className="text-[10px] sm:text-xs font-bold text-neutral-400">onwards</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </Link>
+
+                        {/* Subtle Customization Pill Hint */}
+                        <div className="pt-2 sm:pt-2.5 border-t border-neutral-100 flex items-center justify-between text-neutral-400 text-[10px] sm:text-[11px] font-bold group-hover:text-burgundy transition-colors">
+                          <span>{hasVariants ? 'Select options' : 'Choose portion'}</span>
+                          <span className="text-xs font-black">→</span>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
 
                 {/* Pagination */}
                 {pagination && pagination.totalPages > 1 && (
-                  <div className="mt-8 flex flex-col items-center justify-between gap-4 sm:flex-row border-t border-gray-100 dark:border-gray-800 pt-6">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="mt-12 flex justify-center items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                      className="px-5 py-2.5 rounded-full border border-neutral-300 text-xs font-bold disabled:opacity-40 hover:border-black"
+                    >
+                      ← Previous
+                    </button>
+                    <span className="text-xs font-semibold text-neutral-500">
                       Page {pagination.currentPage} of {pagination.totalPages}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={pagination.currentPage === 1}
-                        className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                          pagination.currentPage === 1
-                            ? "cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600"
-                            : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        Previous
-                      </button>
-
-                      <div className="flex gap-1">
-                        {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((p) => {
-                          const showPage =
-                            p === 1 ||
-                            p === pagination.totalPages ||
-                            (p >= pagination.currentPage - 1 && p <= pagination.currentPage + 1);
-
-                          const showEllipsis =
-                            (p === pagination.currentPage - 2 && pagination.currentPage > 3) ||
-                            (p === pagination.currentPage + 2 && pagination.currentPage < pagination.totalPages - 2);
-
-                          if (showEllipsis) {
-                            return (
-                              <span key={p} className="px-3 py-2 text-sm text-gray-400 dark:text-gray-600">
-                                ...
-                              </span>
-                            );
-                          }
-
-                          if (!showPage) return null;
-
-                          return (
-                            <button
-                              key={p}
-                              onClick={() => setPage(p)}
-                              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                                pagination.currentPage === p
-                                  ? "bg-brand-500 text-white"
-                                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                              }`}
-                            >
-                              {p}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <button
-                        onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-                        disabled={pagination.currentPage === pagination.totalPages}
-                        className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                          pagination.currentPage === pagination.totalPages
-                            ? "cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600"
-                            : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        Next
-                      </button>
-                    </div>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={page >= pagination.totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                      className="px-5 py-2.5 rounded-full border border-neutral-300 text-xs font-bold disabled:opacity-40 hover:border-black"
+                    >
+                      Next →
+                    </button>
                   </div>
                 )}
               </>
@@ -321,6 +319,22 @@ export default function CustomerMenu() {
           }}
         </QueryBoundary>
       </div>
+
+      {/* 1-Click Fast Checkout Modal */}
+      <QuickCheckoutModal
+        isOpen={quickCheckoutOpen}
+        onClose={() => setQuickCheckoutOpen(false)}
+        cart={directCheckoutCart}
+      />
+
+      {/* Variant Selection Modal (Half/Full / Portion Selector) */}
+      <VariantSelectionModal
+        isOpen={Boolean(selectedItemForVariant)}
+        onClose={() => setSelectedItemForVariant(null)}
+        item={selectedItemForVariant}
+        cartItems={cartItems}
+        onUpdateQuantity={handleUpdateVariantQuantity}
+      />
     </div>
   );
 }

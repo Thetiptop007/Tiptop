@@ -32,6 +32,9 @@ importers:
       '@react-jvectormap/world':
         specifier: ^1.1.2
         version: 1.1.2
+      '@react-oauth/google':
+        specifier: ^0.13.5
+        version: 0.13.5(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@tanstack/react-query':
         specifier: ^5.99.0
         version: 5.99.0(react@19.0.0)
@@ -1005,6 +1008,12 @@ packages:
 
   '@react-jvectormap/world@1.1.2':
     resolution: {integrity: sha512-jDSy64DZz4mzEOrVni1zV5rak65+1WZhSGsvAvzHNIMHVx+tdD8R5OikyWUjYte8nxIkOUhQZtVJMK7VOIsmQA==}
+
+  '@react-oauth/google@0.13.5':
+    resolution: {integrity: sha512-xQWri2s/3nNekZJ4uuov2aAfQYu83bN3864KcFqw2pK1nNbFurQIjPFDXhWaKH3IjYJ2r/9yyIIpsn5lMqrheQ==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   '@rollup/pluginutils@5.1.4':
     resolution: {integrity: sha512-USm05zrsFxYLPdWWq+K3STlWiT/3ELn3RcV5hJMghpeAIhxfsUIg6mt12CBJBInWMV4VneoV7SfGv8xIwo2qNQ==}
@@ -3705,6 +3714,11 @@ snapshots:
       '@react-jvectormap/jquery-mousewheel': 1.0.2
 
   '@react-jvectormap/world@1.1.2': {}
+
+  '@react-oauth/google@0.13.5(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+    dependencies:
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
 
   '@rollup/pluginutils@5.1.4(rollup@4.34.6)':
     dependencies:

@@ -4,11 +4,12 @@ import { useCustomerAuthActions } from '../../hooks/useCustomerAuthActions';
 import GridShape from '../../components/common/GridShape';
 import ThemeTogglerTwo from '../../components/common/ThemeTogglerTwo';
 import { usePublicBootstrap } from '../../hooks/useAppDataQueries';
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
 export default function CustomerLogin() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoading: authLoading } = useCustomerAuthActions();
+  const { login, googleLogin, isLoading: authLoading } = useCustomerAuthActions();
   const { settings } = usePublicBootstrap();
   
   const [phone, setPhone] = useState('');
@@ -79,6 +80,28 @@ export default function CustomerLogin() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credential: string) => {
+    setLoading(true);
+    setErrors({});
+    try {
+      const result = await googleLogin(credential);
+      if (result.success) {
+        navigate(from, { replace: true });
+      } else {
+        setErrors({ submit: result.message || 'Google login failed. Please try again.' });
+      }
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setErrors({ submit: err?.message || 'Google authentication encountered an error.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = (errorMessage: string) => {
+    setErrors({ submit: errorMessage });
   };
 
   return (
@@ -196,7 +219,7 @@ export default function CustomerLogin() {
                         <button
                           type="button"
                           onClick={() => setShowForgotPasswordModal(true)}
-                          className="font-medium text-[#e36057] hover:text-[#c54e45] transition-colors"
+                          className="font-medium text-burgundy hover:text-burgundy-600 transition-colors"
                         >
                           Forgot password?
                         </button>
@@ -208,7 +231,7 @@ export default function CustomerLogin() {
                       <button
                         type="submit"
                         disabled={loading || authLoading}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white transition-colors bg-brand-500 border border-transparent rounded-lg shadow-sm w-full hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-gray-900"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white transition-colors bg-burgundy border border-transparent rounded-lg shadow-sm w-full hover:bg-burgundy-600 focus:outline-none focus:ring-2 focus:ring-burgundy focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-gray-900"
                       >
                         {loading ? (
                           <>
@@ -225,25 +248,25 @@ export default function CustomerLogin() {
                     </div>
 
                     {/* Divider */}
-                    <div className="relative">
+                    <div className="relative my-2">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+                        <div className="w-full border-t border-gray-200 dark:border-gray-700" />
                       </div>
-                      <div className="relative flex justify-center text-sm">
-                        <span className="bg-white dark:bg-gray-900 px-2 text-gray-500 dark:text-gray-400">
-                          Or
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white dark:bg-gray-900 px-3 text-gray-500 dark:text-gray-400 font-medium">
+                          Or continue with
                         </span>
                       </div>
                     </div>
 
-                    {/* Continue as Guest */}
+                    {/* Google Sign-In */}
                     <div>
-                      <Link
-                        to="/order"
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm w-full hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-                      >
-                        Continue as Guest
-                      </Link>
+                      <GoogleAuthButton
+                        onSuccess={handleGoogleSuccess}
+                        onError={handleGoogleError}
+                        text="continue_with"
+                        disabled={loading || authLoading}
+                      />
                     </div>
                   </div>
                 </form>
@@ -253,7 +276,7 @@ export default function CustomerLogin() {
                   Don't have an account?{' '}
                   <Link
                     to="/customer/signup"
-                    className="font-medium text-brand-500 hover:text-brand-600 transition-colors"
+                    className="font-medium text-burgundy hover:text-burgundy-600 transition-colors"
                   >
                     Sign up now
                   </Link>
@@ -264,7 +287,7 @@ export default function CustomerLogin() {
         </div>
 
         {/* Right Side - Branding */}
-        <div className="items-center hidden w-full h-full lg:w-1/2 bg-brand-950 dark:bg-white/5 lg:grid">
+        <div className="items-center hidden w-full h-full lg:w-1/2 bg-[#650707] dark:bg-[#650707]/30 lg:grid">
           <div className="relative flex items-center justify-center z-1">
             <GridShape />
             <div className="flex flex-col items-center max-w-xs">
@@ -308,8 +331,8 @@ export default function CustomerLogin() {
             </div>
 
             <div className="mb-6">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-brand-100 dark:bg-brand-900/30">
-                <svg className="size-8 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-burgundy/10 dark:bg-burgundy/20">
+                <svg className="size-8 text-burgundy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
@@ -326,7 +349,7 @@ export default function CustomerLogin() {
                   </p>
                   <a
                     href={`tel:${settings.contactPhone}`}
-                    className="flex items-center justify-center gap-2 text-lg font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
+                    className="flex items-center justify-center gap-2 text-lg font-semibold text-burgundy hover:text-burgundy-600 transition-colors"
                   >
                     <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -341,22 +364,11 @@ export default function CustomerLogin() {
                 <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-3">
                   Or continue with:
                 </p>
-                
-                <Link
-                  to="/order"
-                  onClick={() => setShowForgotPasswordModal(false)}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white transition-colors bg-brand-500 border border-transparent rounded-lg shadow-sm w-full hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                >
-                  <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                  Order as Guest
-                </Link>
 
                 <Link
                   to="/customer/signup"
                   onClick={() => setShowForgotPasswordModal(false)}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm w-full hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white transition-colors bg-burgundy border border-transparent rounded-lg shadow-sm w-full hover:bg-burgundy-600 focus:outline-none focus:ring-2 focus:ring-burgundy focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                 >
                   <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
