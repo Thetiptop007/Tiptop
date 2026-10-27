@@ -33,7 +33,7 @@ export function useCustomerAuthActions() {
     }
   };
 
-  const login = async (phone: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
     setIsLoading(true);
     try {
       if (authStore.getState().role === 'admin') {
@@ -48,7 +48,7 @@ export function useCustomerAuthActions() {
         }
       }
 
-      const response = await customerLogin(phone, password);
+      const response = await customerLogin(identifier, password);
 
       if (response.status === 'success' && response.data.user) {
         registerFcmToken().catch(() => logger.warn('FCM registration failed after login'));

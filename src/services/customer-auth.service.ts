@@ -66,7 +66,7 @@ const normalizeResponseError = (responseData: any, fallbackMessage: string) => {
   return fallbackMessage;
 };
 
-export const customerLogin = async (phone: string, password: string): Promise<LoginResponse> => {
+export const customerLogin = async (identifier: string, password: string): Promise<LoginResponse> => {
   // CRITICAL: Validate scope before attempting login
   if (!validateScopeSwitch('customer')) {
     logger.error('Scope violation detected: attempting to login as customer while admin logged in', {
@@ -84,7 +84,7 @@ export const customerLogin = async (phone: string, password: string): Promise<Lo
   const response = await apiRequest('auth/customer/login', {
     method: 'POST',
     body: JSON.stringify({
-      email: phone,
+      email: identifier.trim().toLowerCase(),
       password,
     }),
   });
