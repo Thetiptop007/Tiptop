@@ -910,3 +910,9 @@ span.flatpickr-weekday,
   --light-coral: #E98D8D;
   --dark-garnet: #650707;
 }
+
+.bg-burgundy { background-color: #D8271E !important; }
+.bg-burgundy-600 { background-color: #c42018 !important; }
+.text-burgundy { color: #D8271E !important; }
+.border-burgundy { border-color: #D8271E !important; }
+.hover\:bg-burgundy-600:hover { background-color: #c42018 !important; }
