@@ -80,7 +80,7 @@ function CustomerPublicApp() {
   return <Outlet />;
 }
 
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 function AppRoutes() {
   if (MAINTENANCE_MODE) {
