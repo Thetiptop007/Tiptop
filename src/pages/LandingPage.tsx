@@ -260,14 +260,14 @@ export default function LandingPage() {
 
           {/* Right Column Dish Showcase */}
           <div className="lg:col-span-6 relative flex items-center justify-center">
-            {/* Hero Main Food Photo */}
-            <div className="relative w-full max-w-xl aspect-[4/3] rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl transition-transform hover:scale-[1.01] duration-500">
+            {/* Hero Main Food Photo - Clean transparent showcase without background box/shadow */}
+            <div className="relative w-full max-w-xl flex items-center justify-center transition-transform hover:scale-105 duration-500">
               <img
-                src="/heroImage.png"
+                src="/heroImage.webp"
                 alt="Fresh Delicacy"
-                className="w-full h-full object-cover"
+                className="w-full h-auto max-h-[460px] object-contain drop-shadow-2xl"
+                loading="eager"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
             </div>
           </div>
         </div>
@@ -655,77 +655,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* =========================================================
-          11. PREMIUM DARK FOOTER
-      ========================================================= */}
-      <footer className="bg-black text-white pt-16 pb-12 border-t border-neutral-800">
-        <div className="max-w-7xl mx-auto px-6 lg:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-12 border-b border-neutral-800">
-            {/* Col 1 Brand */}
-            <div className="md:col-span-2 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center font-black">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <span className="text-lg font-black tracking-tight uppercase">
-                  {settings?.siteName || "DABBA"}
-                </span>
-              </div>
-              <p className="text-xs text-neutral-400 max-w-sm leading-relaxed">
-                {settings?.businessAddress || "Law Gate, Near LPU, Phagwara, Punjab"}. Bringing authentic flavors, fresh local ingredients, and unforgettable dining experiences directly to you.
-              </p>
-            </div>
-
-            {/* Col 2 Menu */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">
-                Explore
-              </h4>
-              <ul className="space-y-2 text-xs text-neutral-300">
-                <li><Link to="/customer/menu" className="hover:text-white transition-colors">Burgers</Link></li>
-                <li><Link to="/customer/menu" className="hover:text-white transition-colors">Juices & Fresh</Link></li>
-                <li><Link to="/customer/menu" className="hover:text-white transition-colors">Cheesy Items</Link></li>
-                <li><Link to="/customer/menu" className="hover:text-white transition-colors">Crispy Wraps</Link></li>
-              </ul>
-            </div>
-
-            {/* Col 3 Company */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">
-                Company
-              </h4>
-              <ul className="space-y-2 text-xs text-neutral-300">
-                <li><a href="#how-it-works" className="hover:text-white transition-colors">About Us</a></li>
-                <li><Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><a href="#faqs" className="hover:text-white transition-colors">FAQ</a></li>
-                <li><Link to="/customer/login" className="hover:text-white transition-colors">Customer Portal</Link></li>
-              </ul>
-            </div>
-
-            {/* Col 4 Contact */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">
-                Contact
-              </h4>
-              <ul className="space-y-2 text-xs text-neutral-300">
-                <li>{settings?.contactPhone || "+91 7696482938"}</li>
-                <li>{settings?.contactEmail || "contact@thetiptop.in"}</li>
-                <li>Phagwara, Punjab, India</li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-500 gap-4">
-            <p>© {new Date().getFullYear()} {settings?.siteName || "DABBA"}. All rights reserved.</p>
-            <div className="flex items-center gap-6">
-              <span>Developed with ❤️ for food lovers</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+{/* Standard Unified Customer Footer */}
+      <CustomerFooter />
 
       {/* Variant Selection Modal (Half/Full / Portion Selector) */}
       <VariantSelectionModal

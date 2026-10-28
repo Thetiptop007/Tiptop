@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 export const CustomerFooter: React.FC = () => {
   return (
-    <footer className="bg-neutral-950 text-white pt-16 pb-12 border-t border-burgundy/40 mt-20">
+    <footer className="bg-neutral-950 text-white pt-16 pb-12 border-t border-burgundy/40 mt-16 sm:mt-20">
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-12 border-b border-neutral-800">
           {/* Brand */}
@@ -16,7 +16,7 @@ export const CustomerFooter: React.FC = () => {
               />
             </Link>
             <p className="text-xs text-neutral-400 max-w-sm leading-relaxed">
-              Law Gate, Near LPU, Phagwara, Punjab. Bringing authentic flavors, fresh local ingredients, and fast hot food delivered right to your place.
+              Law Gate, Near LPU, Phagwara, Punjab. Bringing authentic flavors, fresh local ingredients, and fast hot food delivered right to your doorstep.
             </p>
           </div>
 
@@ -40,8 +40,8 @@ export const CustomerFooter: React.FC = () => {
             </h4>
             <ul className="space-y-2 text-xs text-neutral-300">
               <li><Link to="/" className="hover:text-white transition-colors">Home</Link></li>
+              <li><Link to="/customer/menu" className="hover:text-white transition-colors">Our Menu</Link></li>
               <li><Link to="/customer/orders" className="hover:text-white transition-colors">Track Orders</Link></li>
-              <li><Link to="/customer/profile" className="hover:text-white transition-colors">My Profile</Link></li>
               <li><Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
@@ -51,23 +51,45 @@ export const CustomerFooter: React.FC = () => {
             <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-4">
               Contact Us
             </h4>
-            <ul className="space-y-2 text-xs text-neutral-300">
-              <li>+91 7696482938</li>
-              <li>contact@thetiptop.in</li>
-              <li>Open Daily 11 AM - 11 PM</li>
+            <ul className="space-y-2.5 text-xs text-neutral-300">
+              <li>
+                <a href="tel:+917696482938" className="hover:text-white transition-colors flex items-center gap-2">
+                  <span>📞</span> +91 7696482938
+                </a>
+              </li>
+              <li>
+                <a href="mailto:thetiptop007@gmail.com" className="hover:text-white transition-colors flex items-center gap-2">
+                  <span>✉️</span> thetiptop007@gmail.com
+                </a>
+              </li>
+              <li className="text-neutral-400 flex items-center gap-2">
+                <span>📍</span> Law Gate, Phagwara, Punjab
+              </li>
+              <li className="text-neutral-400 flex items-center gap-2">
+                <span>⏰</span> Open Daily 11 AM - 11 PM
+              </li>
             </ul>
           </div>
         </div>
 
         {/* Bottom */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-500 gap-4">
-          <p>© {new Date().getFullYear()} TipTop Restaurant. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <span>Fresh • Fast • Delicious</span>
+          <p>© {new Date().getFullYear()} Thé Tip Top Restaurant. All rights reserved.</p>
+          <div className="flex items-center gap-3">
+            <span>Crafted with ❤️ by</span>
+            <a
+              href="https://naitik.work"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-neutral-300 hover:text-white transition-colors underline decoration-burgundy underline-offset-4"
+            >
+              naitik.work
+            </a>
           </div>
         </div>
       </div>
     </footer>
   );
 };
+
 export default CustomerFooter;
