@@ -91,11 +91,27 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
           setIsAddingNewAddress(true);
         }
 
-        if (customer) {
-          const ph = typeof customer.phone === 'string' ? customer.phone : customer.phone?.number;
-          if (ph && !ph.startsWith('deleted_')) {
-            setContactPhone(ph);
+        // Auto-fill contact phone from customer profile if available
+        let userPhone = typeof customer?.phone === 'string' ? customer.phone : customer?.phone?.number;
+        if (!userPhone || userPhone.startsWith('deleted_')) {
+          try {
+            const meRes = await apiRequest('/auth/customer/me');
+            const meData = await meRes.json();
+            if (meData?.data?.user?.phone) {
+              const fetchedPhone = typeof meData.data.user.phone === 'string'
+                ? meData.data.user.phone
+                : meData.data.user.phone.number;
+              if (fetchedPhone && !fetchedPhone.startsWith('deleted_')) {
+                userPhone = fetchedPhone;
+              }
+            }
+          } catch (e) {
+            // ignore network err
           }
+        }
+
+        if (userPhone && !userPhone.startsWith('deleted_')) {
+          setContactPhone(userPhone.replace(/[^\d]/g, ''));
         }
       } catch (err) {
         logger.warn('Could not load checkout data', { err });
@@ -103,7 +119,7 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
     };
 
     loadData();
-  }, [isOpen, isAuthenticated, navigate, onClose]);
+  }, [isOpen, isAuthenticated, customer, navigate, onClose]);
 
   if (!isOpen) return null;
 
