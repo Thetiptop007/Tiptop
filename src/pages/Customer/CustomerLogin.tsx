@@ -321,6 +321,21 @@ export default function CustomerLogin() {
         onClose={() => setShowForgotPasswordModal(false)}
         defaultEmail={email}
       />
+
+      {/* Complete Profile Modal for Google Sign-In */}
+      <CompleteProfileModal
+        isOpen={showCompleteProfileModal}
+        userName={typeof pendingUser?.name === 'object' ? pendingUser?.name?.first : pendingUser?.name || 'Customer'}
+        userEmail={typeof pendingUser?.email === 'object' ? pendingUser?.email?.address : pendingUser?.email}
+        onSuccess={(_phone) => {
+          setShowCompleteProfileModal(false);
+          navigate(from, { replace: true });
+        }}
+        onClose={() => {
+          setShowCompleteProfileModal(false);
+          navigate(from, { replace: true });
+        }}
+      />
     </div>
   );
 }
