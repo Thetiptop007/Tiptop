@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 
 interface GoogleAuthButtonProps {
@@ -14,7 +14,24 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   text = 'continue_with',
   disabled = false,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(380);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        const measured = Math.floor(containerRef.current.getBoundingClientRect().width);
+        // Google GSI button width accepts between 200 and 400
+        const clamped = Math.min(400, Math.max(200, measured));
+        setContainerWidth(clamped);
+      }
+    };
+
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   if (!clientId || clientId.trim() === '') {
     return (
@@ -48,7 +65,12 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   }
 
   return (
-    <div className={`w-full flex justify-center items-center overflow-hidden [&>div]:!w-full [&>div>iframe]:!w-full ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div
+      ref={containerRef}
+      className={`w-full flex justify-center items-center overflow-hidden [&>div]:!w-full [&>div>iframe]:!w-full [&>div>iframe]:!min-w-full ${
+        disabled ? 'opacity-50 pointer-events-none' : ''
+      }`}
+    >
       <GoogleLogin
         onSuccess={(credentialResponse) => {
           if (credentialResponse.credential) {
@@ -64,9 +86,10 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         shape="rectangular"
         theme="outline"
         size="large"
-        width="380"
+        width={String(containerWidth)}
       />
     </div>
   );
 };
+
 export default GoogleAuthButton;
