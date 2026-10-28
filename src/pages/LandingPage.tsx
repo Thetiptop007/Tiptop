@@ -6,6 +6,7 @@ import { usePopularItemsQuery, usePublicBootstrap, useCategoriesQuery } from "..
 import { QueryBoundary } from "../components/common/QueryBoundary";
 import StandardHeader from "../components/common/StandardHeader";
 import VariantSelectionModal from "../components/customer/VariantSelectionModal";
+import CustomerFooter from "../components/common/CustomerFooter";
 
 // Curated Category Icons & Visuals matching the design
 const CATEGORY_ITEMS = [
