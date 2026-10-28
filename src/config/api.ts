@@ -443,6 +443,18 @@ export const apiRequest = async (
       bodyJson = null;
     }
 
+    // Automatically synchronize CSRF token and access token if returned in response body
+    if (bodyJson?.data && authScope) {
+      const responseCsrfToken = extractCsrfToken(bodyJson);
+      if (responseCsrfToken) {
+        setCsrfToken(authScope, responseCsrfToken);
+      }
+      const responseAccessToken = bodyJson.data?.tokens?.accessToken || bodyJson.data?.accessToken;
+      if (responseAccessToken) {
+        setAccessToken(authScope, responseAccessToken);
+      }
+    }
+
     // Some backend endpoints return 200 but include a body.code indicating 401/403.
     // Treat those as authorization failures and force logout + redirect.
     const backendCode = bodyJson?.code ?? bodyJson?.statusCode ?? null;

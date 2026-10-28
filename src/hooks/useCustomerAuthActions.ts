@@ -54,7 +54,10 @@ export function useCustomerAuthActions() {
         registerFcmToken().catch(() => logger.warn('FCM registration failed after login'));
         
         // Inject user into coordinator immediately so CustomerAuthContext resolves instantly
-        markCustomerAuthenticated(response.data.user);
+        markCustomerAuthenticated(response.data.user, {
+          accessToken: response.data.tokens?.accessToken,
+          csrfToken: response.data.tokens?.csrfToken || (response.data as any)?.csrfToken,
+        });
         
         broadcastAuthStateChange('customer', 'login');
         authStore.setState({ isAppReady: true }); // Set to true since we just manually hydrated!
@@ -94,7 +97,10 @@ export function useCustomerAuthActions() {
         registerFcmToken().catch(() => logger.warn('FCM registration failed after signup'));
         
         // Inject user into coordinator immediately so CustomerAuthContext resolves instantly
-        markCustomerAuthenticated(response.data.user);
+        markCustomerAuthenticated(response.data.user, {
+          accessToken: response.data.tokens?.accessToken,
+          csrfToken: response.data.tokens?.csrfToken || (response.data as any)?.csrfToken,
+        });
 
         broadcastAuthStateChange('customer', 'login');
         authStore.setState({ isAppReady: true }); // Set to true since we just manually hydrated!
@@ -134,7 +140,10 @@ export function useCustomerAuthActions() {
       if (response.status === 'success' && response.data.user) {
         registerFcmToken().catch(() => logger.warn('FCM registration failed after Google login'));
         
-        markCustomerAuthenticated(response.data.user);
+        markCustomerAuthenticated(response.data.user, {
+          accessToken: response.data.tokens?.accessToken,
+          csrfToken: response.data.tokens?.csrfToken || (response.data as any)?.csrfToken,
+        });
         broadcastAuthStateChange('customer', 'login');
         authStore.setState({ isAppReady: true });
         return { success: true, message: response.message || 'Login successful', user: response.data.user };
