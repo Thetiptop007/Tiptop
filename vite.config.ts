@@ -20,7 +20,7 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('apexcharts') || id.includes('react-apexcharts')) {
-              return 'vendor-charts';
+              return 'vendor-react';
             }
             if (id.includes('@fullcalendar')) {
               return 'vendor-calendar';
