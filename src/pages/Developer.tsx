@@ -11,8 +11,7 @@ const Developer = () => {
   const [dbStats, setDbStats] = useState<any>(null);
   const [config, setConfig] = useState<any>(null);
 
-  const token = getAccessToken('admin');
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   // MongoDB Atlas Free Tier Limit (512MB)
   const MONGODB_LIMIT_BYTES = 512 * 1024 * 1024; // 536870912 bytes
