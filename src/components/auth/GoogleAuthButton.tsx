@@ -64,7 +64,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         shape="rectangular"
         theme="outline"
         size="large"
-        width="100%"
+        width="380"
       />
     </div>
   );
