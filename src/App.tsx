@@ -40,6 +40,7 @@ import SavedAddresses from "./pages/Customer/SavedAddresses";
 import HelpSupport from "./pages/Customer/HelpSupport";
 import CustomerPrivacyPolicy from "./pages/Customer/CustomerPrivacyPolicy";
 import ResetPasswordPage from "./pages/Customer/ResetPasswordPage";
+import VerifyEmailPage from "./pages/Customer/VerifyEmailPage";
 import { AuthProvider } from "./context/AuthContext";
 import { CustomerAuthProvider } from "./context/CustomerAuthContext";
 import { ShopStatusProvider } from "./context/ShopStatusContext";
@@ -154,6 +155,8 @@ function AppRoutes() {
         <Route path="/customer/login" element={<CustomerLogin />} />
         <Route path="/customer/signup" element={<CustomerSignUp />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
+        <Route path="/customer/verify-email/:token" element={<VerifyEmailPage />} />
       </Route>
 
       {/* Customer App - Customer Auth Provider */}

@@ -6,6 +6,7 @@ import ThemeTogglerTwo from '../../components/common/ThemeTogglerTwo';
 import { usePublicBootstrap } from '../../hooks/useAppDataQueries';
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 import ForgotPasswordModal from '../../components/auth/ForgotPasswordModal';
+import CompleteProfileModal from '../../components/auth/CompleteProfileModal';
 
 export default function CustomerLogin() {
   const navigate = useNavigate();
@@ -19,6 +20,8 @@ export default function CustomerLogin() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
+  const [pendingUser, setPendingUser] = useState<any>(null);
 
   // Get redirect path from location state (for redirecting after login)
   const from = (location.state as any)?.from?.pathname || '/customer/menu';
@@ -80,8 +83,19 @@ export default function CustomerLogin() {
     setErrors({});
     try {
       const result = await googleLogin(credential);
-      if (result.success) {
-        navigate(from, { replace: true });
+      if (result.success && result.user) {
+        const hasPhone = Boolean(
+          typeof result.user.phone === 'string'
+            ? result.user.phone
+            : result.user.phone?.number
+        );
+
+        if (!hasPhone || (result.user as any).isProfileComplete === false) {
+          setPendingUser(result.user);
+          setShowCompleteProfileModal(true);
+        } else {
+          navigate(from, { replace: true });
+        }
       } else {
         setErrors({ submit: result.message || 'Google login failed. Please try again.' });
       }

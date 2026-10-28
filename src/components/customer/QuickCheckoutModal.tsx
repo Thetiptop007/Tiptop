@@ -53,6 +53,7 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
   const [newLandmark, setNewLandmark] = useState<string>('');
   const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [contactPhone, setContactPhone] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +90,13 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
         } else {
           setIsAddingNewAddress(true);
         }
+
+        if (customer) {
+          const ph = typeof customer.phone === 'string' ? customer.phone : customer.phone?.number;
+          if (ph && !ph.startsWith('deleted_')) {
+            setContactPhone(ph);
+          }
+        }
       } catch (err) {
         logger.warn('Could not load checkout data', { err });
       }
@@ -101,6 +109,12 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
 
   const handlePlaceOrderInstant = async () => {
     setError(null);
+
+    const cleanContact = contactPhone.replace(/[^\d]/g, '');
+    if (!cleanContact || !/^[6-9]\d{9}$/.test(cleanContact)) {
+      setError('Please provide a valid 10-digit mobile number for delivery contact.');
+      return;
+    }
 
     let finalAddress;
     if (isAddingNewAddress) {
@@ -139,6 +153,7 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
         })),
         deliveryAddress: finalAddress as any,
         paymentMethod: 'COD',
+        contactPhone: cleanContact,
         totalAmount: total,
         deliveryFee,
       };
@@ -205,6 +220,27 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Contact Phone Number */}
+        <div className="py-4 border-b border-neutral-100 dark:border-neutral-800">
+          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
+            Contact Phone (for Rider Delivery) <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-neutral-500 font-medium">
+              +91
+            </span>
+            <input
+              type="tel"
+              maxLength={10}
+              required
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value.replace(/[^\d]/g, ''))}
+              placeholder="10-digit phone number"
+              className="w-full pl-11 pr-4 py-2.5 text-xs rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-white outline-none focus:border-black dark:focus:border-white transition-colors"
+            />
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { useCustomerAuthActions } from '../../hooks/useCustomerAuthActions';
 import GridShape from '../../components/common/GridShape';
 import ThemeTogglerTwo from '../../components/common/ThemeTogglerTwo';
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
+import CompleteProfileModal from '../../components/auth/CompleteProfileModal';
 
 export default function CustomerSignUp() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export default function CustomerSignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
+  const [pendingUser, setPendingUser] = useState<any>(null);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^\S+@\S+\.\S+$/;
@@ -138,12 +141,23 @@ export default function CustomerSignUp() {
     try {
       const result = await googleLogin(credential);
       if (result.success && result.user) {
-        navigate('/customer/menu', {
-          replace: true,
-          state: {
-            message: `Welcome ${typeof result.user.name === 'object' ? (result.user.name as any).first : result.user.name}!`,
-          },
-        });
+        const hasPhone = Boolean(
+          typeof result.user.phone === 'string'
+            ? result.user.phone
+            : result.user.phone?.number
+        );
+
+        if (!hasPhone || (result.user as any).isProfileComplete === false) {
+          setPendingUser(result.user);
+          setShowCompleteProfileModal(true);
+        } else {
+          navigate('/customer/menu', {
+            replace: true,
+            state: {
+              message: `Welcome ${typeof result.user.name === 'object' ? (result.user.name as any).first : result.user.name}!`,
+            },
+          });
+        }
       } else {
         setErrors({ submit: result.message || 'Google signup failed. Please try again.' });
       }
