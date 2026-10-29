@@ -148,3 +148,41 @@ export const toggleBlockCustomer = async (
   const parsedResponse = await parseApiResponse(response);
   return parsedResponse.data.user;
 };
+
+
+export interface BulkOperationResponse {
+  status: string;
+  message: string;
+  data: {
+    matchedCount?: number;
+    modifiedCount?: number;
+    deletedCount?: number;
+    skippedCount?: number;
+  };
+}
+
+export const bulkToggleBlockCustomers = async (
+  userIds: string[],
+  isBlocked: boolean,
+  blockReason?: string
+): Promise<BulkOperationResponse> => {
+  const response = await apiRequest('/users/bulk/block', {
+    method: 'PATCH',
+    body: JSON.stringify({ userIds, isBlocked, blockReason }),
+    timeoutMs: 30000,
+  });
+
+  return parseApiResponse(response);
+};
+
+export const bulkDeleteCustomers = async (
+  userIds: string[]
+): Promise<BulkOperationResponse> => {
+  const response = await apiRequest('/users/bulk/delete', {
+    method: 'POST',
+    body: JSON.stringify({ userIds }),
+    timeoutMs: 30000,
+  });
+
+  return parseApiResponse(response);
+};

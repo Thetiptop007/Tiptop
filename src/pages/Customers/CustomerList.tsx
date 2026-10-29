@@ -8,12 +8,22 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { getCustomers, toggleBlockCustomer, deleteCustomer, Customer } from "../../services/customer.service";
+import Checkbox from "../../components/form/input/Checkbox";
+import {
+  getCustomers,
+  toggleBlockCustomer,
+  deleteCustomer,
+  bulkToggleBlockCustomers,
+  bulkDeleteCustomers,
+  Customer,
+} from "../../services/customer.service";
 import { logger } from "../../utils/logger";
+import { useToast } from "../../context/ToastContext";
 
 type CustomerSortOption = "-createdAt" | "-customerData.totalOrders" | "customerData.totalOrders" | "-customerData.totalSpent" | "customerData.totalSpent";
 
 export default function CustomerList() {
+  const { showToast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCustomerId, setExpandedCustomerId] = useState<string | null>(null);
@@ -25,6 +35,10 @@ export default function CustomerList() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const itemsPerPage = 10;
+
+  // Bulk Selection States
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [isBulkLoading, setIsBulkLoading] = useState(false);
 
   // Helper functions to handle both flat and nested data structures
   const getName = (customer: Customer) => {
@@ -89,11 +103,98 @@ export default function CustomerList() {
         message: error instanceof Error ? error.message : 'Unknown error',
         error,
       });
+      showToast('Failed to load customers', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  // Selection handlers
+  const handleSelectCustomer = (customerId: string, checked: boolean) => {
+    setSelectedCustomerIds((prev) =>
+      checked ? [...prev, customerId] : prev.filter((id) => id !== customerId)
+    );
+  };
+
+  const isAllCurrentPageSelected =
+    customers.length > 0 &&
+    customers.every((c) => selectedCustomerIds.includes(c._id));
+
+  const handleSelectAllCurrentPage = (checked: boolean) => {
+    if (checked) {
+      const currentIds = customers.map((c) => c._id);
+      setSelectedCustomerIds((prev) => Array.from(new Set([...prev, ...currentIds])));
+    } else {
+      const currentIdsSet = new Set(customers.map((c) => c._id));
+      setSelectedCustomerIds((prev) => prev.filter((id) => !currentIdsSet.has(id)));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedCustomerIds([]);
+  };
+
+  // Bulk Actions
+  const handleBulkBlock = async (block: boolean) => {
+    if (selectedCustomerIds.length === 0) return;
+
+    const actionText = block ? 'block' : 'unblock';
+    if (!window.confirm(`Are you sure you want to ${actionText} ${selectedCustomerIds.length} customer(s)?`)) {
+      return;
+    }
+
+    try {
+      setIsBulkLoading(true);
+      const res = await bulkToggleBlockCustomers(
+        selectedCustomerIds,
+        block,
+        block ? 'Bulk blocked by admin' : ''
+      );
+
+      showToast(res.message || `Successfully ${actionText}ed ${selectedCustomerIds.length} customer(s)`, 'success');
+
+      // Update state locally
+      setCustomers((prev) =>
+        prev.map((c) =>
+          selectedCustomerIds.includes(c._id) ? { ...c, isBlocked: block } : c
+        )
+      );
+      setSelectedCustomerIds([]);
+    } catch (error: any) {
+      logger.error('Error during bulk block operation', { error });
+      showToast(error?.message || `Failed to ${actionText} selected customers`, 'error');
+    } finally {
+      setIsBulkLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCustomerIds.length === 0) return;
+
+    if (
+      !window.confirm(
+        `Are you sure you want to permanently delete ${selectedCustomerIds.length} customer(s)? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsBulkLoading(true);
+      const res = await bulkDeleteCustomers(selectedCustomerIds);
+      showToast(res.message || `Successfully deleted ${selectedCustomerIds.length} customer(s)`, 'success');
+
+      setSelectedCustomerIds([]);
+      await fetchCustomers();
+    } catch (error: any) {
+      logger.error('Error during bulk delete operation', { error });
+      showToast(error?.message || 'Failed to delete selected customers', 'error');
+    } finally {
+      setIsBulkLoading(false);
+    }
+  };
+
+  // Individual Actions
   const handleToggleBlock = async (customerId: string, currentlyBlocked: boolean) => {
     try {
       setActionLoadingId(customerId);
@@ -110,8 +211,10 @@ export default function CustomerList() {
             : customer
         )
       );
+      showToast(`Customer successfully ${!currentlyBlocked ? 'blocked' : 'unblocked'}`, 'success');
     } catch (error) {
       logger.error('Error toggling customer block status');
+      showToast('Error updating customer status', 'error');
     } finally {
       setActionLoadingId(null);
     }
@@ -124,11 +227,13 @@ export default function CustomerList() {
         await deleteCustomer(customerId);
         // Optimistically remove from state or re-fetch
         setCustomers((prev) => prev.filter((c) => c._id !== customerId));
+        setSelectedCustomerIds((prev) => prev.filter((id) => id !== customerId));
         setTotalResults((prev) => Math.max(0, prev - 1));
+        showToast('Customer deleted successfully', 'success');
         await fetchCustomers();
       } catch (error: any) {
         logger.error('Error deleting customer', { error });
-        alert(error?.message || 'Failed to delete customer');
+        showToast(error?.message || 'Failed to delete customer', 'error');
       } finally {
         setActionLoadingId(null);
       }
@@ -150,7 +255,7 @@ export default function CustomerList() {
 
   const goToPage = (page: number) => {
     setCurrentPage(page);
-    setExpandedCustomerId(null); // Close expanded row when changing pages
+    setExpandedCustomerId(null);
   };
 
   return (
@@ -162,7 +267,7 @@ export default function CustomerList() {
       <PageBreadcrumb pageTitle="Customer List" />
       
       {/* Search and Filter Section */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Search Bar */}
         <div className="relative flex-1 max-w-md">
           <input
@@ -202,6 +307,51 @@ export default function CustomerList() {
         </div>
       </div>
 
+      {/* Bulk Action Toolbar */}
+      {selectedCustomerIds.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/30 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+              {selectedCustomerIds.length}
+            </span>
+            <span className="text-sm font-medium text-indigo-950 dark:text-indigo-200">
+              {selectedCustomerIds.length === 1 ? '1 customer selected' : `${selectedCustomerIds.length} customers selected`}
+            </span>
+            <button
+              onClick={handleClearSelection}
+              disabled={isBulkLoading}
+              className="ml-2 text-xs text-gray-500 underline hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              Deselect All
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => handleBulkBlock(true)}
+              disabled={isBulkLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-50 disabled:opacity-50 dark:border-orange-800 dark:bg-gray-800 dark:text-orange-400 dark:hover:bg-orange-950/30"
+            >
+              🚫 Block Selected
+            </button>
+            <button
+              onClick={() => handleBulkBlock(false)}
+              disabled={isBulkLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50 dark:border-green-800 dark:bg-gray-800 dark:text-green-400 dark:hover:bg-green-950/30"
+            >
+              ✅ Unblock Selected
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={isBulkLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50 dark:bg-red-700 dark:hover:bg-red-800"
+            >
+              🗑️ Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Results Summary */}
       <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
         {loading ? 'Loading...' : `Showing ${((currentPage - 1) * itemsPerPage) + 1} to ${Math.min(currentPage * itemsPerPage, totalResults)} of ${totalResults} customers`}
@@ -212,6 +362,13 @@ export default function CustomerList() {
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
+                <TableCell isHeader className="w-10 px-4 py-3">
+                  <Checkbox
+                    checked={isAllCurrentPageSelected}
+                    onChange={handleSelectAllCurrentPage}
+                    disabled={loading || customers.length === 0}
+                  />
+                </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
@@ -253,13 +410,13 @@ export default function CustomerList() {
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={7} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                     Loading customers...
                   </TableCell>
                 </TableRow>
               ) : customers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={7} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                     No customers found matching your search criteria.
                   </TableCell>
                 </TableRow>
@@ -268,10 +425,17 @@ export default function CustomerList() {
                   const name = getName(customer);
                   const email = getEmail(customer);
                   const phone = getPhone(customer);
+                  const isSelected = selectedCustomerIds.includes(customer._id);
                   
                   return (
                     <Fragment key={customer._id}>
-                      <TableRow className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                      <TableRow className={`hover:bg-gray-50 dark:hover:bg-white/[0.02] ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''}`}>
+                        <TableCell className="w-10 px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={(checked) => handleSelectCustomer(customer._id, checked)}
+                          />
+                        </TableCell>
                         <TableCell className="px-5 py-4 sm:px-6 text-start">
                           <div className="flex items-center gap-3 cursor-pointer" onClick={() => toggleExpand(customer._id)}>
                             <svg
@@ -326,7 +490,7 @@ export default function CustomerList() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleToggleBlock(customer._id, customer.isBlocked)}
-                              disabled={actionLoadingId === customer._id}
+                              disabled={actionLoadingId === customer._id || isBulkLoading}
                               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                                 customer.isBlocked
                                   ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
@@ -344,7 +508,7 @@ export default function CustomerList() {
                       </TableRow>
                       {expandedCustomerId === customer._id && (
                         <TableRow>
-                          <TableCell colSpan={6} className="px-5 py-4 bg-gray-50 dark:bg-white/[0.02]">
+                          <TableCell colSpan={7} className="px-5 py-4 bg-gray-50 dark:bg-white/[0.02]">
                             <div className="space-y-4">
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {/* Customer Details */}
@@ -396,7 +560,7 @@ export default function CustomerList() {
                               <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
                                 <button 
                                   onClick={() => handleToggleBlock(customer._id, customer.isBlocked)}
-                                  disabled={actionLoadingId === customer._id}
+                                  disabled={actionLoadingId === customer._id || isBulkLoading}
                                   className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                                     customer.isBlocked
                                       ? 'border-green-300 bg-white text-green-600 hover:bg-green-50 dark:border-green-700 dark:bg-gray-800 dark:text-green-400 dark:hover:bg-green-500/10'
@@ -411,7 +575,8 @@ export default function CustomerList() {
                                 </button>
                                 <button 
                                   onClick={() => handleDelete(customer._id)}
-                                  className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-500/10"
+                                  disabled={actionLoadingId === customer._id || isBulkLoading}
+                                  className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-500/10 disabled:opacity-50"
                                 >
                                   Delete Customer
                                 </button>
