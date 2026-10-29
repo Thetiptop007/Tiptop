@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { createOrder, getMyAddresses, Address, CreateOrderData } from '../../services/customer-web.service';
+import { OrderSuccessModal } from './OrderSuccessModal';
 import { getSettings } from '../../services/settings.service';
 import { logger } from '../../utils/logger';
 
@@ -56,6 +57,8 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
   const [contactPhone, setContactPhone] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ message: string; previousOrderNumber?: string } | null>(null);
+  const [confirmedSuccessOrder, setConfirmedSuccessOrder] = useState<any | null>(null);
 
   const subtotal = activeCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const total = subtotal + deliveryFee;
@@ -123,8 +126,9 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handlePlaceOrderInstant = async () => {
+  const handlePlaceOrderInstant = async (allowDuplicate = false) => {
     setError(null);
+    setDuplicateWarning(null);
 
     const cleanContact = contactPhone.replace(/[^\d]/g, '');
     if (!cleanContact || !/^[6-9]\d{9}$/.test(cleanContact)) {
@@ -172,6 +176,7 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
         contactPhone: cleanContact,
         totalAmount: total,
         deliveryFee,
+        allowDuplicate,
       };
 
       const order = await createOrder(orderPayload);
@@ -191,18 +196,39 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
         }
       }
 
-      if (onOrderPlaced) {
-        onOrderPlaced();
-      } else {
-        onClose();
-        navigate(`/customer/orders/${order._id}`);
-      }
+      // Show clear order confirmation modal
+      setConfirmedSuccessOrder(order);
     } catch (err: any) {
-      setError(err?.message || 'Failed to place order. Please try again.');
+      if (err?.isDuplicateWarning) {
+        setDuplicateWarning({
+          message: err.message,
+          previousOrderNumber: err.duplicateData?.previousOrderNumber,
+        });
+      } else {
+        setError(err?.message || 'Failed to place order. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (confirmedSuccessOrder) {
+    return (
+      <OrderSuccessModal
+        isOpen={true}
+        order={confirmedSuccessOrder}
+        onClose={() => {
+          setConfirmedSuccessOrder(null);
+          if (onOrderPlaced) {
+            onOrderPlaced();
+          } else {
+            onClose();
+            navigate("/customer/orders");
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
@@ -367,18 +393,48 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
             <span className="text-base font-extrabold">₹{total.toFixed(0)}</span>
           </div>
 
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={handlePlaceOrderInstant}
-            className="w-full mt-4 py-4 rounded-full bg-burgundy hover:bg-burgundy-600 text-white font-bold text-sm transition-all shadow-md active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {submitting ? (
-              <span>Placing Order...</span>
-            ) : (
-              <span>Confirm & Place Order (₹{total.toFixed(0)}) →</span>
-            )}
-          </button>
+          {duplicateWarning ? (
+            <div className="mt-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs space-y-3">
+              <div className="flex items-start gap-2">
+                <span className="text-base">⚠️</span>
+                <div>
+                  <p className="font-extrabold text-sm text-amber-950 dark:text-amber-100">Duplicate Order Notice</p>
+                  <p className="mt-0.5 text-neutral-600 dark:text-neutral-300">{duplicateWarning.message}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handlePlaceOrderInstant(true)}
+                  className="flex-1 py-2.5 rounded-xl bg-burgundy text-white font-bold text-xs hover:bg-burgundy-600 transition-all shadow-xs"
+                >
+                  {submitting ? "Placing..." : "Yes, Place Order Again"}
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => { setDuplicateWarning(null); onClose(); navigate("/customer/orders"); }}
+                  className="flex-1 py-2.5 rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 font-bold text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 transition-all"
+                >
+                  View My Order
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => handlePlaceOrderInstant(false)}
+              className="w-full mt-4 py-4 rounded-full bg-burgundy hover:bg-burgundy-600 text-white font-bold text-sm transition-all shadow-md active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <span>Placing Order...</span>
+              ) : (
+                <span>Confirm & Place Order (₹{total.toFixed(0)}) →</span>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -153,6 +153,8 @@ export interface CreateOrderData {
   totalAmount: number;
   deliveryFee: number;
   tip?: number;
+  contactPhone?: string;
+  allowDuplicate?: boolean;
   // Guest order fields
   customerName?: string;
   customerPhone?: string;
@@ -420,6 +422,14 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
     
     if (data.status === 'success' && data.data?.order) {
       return data.data.order;
+    }
+
+    // Handle duplicate order confirmation warning
+    if (data.status === 'duplicate_warning') {
+      const dupErr: any = new Error(data.message);
+      dupErr.isDuplicateWarning = true;
+      dupErr.duplicateData = data.data;
+      throw dupErr;
     }
     
     // Handle validation errors with details
