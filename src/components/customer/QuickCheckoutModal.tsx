@@ -43,7 +43,7 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
   onOrderPlaced,
 }) => {
   const navigate = useNavigate();
-  const { customer, isAuthenticated } = useCustomerAuth();
+  const { customer, isAuthenticated, refreshProfile } = useCustomerAuth();
   const activeCart = cart || cartItems || [];
 
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -179,6 +179,17 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
       // Clear Cart
       localStorage.removeItem('cart');
       window.dispatchEvent(new Event('cartUpdated'));
+
+      // If customer did not previously have a phone in profile, refresh their profile
+      // to immediately reflect the phone that was auto-linked during order creation
+      const currentPhone = typeof customer?.phone === 'string' ? customer.phone : customer?.phone?.number;
+      if (!currentPhone || currentPhone.startsWith('deleted_')) {
+        try {
+          await refreshProfile();
+        } catch (e) {
+          // Non-blocking
+        }
+      }
 
       if (onOrderPlaced) {
         onOrderPlaced();
