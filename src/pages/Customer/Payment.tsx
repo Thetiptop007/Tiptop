@@ -154,7 +154,7 @@ export default function Payment() {
       localStorage.removeItem('cart');
       window.dispatchEvent(new Event('cartUpdated'));
       
-      navigate(`/customer/orders/${order._id}`);
+      navigate('/customer/orders', { replace: true });
     } catch (error: any) {
       logger.error('Error creating order', { error });
       alert(error.message || 'Failed to place order');
