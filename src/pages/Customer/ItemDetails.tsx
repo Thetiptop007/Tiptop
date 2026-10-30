@@ -288,10 +288,6 @@ export default function ItemDetails() {
                       image: item.image,
                     },
                   ]}
-                  onOrderPlaced={() => {
-                    setQuickCheckoutOpen(false);
-                    navigate('/customer/orders');
-                  }}
                 />
               </>
             );

@@ -58,7 +58,7 @@ export default function Cart() {
     setQuickCheckoutOpen(true);
   };
 
-  if (cart.length === 0) {
+  if (cart.length === 0 && !quickCheckoutOpen) {
     return (
       <div className="min-h-[75vh] bg-[#F6F5F2] flex items-center justify-center p-6 font-sans">
         <div className="text-center max-w-sm bg-white p-10 rounded-3xl border border-neutral-200/90 shadow-2xs">
@@ -233,10 +233,6 @@ export default function Cart() {
         isOpen={quickCheckoutOpen}
         onClose={() => setQuickCheckoutOpen(false)}
         cart={cart}
-        onOrderPlaced={() => {
-          setQuickCheckoutOpen(false);
-          navigate("/customer/orders");
-        }}
       />
     </div>
   );

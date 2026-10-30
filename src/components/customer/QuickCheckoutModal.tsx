@@ -196,14 +196,8 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
         }
       }
 
-      // Immediately navigate to /customer/orders page
-      if (onOrderPlaced) {
-        onOrderPlaced();
-      } else {
-        navigate('/customer/orders', { replace: true, state: { newOrderPlaced: true, orderId: order._id } });
-      }
-
-      onClose();
+      // Show clear order confirmation modal with items, delivery info and buttons
+      setConfirmedSuccessOrder(order);
     } catch (err: any) {
       if (err?.isDuplicateWarning) {
         setDuplicateWarning({
@@ -229,7 +223,6 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
           if (onOrderPlaced) {
             onOrderPlaced();
           }
-          navigate("/customer/orders");
         }}
       />
     );
