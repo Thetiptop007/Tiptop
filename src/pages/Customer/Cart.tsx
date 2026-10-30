@@ -49,12 +49,6 @@ export default function Cart() {
   const totalItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleStartCheckout = () => {
-    if (!isAuthenticated) {
-      navigate('/customer/login', {
-        state: { from: { pathname: '/customer/cart' } },
-      });
-      return;
-    }
     setQuickCheckoutOpen(true);
   };
 

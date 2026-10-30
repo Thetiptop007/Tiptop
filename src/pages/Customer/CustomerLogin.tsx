@@ -129,13 +129,43 @@ export default function CustomerLogin() {
           </div>
           <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
             <div>
-              <div className="mb-5 sm:mb-8">
-                <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-                  Sign In to Your Account
+              <div className="mb-6 text-center sm:text-left">
+                <span className="inline-block px-3 py-1 mb-2 text-xs font-bold uppercase tracking-wider text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-400 rounded-full">
+                  Fast & Easy Ordering
+                </span>
+                <h1 className="mb-2 font-extrabold text-gray-900 text-2xl dark:text-white sm:text-3xl">
+                  Order Delicious Food
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Login with your email to order your favorite food
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  No account required! You can place your order instantly as a guest.
                 </p>
+              </div>
+
+              {/* Primary Guest Order CTA Button */}
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={() => navigate('/customer/menu')}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-4 text-base font-bold text-white transition-all transform bg-gradient-to-r from-burgundy to-amber-700 hover:from-burgundy-600 hover:to-amber-800 rounded-xl shadow-lg hover:shadow-xl active:scale-[0.99] cursor-pointer"
+                >
+                  <span className="text-xl">🍔</span>
+                  <span>Place Order as Guest →</span>
+                </button>
+                <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+                  Directly choose dishes and checkout with your phone & delivery address
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase tracking-wider">
+                  <span className="px-3 text-gray-400 bg-white dark:bg-gray-900">
+                    Or Sign In If You Prefer
+                  </span>
+                </div>
               </div>
 
               {/* Error Message */}

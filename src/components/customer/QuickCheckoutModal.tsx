@@ -47,6 +47,7 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
   const { customer, isAuthenticated, refreshProfile } = useCustomerAuth();
   const activeCart = cart || cartItems || [];
 
+  const [customerName, setCustomerName] = useState<string>('');
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [newArea, setNewArea] = useState<string>('Law Gate');
@@ -66,19 +67,16 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    if (!isAuthenticated) {
-      onClose();
-      navigate('/customer/login', {
-        state: { from: { pathname: '/customer/menu' } },
-      });
-      return;
+    // Prefill customer name if logged in
+    if (customer?.name) {
+      setCustomerName(customer.name);
     }
 
     const loadData = async () => {
       try {
         const [setts, addrs] = await Promise.all([
           getSettings(),
-          getMyAddresses().catch(() => [] as Address[]),
+          isAuthenticated ? getMyAddresses().catch(() => [] as Address[]) : Promise.resolve([] as Address[]),
         ]);
 
         if (setts?.delivery?.fee) {
@@ -96,7 +94,7 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
 
         // Auto-fill contact phone from customer profile if available
         let userPhone = typeof customer?.phone === 'string' ? customer.phone : customer?.phone?.number;
-        if (!userPhone || userPhone.startsWith('deleted_')) {
+        if ((!userPhone || userPhone.startsWith('deleted_')) && isAuthenticated) {
           try {
             const meRes = await apiRequest('/auth/customer/me');
             const meData = await meRes.json();
@@ -122,7 +120,7 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
     };
 
     loadData();
-  }, [isOpen, isAuthenticated, customer, navigate, onClose]);
+  }, [isOpen, isAuthenticated, customer, onClose]);
 
   if (!isOpen) return null;
 
@@ -174,6 +172,7 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
         deliveryAddress: finalAddress as any,
         paymentMethod: 'COD',
         contactPhone: cleanContact,
+        customerName: customerName.trim() || undefined,
         totalAmount: total,
         deliveryFee,
         allowDuplicate,
@@ -272,6 +271,20 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Customer Name */}
+        <div className="py-4 border-b border-neutral-100 dark:border-neutral-800">
+          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
+            Your Name
+          </label>
+          <input
+            type="text"
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            placeholder="e.g. Rahul Sharma"
+            className="w-full px-4 py-2.5 text-xs rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-white outline-none focus:border-black dark:focus:border-white transition-colors"
+          />
         </div>
 
         {/* Contact Phone Number */}
