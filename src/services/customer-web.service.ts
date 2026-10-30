@@ -403,18 +403,17 @@ export const searchMenu = async (query: string, limit: number = 50): Promise<Men
  */
 export const createOrder = async (orderData: CreateOrderData): Promise<Order> => {
   try {
-    // Enforce authenticated customer only
     const customerToken = getAccessToken('customer');
-    if (!customerToken) {
-      throw new Error('Authentication required. Please log in to place an order.');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (customerToken) {
+      headers['Authorization'] = `Bearer ${customerToken}`;
     }
 
     const response = await apiRequest('/orders', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${customerToken}`
-      },
+      headers,
       body: JSON.stringify(orderData),
     });
     
