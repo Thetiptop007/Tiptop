@@ -184,14 +184,15 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
       localStorage.removeItem('cart');
       window.dispatchEvent(new Event('cartUpdated'));
 
-      // If customer did not previously have a phone in profile, refresh their profile
-      // to immediately reflect the phone that was auto-linked during order creation
-      const currentPhone = typeof customer?.phone === 'string' ? customer.phone : customer?.phone?.number;
-      if (!currentPhone || currentPhone.startsWith('deleted_')) {
-        try {
-          await refreshProfile();
-        } catch (e) {
-          // Non-blocking
+      // If authenticated customer did not previously have a phone in profile, refresh their profile
+      if (isAuthenticated) {
+        const currentPhone = typeof customer?.phone === 'string' ? customer.phone : customer?.phone?.number;
+        if (!currentPhone || currentPhone.startsWith('deleted_')) {
+          try {
+            await refreshProfile();
+          } catch (e) {
+            // Non-blocking
+          }
         }
       }
 

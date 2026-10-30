@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { formatOrderNumberForDisplay } from '../../utils/orderNumber';
 
 interface OrderSuccessModalProps {
@@ -14,17 +15,24 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
   onClose,
 }) => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useCustomerAuth();
   if (!isOpen || !order) return null;
 
   const orderNum = order.orderNumber ? formatOrderNumberForDisplay(order.orderNumber) : '';
   const total = order.totalAmount || order.pricing?.finalAmount || 0;
   const area = order.deliveryAddress?.area || 'Delivery address';
   const addressLine = order.deliveryAddress?.addressLine || '';
+  const customerName = order.customer?.name || '';
+  const customerPhone = order.customer?.phone || '';
   const items = order.items || [];
 
   const handleTrackOrders = () => {
     onClose();
-    navigate('/customer/orders');
+    if (isAuthenticated) {
+      navigate('/customer/orders');
+    } else {
+      navigate('/customer/menu');
+    }
   };
 
   const handleBackToMenu = () => {
@@ -56,6 +64,16 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
         {/* Order Details Brief Card */}
         <div className="mt-5 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-100 dark:border-neutral-750 text-left text-xs space-y-2.5">
+          {/* Customer Snapshot */}
+          {(customerName || customerPhone) && (
+            <div className="flex justify-between font-medium text-neutral-600 dark:text-neutral-400 pb-2 border-b border-neutral-200/60 dark:border-neutral-700">
+              <span>Customer:</span>
+              <span className="font-bold text-neutral-900 dark:text-white text-right">
+                {customerName} {customerPhone ? `(${customerPhone})` : ''}
+              </span>
+            </div>
+          )}
+
           {/* Items Summary */}
           {items.length > 0 && (
             <div>
@@ -101,20 +119,30 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
         {/* Action Buttons */}
         <div className="mt-6 space-y-2.5">
-          <button
-            type="button"
-            onClick={handleTrackOrders}
-            className="w-full py-3.5 px-6 rounded-full bg-burgundy hover:bg-burgundy-600 text-white font-extrabold text-xs sm:text-sm tracking-wide transition-all shadow-md active:scale-98 flex items-center justify-center gap-2"
-          >
-            <span>Track Order in My Orders →</span>
-          </button>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              onClick={handleTrackOrders}
+              className="w-full py-3.5 px-6 rounded-full bg-burgundy hover:bg-burgundy-600 text-white font-extrabold text-xs sm:text-sm tracking-wide transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Track Order in My Orders →</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleBackToMenu}
+              className="w-full py-3.5 px-6 rounded-full bg-burgundy hover:bg-burgundy-600 text-white font-extrabold text-xs sm:text-sm tracking-wide transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Back to Menu / Order More →</span>
+            </button>
+          )}
 
           <button
             type="button"
-            onClick={handleBackToMenu}
-            className="w-full py-2.5 px-4 rounded-full text-xs font-bold text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
+            onClick={onClose}
+            className="w-full py-2.5 px-4 rounded-full text-xs font-bold text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
           >
-            Back to Menu
+            Close Receipt
           </button>
         </div>
       </div>
