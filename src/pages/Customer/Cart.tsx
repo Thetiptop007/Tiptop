@@ -233,6 +233,10 @@ export default function Cart() {
         isOpen={quickCheckoutOpen}
         onClose={() => setQuickCheckoutOpen(false)}
         cart={cart}
+        onOrderPlaced={() => {
+          setQuickCheckoutOpen(false);
+          navigate("/customer/orders");
+        }}
       />
     </div>
   );

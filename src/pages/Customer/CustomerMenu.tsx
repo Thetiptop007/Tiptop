@@ -325,6 +325,10 @@ export default function CustomerMenu() {
         isOpen={quickCheckoutOpen}
         onClose={() => setQuickCheckoutOpen(false)}
         cart={directCheckoutCart}
+        onOrderPlaced={() => {
+          setQuickCheckoutOpen(false);
+          navigate("/customer/orders");
+        }}
       />
 
       {/* Variant Selection Modal (Half/Full / Portion Selector) */}

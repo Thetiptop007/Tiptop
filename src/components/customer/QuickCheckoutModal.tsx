@@ -219,12 +219,11 @@ export const QuickCheckoutModal: React.FC<QuickCheckoutModalProps> = ({
         order={confirmedSuccessOrder}
         onClose={() => {
           setConfirmedSuccessOrder(null);
+          onClose();
           if (onOrderPlaced) {
             onOrderPlaced();
-          } else {
-            onClose();
-            navigate("/customer/orders");
           }
+          navigate("/customer/orders");
         }}
       />
     );
